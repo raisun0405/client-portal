@@ -21,6 +21,7 @@ type Feature = {
     description: string;
     estimation: string;
     amount: number;
+    paid_amount: number;
     status: string;
     payment_status: string;
     is_new_request: boolean;
@@ -79,9 +80,7 @@ export default function DashboardPage() {
             const enhancedProjects: ProjectWithStats[] = projectsData.map(project => {
                 const projectFeatures = featuresData?.filter(f => f.project_id === project.id) || [];
                 const total = projectFeatures.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
-                const paid = projectFeatures
-                    .filter(f => f.payment_status === 'Paid')
-                    .reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+                const paid = projectFeatures.reduce((sum, f) => sum + (Number(f.paid_amount) || 0), 0);
 
                 // Progress Calculation
                 const totalFeatures = projectFeatures.length;
@@ -354,10 +353,17 @@ export default function DashboardPage() {
                                                             </span>
                                                         </td>
                                                         <td className="px-6 py-4">
-                                                            <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${feature.payment_status === 'Paid' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                                                            <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${feature.payment_status === 'Paid' ? 'bg-green-50 text-green-700' :
+                                                                feature.payment_status === 'Partial' ? 'bg-blue-50 text-blue-700' :
+                                                                    'bg-red-50 text-red-700'
                                                                 }`}>
                                                                 {feature.payment_status}
                                                             </span>
+                                                            {(feature.paid_amount || 0) > 0 && (
+                                                                <div className="text-[10px] text-slate-500 mt-1 font-mono">
+                                                                    ₹{feature.paid_amount} / ₹{feature.amount}
+                                                                </div>
+                                                            )}
                                                         </td>
                                                     </tr>
                                                 ))}
