@@ -5,8 +5,8 @@ import "./globals.css";
 const outfit = Outfit({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Aesthetic Client Portal",
-  description: "Exclusive access to your project implementation details.",
+  title: "My Project Portal",
+  description: "Track your project progress, features, and financials in real-time.",
 };
 
 export default function RootLayout({
