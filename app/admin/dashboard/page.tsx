@@ -44,6 +44,8 @@ type ProjectWithStats = Project & {
         paid: number;
         pending: number;
         progress: number;
+        totalFeatures: number;
+        completedFeatures: number;
     };
 };
 
@@ -126,7 +128,9 @@ export default function AdminDashboard() {
                         total,
                         paid,
                         pending: total - paid,
-                        progress
+                        progress,
+                        totalFeatures,
+                        completedFeatures
                     }
                 };
             });
@@ -465,14 +469,20 @@ export default function AdminDashboard() {
                                                 <span className={`text-xs font-medium px-2 py-0.5 rounded ${project.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{project.status}</span>
                                             </div>
                                             {/* Progress Bar */}
-                                            <div className="mt-3 w-48">
-                                                <div className="flex justify-between text-xs text-slate-500 mb-1">
-                                                    <span>Progress</span>
-                                                    <span>{project.stats.progress}%</span>
+                                            <div className="mt-4 w-full max-w-[240px]">
+                                                <div className="flex justify-between items-end text-xs mb-1.5">
+                                                    <span className="text-slate-500 font-medium">Progress</span>
+                                                    <div className="text-right">
+                                                        <span className="font-bold text-slate-700 block">{project.stats.progress}%</span>
+                                                        <span className="text-[10px] text-slate-400 font-normal">
+                                                            {project.stats.completedFeatures}/{project.stats.totalFeatures} tasks
+                                                        </span>
+                                                    </div>
                                                 </div>
-                                                <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                                                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
                                                     <div
-                                                        className="h-full bg-blue-500 rounded-full transition-all duration-500"
+                                                        className={`h-full rounded-full transition-all duration-700 ease-out ${project.stats.progress === 100 ? 'bg-green-500' : 'bg-blue-500'
+                                                            }`}
                                                         style={{ width: `${project.stats.progress}%` }}
                                                     />
                                                 </div>
