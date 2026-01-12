@@ -324,7 +324,8 @@ export default function AdminDashboard() {
         const paidAmount = Number(formData.paid_amount) || 0;
 
         let paymentStatus = 'Pending';
-        if (paidAmount >= amount && amount > 0) paymentStatus = 'Paid';
+        if (amount === 0) paymentStatus = 'Paid';
+        else if (paidAmount >= amount) paymentStatus = 'Paid';
         else if (paidAmount > 0) paymentStatus = 'Partial';
 
         const payload = {
