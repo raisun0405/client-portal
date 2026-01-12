@@ -624,11 +624,11 @@ export default function AdminDashboard() {
                                     <div className="space-y-3">
                                         <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-1">Client Name</label>
-                                            <input value={formData.name || ''} placeholder="e.g. Varun Khandelwal" className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, name: e.target.value })} />
+                                            <input value={formData.name || ''} placeholder="Enter client name" className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, name: e.target.value })} />
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-1">Access Key (Unique ID)</label>
-                                            <input value={formData.access_key || ''} placeholder="e.g. varun-khandelwal-8076" className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, access_key: e.target.value })} />
+                                            <input value={formData.access_key || ''} placeholder="Enter unique access key" className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, access_key: e.target.value })} />
                                         </div>
                                     </div>
                                 )}
