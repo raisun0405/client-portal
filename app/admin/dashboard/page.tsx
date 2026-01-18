@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Users, Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut } from 'lucide-react';
+import { Users, Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut, ArrowUp, ArrowDown, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // --- Types ---
@@ -35,7 +35,12 @@ type Feature = {
     status: string;
     payment_status: string;
     is_new_request: boolean;
+    created_at: string;
 };
+
+// Sorting types
+type SortField = 'amount' | 'status' | 'created_at';
+type SortOrder = 'asc' | 'desc';
 
 // Enhanced Project type with calculated stats
 type ProjectWithStats = Project & {
@@ -70,6 +75,10 @@ export default function AdminDashboard() {
     const [showModal, setShowModal] = useState(false);
     const [formData, setFormData] = useState<any>({});
     const [editingId, setEditingId] = useState<string | null>(null);
+
+    // Sorting state for features
+    const [sortField, setSortField] = useState<SortField>('created_at');
+    const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
 
     useEffect(() => {
         // Check Supabase Auth Session
@@ -465,9 +474,13 @@ export default function AdminDashboard() {
                                         </div>
                                         <div>
                                             <h3 className="font-bold text-slate-900">{project.description}</h3>
-                                            <div className="flex gap-2 mt-1">
+                                            <div className="flex flex-wrap gap-2 mt-1">
                                                 <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600">{project.category}</span>
                                                 <span className={`text-xs font-medium px-2 py-0.5 rounded ${project.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{project.status}</span>
+                                                <span className="inline-flex items-center gap-1 text-xs text-slate-400 px-2 py-0.5">
+                                                    <Calendar size={11} />
+                                                    {new Date(project.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                </span>
                                             </div>
                                             {/* Progress Bar */}
                                             <div className="mt-4 w-full max-w-[240px]">
@@ -559,66 +572,111 @@ export default function AdminDashboard() {
 
                 {/* ========== FEATURES VIEW ========== */}
                 {view === 'features' && !loading && (
-                    <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto">
-                        <table className="w-full text-left text-sm min-w-[700px]">
-                            <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
-                                <tr>
-                                    <th className="px-6 py-4">Description</th>
-                                    <th className="px-6 py-4">Estimation</th>
-                                    <th className="px-6 py-4">Amount (₹)</th>
-                                    <th className="px-6 py-4">Type</th>
-                                    <th className="px-6 py-4">Status</th>
-                                    <th className="px-6 py-4">Payment</th>
-                                    <th className="px-6 py-4">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {features.map((feature) => (
-                                    <tr key={feature.id} className="hover:bg-slate-50/50">
-                                        <td className="px-6 py-4 font-medium text-slate-900">{feature.description}</td>
-                                        <td className="px-6 py-4 text-slate-600">{feature.estimation || '-'}</td>
-                                        <td className="px-6 py-4 text-slate-900 font-semibold">₹{feature.amount || 0}</td>
-                                        <td className="px-6 py-4">
-                                            {feature.is_new_request ? (
-                                                <span className="inline-flex px-2 py-1 rounded text-xs font-medium bg-purple-50 text-purple-700">Extra</span>
-                                            ) : (
-                                                <span className="inline-flex px-2 py-1 rounded text-xs font-medium bg-indigo-50 text-indigo-700">Core</span>
+                    <div>
+                        {/* Sorting Controls */}
+                        {features.length > 1 && (
+                            <div className="flex items-center justify-end gap-2 mb-4">
+                                <span className="text-xs text-slate-500">Sort by:</span>
+                                <div className="flex bg-white border border-slate-200 rounded-lg p-0.5">
+                                    {(['amount', 'status', 'created_at'] as SortField[]).map((field) => (
+                                        <button
+                                            key={field}
+                                            onClick={() => {
+                                                if (sortField === field) {
+                                                    setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                                                } else {
+                                                    setSortField(field);
+                                                    setSortOrder('asc');
+                                                }
+                                            }}
+                                            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1 ${sortField === field ? 'bg-blue-600 text-white' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'}`}
+                                        >
+                                            {field === 'created_at' ? 'Date' : field.charAt(0).toUpperCase() + field.slice(1)}
+                                            {sortField === field && (
+                                                sortOrder === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />
                                             )}
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${feature.status === 'Completed' ? 'bg-green-50 text-green-700' :
-                                                feature.status === 'Working' ? 'bg-blue-50 text-blue-700' :
-                                                    'bg-amber-50 text-amber-700'
-                                                }`}>{feature.status}</span>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex flex-col gap-1 items-start">
-                                                <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${feature.payment_status === 'Paid' ? 'bg-green-50 text-green-700' :
-                                                    feature.payment_status === 'Partial' ? 'bg-blue-50 text-blue-700' :
-                                                        'bg-red-50 text-red-700'
-                                                    }`}>{feature.payment_status}</span>
-                                                {(feature.paid_amount || 0) > 0 && (
-                                                    <span className="text-xs text-slate-500 font-mono">
-                                                        ₹{feature.paid_amount} / ₹{feature.amount}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-2">
-                                                <button onClick={() => handleEditFeature(feature)} className="text-slate-400 hover:text-blue-600 transition-colors">
-                                                    <Pencil size={16} />
-                                                </button>
-                                                <button onClick={() => handleDelete(feature.id, 'features')} className="text-slate-400 hover:text-red-500 transition-colors">
-                                                    <Trash2 size={16} />
-                                                </button>
-                                            </div>
-                                        </td>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto">
+                            <table className="w-full text-left text-sm min-w-[700px]">
+                                <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
+                                    <tr>
+                                        <th className="px-6 py-4">Description</th>
+                                        <th className="px-6 py-4">Date</th>
+                                        <th className="px-6 py-4">Estimation</th>
+                                        <th className="px-6 py-4">Amount (₹)</th>
+                                        <th className="px-6 py-4">Type</th>
+                                        <th className="px-6 py-4">Status</th>
+                                        <th className="px-6 py-4">Payment</th>
+                                        <th className="px-6 py-4">Action</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                        {features.length === 0 && <div className="p-8 text-center text-slate-400">No features added yet.</div>}
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {[...features].sort((a, b) => {
+                                        let comparison = 0;
+                                        if (sortField === 'amount') {
+                                            comparison = (a.amount || 0) - (b.amount || 0);
+                                        } else if (sortField === 'status') {
+                                            const statusOrder = ['Requested', 'Approved', 'Working', 'Updating', 'Completed'];
+                                            comparison = statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status);
+                                        } else if (sortField === 'created_at') {
+                                            comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+                                        }
+                                        return sortOrder === 'asc' ? comparison : -comparison;
+                                    }).map((feature) => (
+                                        <tr key={feature.id} className="hover:bg-slate-50/50">
+                                            <td className="px-6 py-4 font-medium text-slate-900">{feature.description}</td>
+                                            <td className="px-6 py-4 text-slate-500 text-xs">
+                                                {feature.created_at ? new Date(feature.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '-'}
+                                            </td>
+                                            <td className="px-6 py-4 text-slate-600">{feature.estimation || '-'}</td>
+                                            <td className="px-6 py-4 text-slate-900 font-semibold">₹{feature.amount || 0}</td>
+                                            <td className="px-6 py-4">
+                                                {feature.is_new_request ? (
+                                                    <span className="inline-flex px-2 py-1 rounded text-xs font-medium bg-purple-50 text-purple-700">Extra</span>
+                                                ) : (
+                                                    <span className="inline-flex px-2 py-1 rounded text-xs font-medium bg-indigo-50 text-indigo-700">Core</span>
+                                                )}
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${feature.status === 'Completed' ? 'bg-green-50 text-green-700' :
+                                                    feature.status === 'Working' ? 'bg-blue-50 text-blue-700' :
+                                                        'bg-amber-50 text-amber-700'
+                                                    }`}>{feature.status}</span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex flex-col gap-1 items-start">
+                                                    <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${feature.payment_status === 'Paid' ? 'bg-green-50 text-green-700' :
+                                                        feature.payment_status === 'Partial' ? 'bg-blue-50 text-blue-700' :
+                                                            'bg-red-50 text-red-700'
+                                                        }`}>{feature.payment_status}</span>
+                                                    {(feature.paid_amount || 0) > 0 && (
+                                                        <span className="text-xs text-slate-500 font-mono">
+                                                            ₹{feature.paid_amount} / ₹{feature.amount}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-2">
+                                                    <button onClick={() => handleEditFeature(feature)} className="text-slate-400 hover:text-blue-600 transition-colors">
+                                                        <Pencil size={16} />
+                                                    </button>
+                                                    <button onClick={() => handleDelete(feature.id, 'features')} className="text-slate-400 hover:text-red-500 transition-colors">
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                            {features.length === 0 && <div className="p-8 text-center text-slate-400">No features added yet.</div>}
+                        </div>
                     </div>
                 )}
             </main>

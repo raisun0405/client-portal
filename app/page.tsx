@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
-import { KeyRound, ArrowRight, Loader2 } from 'lucide-react';
+import { loginClient } from './actions';
+import { KeyRound, ArrowRight, Loader2, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function LoginPage() {
   const [accessKey, setAccessKey] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
@@ -30,24 +31,14 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const { data, error } = await supabase
-        .from('clients')
-        .select('*')
-        .eq('access_key', accessKey)
-        .single();
+      const result = await loginClient(accessKey, rememberMe);
 
-      if (error || !data) {
-        setError('Invalid Access Key. Please try again.');
+      if (result.success) {
+        router.push('/dashboard');
+      } else {
+        setError(result.message || 'Login failed');
         setLoading(false);
-        return;
       }
-
-      // Store client session (simple implementation)
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('portal_client', JSON.stringify(data));
-      }
-
-      router.push('/dashboard');
     } catch (err) {
       setError('An unexpected error occurred.');
       setLoading(false);
@@ -70,6 +61,11 @@ export default function LoginPage() {
                   src="https://raw.githubusercontent.com/raisun0405/Mescellanious/main/Spiderman%20listening%20to%20music.jpeg"
                   alt="Rai Sun PFP"
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    // Fallback to a generic avatar/color if image fails
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.parentElement!.style.backgroundColor = '#e2e8f0';
+                  }}
                 />
               </div>
             </div>
@@ -86,11 +82,25 @@ export default function LoginPage() {
                 placeholder="Access Key (e.g., client-demo-001)"
                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium text-center tracking-wide"
               />
+
+              <div className="flex items-center justify-between px-1 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setRememberMe(!rememberMe)}
+                  className="flex items-center gap-2 text-xs text-slate-500 hover:text-slate-700 transition-colors group"
+                >
+                  <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${rememberMe ? 'bg-slate-900 border-slate-900' : 'bg-white border-slate-300 group-hover:border-slate-400'}`}>
+                    {rememberMe && <Check size={10} className="text-white" />}
+                  </div>
+                  Remember me
+                </button>
+              </div>
+
               {error && (
                 <motion.p
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="text-red-500 text-xs text-center font-medium"
+                  className="text-red-500 text-xs text-center font-medium pt-2"
                 >
                   {error}
                 </motion.p>
