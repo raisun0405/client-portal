@@ -345,7 +345,7 @@ export default function DashboardPage() {
                                     <div className="flex items-center justify-between mb-6">
                                         <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Financial Overview</h3>
                                         <div className="px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-[10px] font-bold text-slate-500">
-                                            {selectedProject.stats.progress}% PAID
+                                            {Math.round((selectedProject.stats.paid / (selectedProject.stats.total || 1)) * 100)}% PAID
                                         </div>
                                     </div>
 
