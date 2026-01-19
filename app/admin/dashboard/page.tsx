@@ -426,7 +426,16 @@ export default function AdminDashboard() {
             </header>
 
             <main className="max-w-5xl mx-auto p-6">
-                {loading && <div className="flex justify-center py-10"><Loader2 className="animate-spin text-slate-400" /></div>}
+                {loading && (
+                    <div className="flex flex-col items-center justify-center py-20">
+                        <div className="flex items-center gap-2 mb-4">
+                            <span className="w-2.5 h-2.5 rounded-full bg-blue-500 loader-dot"></span>
+                            <span className="w-2.5 h-2.5 rounded-full bg-blue-500 loader-dot"></span>
+                            <span className="w-2.5 h-2.5 rounded-full bg-blue-500 loader-dot"></span>
+                        </div>
+                        <p className="text-slate-400 text-sm font-medium">Loading...</p>
+                    </div>
+                )}
 
                 {/* ========== CLIENTS VIEW ========== */}
                 {view === 'clients' && !loading && (

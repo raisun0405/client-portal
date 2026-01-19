@@ -168,7 +168,16 @@ export default function DashboardPage() {
         router.push('/');
     };
 
-    if (loading && !client) return <div className="min-h-screen bg-slate-50 flex items-center justify-center"><Loader2 className="animate-spin text-slate-400" size={32} /></div>;
+    if (loading && !client) return (
+        <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center animate-fade-in">
+            <div className="flex items-center gap-2 mb-6">
+                <span className="w-3 h-3 rounded-full bg-blue-500 loader-dot"></span>
+                <span className="w-3 h-3 rounded-full bg-blue-500 loader-dot"></span>
+                <span className="w-3 h-3 rounded-full bg-blue-500 loader-dot"></span>
+            </div>
+            <p className="text-slate-500 text-sm font-medium">Loading your dashboard...</p>
+        </div>
+    );
 
     if (error && !loading) return (
         <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">

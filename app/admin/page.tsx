@@ -10,6 +10,7 @@ export default function AdminLoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
+    const [isNavigating, setIsNavigating] = useState(false);
     const [error, setError] = useState('');
     const router = useRouter();
 
@@ -27,9 +28,24 @@ export default function AdminLoginPage() {
             setError(authError.message);
             setLoading(false);
         } else {
+            setIsNavigating(true);
             router.push('/admin/dashboard');
         }
     };
+
+    // Full-screen loading overlay during navigation
+    if (isNavigating) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-[#0B1120] animate-fade-in">
+                <div className="flex items-center gap-2 mb-6">
+                    <span className="w-3 h-3 rounded-full bg-blue-500 loader-dot"></span>
+                    <span className="w-3 h-3 rounded-full bg-blue-500 loader-dot"></span>
+                    <span className="w-3 h-3 rounded-full bg-blue-500 loader-dot"></span>
+                </div>
+                <p className="text-slate-400 text-sm font-medium">Accessing admin panel...</p>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-[#0B1120] text-slate-200 p-4 relative overflow-hidden">

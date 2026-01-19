@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [accessKey, setAccessKey] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
 
@@ -34,6 +35,7 @@ export default function LoginPage() {
       const result = await loginClient(accessKey, rememberMe);
 
       if (result.success) {
+        setIsNavigating(true);
         router.push('/dashboard');
       } else {
         setError(result.message || 'Login failed');
@@ -44,6 +46,20 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
+  // Full-screen loading overlay during navigation
+  if (isNavigating) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 animate-fade-in">
+        <div className="flex items-center gap-2 mb-6">
+          <span className="w-3 h-3 rounded-full bg-blue-500 loader-dot"></span>
+          <span className="w-3 h-3 rounded-full bg-blue-500 loader-dot"></span>
+          <span className="w-3 h-3 rounded-full bg-blue-500 loader-dot"></span>
+        </div>
+        <p className="text-slate-500 text-sm font-medium">Accessing your portal...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
@@ -130,3 +146,4 @@ export default function LoginPage() {
     </div>
   );
 }
+
