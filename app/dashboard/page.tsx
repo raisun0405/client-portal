@@ -419,7 +419,7 @@ export default function DashboardPage() {
                                                                 width={45}
                                                             />
                                                             <Tooltip content={<CustomBarTooltip />} cursor={{ fill: 'rgba(99,102,241,0.06)', radius: 8 }} />
-                                                            <Bar dataKey="Paid" stackId="a" fill="url(#paidGradient)" radius={[0, 0, 0, 0]} filter="url(#barShadow)" />
+                                                            <Bar dataKey="Paid" stackId="a" fill="url(#paidGradient)" radius={[6, 6, 0, 0]} filter="url(#barShadow)" />
                                                             <Bar dataKey="Pending" stackId="a" fill="url(#pendingGradient)" radius={[6, 6, 0, 0]} filter="url(#barShadow)" />
                                                         </BarChart>
                                                     </ResponsiveContainer>
