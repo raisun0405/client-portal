@@ -385,32 +385,46 @@ export default function DashboardPage() {
                                         <div className="lg:col-span-3 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm">
                                             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Project-wise Breakdown</h3>
                                             <p className="text-[11px] text-slate-400 mb-4">Paid vs pending amount per project</p>
-                                            <div className="overflow-x-auto -mx-2 px-2 pb-2">
-                                                <div style={{ minWidth: `${Math.max(barData.length * 80, 280)}px` }}>
-                                                    <ResponsiveContainer width="100%" height={200}>
-                                                        <BarChart data={barData} barCategoryGap="20%" barGap={2}>
-                                                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                                                            <XAxis
-                                                                dataKey="name"
-                                                                tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 500 }}
-                                                                axisLine={false}
-                                                                tickLine={false}
-                                                                interval={0}
-                                                                height={30}
-                                                            />
-                                                            <YAxis
-                                                                tick={{ fontSize: 10, fill: '#94a3b8' }}
-                                                                axisLine={false}
-                                                                tickLine={false}
-                                                                tickFormatter={(value) => value >= 1000 ? `₹${(value / 1000).toFixed(0)}k` : `₹${value}`}
-                                                                width={45}
-                                                            />
-                                                            <Tooltip content={<CustomBarTooltip />} cursor={{ fill: 'rgba(59,130,246,0.04)', radius: 8 }} />
-                                                            <Bar dataKey="Paid" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} />
-                                                            <Bar dataKey="Pending" stackId="a" fill="#fbbf24" radius={[4, 4, 0, 0]} />
-                                                        </BarChart>
-                                                    </ResponsiveContainer>
-                                                </div>
+                                            <div className="flex flex-col gap-4 mt-5">
+                                                {projects.map((p, i) => {
+                                                    const total = p.stats.total || 1; // safely prevent div by zero
+                                                    const paidPercent = (p.stats.paid / total) * 100;
+                                                    const pendingPercent = (p.stats.pending / total) * 100;
+
+                                                    return (
+                                                        <div key={p.id} className="flex flex-col gap-1.5 group cursor-default">
+                                                            <div className="flex justify-between items-end">
+                                                                <span className="text-xs font-bold text-slate-700 truncate pr-4 group-hover:text-slate-900 transition-colors">
+                                                                    {p.description}
+                                                                </span>
+                                                                <span className="text-[10px] font-mono font-medium text-slate-500 shrink-0">
+                                                                    <span className="text-emerald-600">₹{p.stats.paid.toLocaleString()}</span>
+                                                                    <span className="text-slate-300 mx-1">/</span>
+                                                                    <span className="text-slate-400">Total ₹{p.stats.total.toLocaleString()}</span>
+                                                                </span>
+                                                            </div>
+                                                            {/* Custom Inline Segmented Bar */}
+                                                            <div className="w-full h-1.5 sm:h-2 bg-slate-100/80 rounded-full overflow-hidden flex ring-1 ring-slate-200/50 shadow-inner shadow-slate-900/5">
+                                                                <motion.div
+                                                                    initial={{ width: 0 }}
+                                                                    animate={{ width: `${paidPercent}%` }}
+                                                                    transition={{ duration: 1, delay: i * 0.1, ease: 'easeOut' }}
+                                                                    className="h-full bg-emerald-500 relative"
+                                                                    style={{ borderRight: paidPercent > 0 && pendingPercent > 0 ? '1px solid rgba(255,255,255,0.5)' : 'none' }}
+                                                                />
+                                                                <motion.div
+                                                                    initial={{ width: 0 }}
+                                                                    animate={{ width: `${pendingPercent}%` }}
+                                                                    transition={{ duration: 1, delay: i * 0.1, ease: 'easeOut' }}
+                                                                    className="h-full bg-amber-400"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                                {projects.length === 0 && (
+                                                    <p className="text-xs text-slate-400 text-center py-4">No billing data available.</p>
+                                                )}
                                             </div>
                                             {/* Legend */}
                                             <div className="flex justify-center gap-6 mt-1">
