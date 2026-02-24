@@ -390,8 +390,8 @@ export default function AdminDashboard() {
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
-            <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-10">
-                <div className="flex items-center gap-4">
+            <header className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between sticky top-0 z-10 gap-3 sm:gap-0">
+                <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
                     {view !== 'clients' && (
                         <button onClick={handleBack} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
                             <ArrowLeft size={20} />
@@ -407,13 +407,14 @@ export default function AdminDashboard() {
                         </p>
                     </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 w-full sm:w-auto">
                     <button
                         onClick={() => { setFormData({}); setEditingId(null); setShowModal(true); }}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors flex-1 sm:flex-none justify-center"
                     >
                         <Plus size={16} />
-                        {view === 'clients' ? 'Add Client' : view === 'projects' ? 'Add Project' : view === 'links' ? 'Add Link' : 'Add Feature'}
+                        <span className="inline sm:hidden">Add</span>
+                        <span className="hidden sm:inline">{view === 'clients' ? 'Add Client' : view === 'projects' ? 'Add Project' : view === 'links' ? 'Add Link' : 'Add Feature'}</span>
                     </button>
                     <button
                         onClick={async () => { await supabase.auth.signOut(); router.push('/admin'); }}
@@ -425,7 +426,7 @@ export default function AdminDashboard() {
                 </div>
             </header>
 
-            <main className="max-w-5xl mx-auto p-6">
+            <main className="max-w-5xl mx-auto p-4 sm:p-6">
                 {loading && (
                     <div className="flex flex-col items-center justify-center py-20">
                         <div className="flex items-center gap-2 mb-4">
@@ -447,7 +448,7 @@ export default function AdminDashboard() {
                                         <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
                                             <Users size={20} />
                                         </div>
-                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="flex gap-1 sm:opacity-0 opacity-100 group-hover:opacity-100 transition-opacity">
                                             <button onClick={() => handleEditClient(client)} className="text-slate-400 hover:text-blue-600 p-1">
                                                 <Pencil size={14} />
                                             </button>
@@ -476,17 +477,17 @@ export default function AdminDashboard() {
                     <div className="space-y-4">
                         {projects.map(project => (
                             <motion.div layout key={project.id} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-4 group">
-                                <div className="flex items-start justify-between">
-                                    <div className="flex items-start gap-4">
-                                        <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
-                                            <FolderPlus size={24} />
+                                <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+                                    <div className="flex items-start gap-3 sm:gap-4 w-full">
+                                        <div className="p-3 bg-blue-50 text-blue-600 rounded-xl shrink-0">
+                                            <FolderPlus size={20} className="sm:w-6 sm:h-6" />
                                         </div>
-                                        <div>
-                                            <h3 className="font-bold text-slate-900">{project.description}</h3>
+                                        <div className="flex-1 min-w-0">
+                                            <h3 className="font-bold text-slate-900 truncate">{project.description}</h3>
                                             <div className="flex flex-wrap gap-2 mt-1">
                                                 <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600">{project.category}</span>
                                                 <span className={`text-xs font-medium px-2 py-0.5 rounded ${project.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{project.status}</span>
-                                                <span className="inline-flex items-center gap-1 text-xs text-slate-400 px-2 py-0.5">
+                                                <span className="inline-flex items-center gap-1 text-xs text-slate-400 px-2 py-0.5 whitespace-nowrap">
                                                     <Calendar size={11} />
                                                     {new Date(project.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                                                 </span>
@@ -512,22 +513,22 @@ export default function AdminDashboard() {
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <button onClick={() => handleEditProject(project)} className="text-slate-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity p-2">
+                                    <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end border-t border-slate-100 sm:border-0 pt-3 sm:pt-0 mt-2 sm:mt-0">
+                                        <button onClick={() => handleEditProject(project)} className="text-slate-400 hover:text-blue-600 sm:opacity-0 opacity-100 group-hover:opacity-100 transition-opacity p-2 border border-slate-200 sm:border-transparent rounded-lg sm:rounded-none">
                                             <Pencil size={16} />
                                         </button>
-                                        <button onClick={() => handleDelete(project.id, 'projects')} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-2">
+                                        <button onClick={() => handleDelete(project.id, 'projects')} className="text-slate-300 hover:text-red-500 sm:opacity-0 opacity-100 group-hover:opacity-100 transition-opacity p-2 border border-slate-200 sm:border-transparent rounded-lg sm:rounded-none">
                                             <Trash2 size={16} />
                                         </button>
                                         <button
                                             onClick={() => handleProjectLinksSelect(project)}
-                                            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition-colors"
+                                            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition-colors border border-slate-200 sm:border-transparent"
                                         >
                                             Links
                                         </button>
                                         <button
                                             onClick={() => handleProjectSelect(project)}
-                                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+                                            className="flex-1 sm:flex-none px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors text-center"
                                         >
                                             Manage Features
                                         </button>
@@ -610,7 +611,7 @@ export default function AdminDashboard() {
                             </div>
                         )}
 
-                        <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto">
+                        <div className="bg-white rounded-none sm:rounded-xl border-y sm:border border-slate-200 overflow-x-auto -mx-4 sm:mx-0 p-0 sm:p-0 w-screen sm:w-auto">
                             <table className="w-full text-left text-sm min-w-[700px]">
                                 <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
                                     <tr>
