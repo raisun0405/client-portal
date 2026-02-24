@@ -323,13 +323,13 @@ export default function DashboardPage() {
                                         </div>
                                     </div>
 
-                                    {/* Charts Row */}
-                                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
+                                    {/* Charts Row - Fixed height on desktop */}
+                                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6 lg:h-[380px]">
                                         {/* Donut Chart - Payment Overview */}
-                                        <div className="lg:col-span-2 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm">
-                                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Payment Overview</h3>
-                                            <p className="text-[11px] text-slate-400 mb-4">{paymentPercent}% of total value has been paid</p>
-                                            <div className="relative">
+                                        <div className="lg:col-span-2 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm flex flex-col">
+                                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 shrink-0">Payment Overview</h3>
+                                            <p className="text-[11px] text-slate-400 mb-4 shrink-0">{paymentPercent}% of total value has been paid</p>
+                                            <div className="relative flex-1 flex items-center justify-center min-h-[200px]">
                                                 <ResponsiveContainer width="100%" height={200}>
                                                     <PieChart>
                                                         <Pie
@@ -369,7 +369,7 @@ export default function DashboardPage() {
                                                 </div>
                                             </div>
                                             {/* Legend */}
-                                            <div className="flex justify-center gap-6 mt-2">
+                                            <div className="flex justify-center gap-6 mt-4 shrink-0">
                                                 <div className="flex items-center gap-2">
                                                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
                                                     <span className="text-xs text-slate-600 font-medium">Paid</span>
@@ -382,77 +382,80 @@ export default function DashboardPage() {
                                         </div>
 
                                         {/* Project Breakdown - Premium Horizontal Bars */}
-                                        <div className="lg:col-span-3 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm">
-                                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Project-wise Breakdown</h3>
-                                            <p className="text-[11px] text-slate-400 mb-5">Paid vs pending amount per project</p>
+                                        <div className="lg:col-span-3 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm flex flex-col">
+                                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 shrink-0">Project-wise Breakdown</h3>
+                                            <p className="text-[11px] text-slate-400 mb-5 shrink-0">Paid vs pending amount per project</p>
 
-                                            <div className="space-y-4">
-                                                {projects.map((p, i) => {
-                                                    const total = p.stats.total || 1;
-                                                    const paidPct = (p.stats.paid / total) * 100;
-                                                    const pendingPct = (p.stats.pending / total) * 100;
-                                                    const maxAmount = Math.max(...projects.map(pr => pr.stats.total || 0));
-                                                    const barWidthPct = maxAmount > 0 ? (p.stats.total / maxAmount) * 100 : 0;
+                                            {/* Scrollable List Container */}
+                                            <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar min-h-0">
+                                                <div className="space-y-4">
+                                                    {projects.map((p, i) => {
+                                                        const total = p.stats.total || 1;
+                                                        const paidPct = (p.stats.paid / total) * 100;
+                                                        const pendingPct = (p.stats.pending / total) * 100;
+                                                        const maxAmount = Math.max(...projects.map(pr => pr.stats.total || 0));
+                                                        const barWidthPct = maxAmount > 0 ? (p.stats.total / maxAmount) * 100 : 0;
 
-                                                    return (
-                                                        <div key={p.id} className="group">
-                                                            {/* Project Name & Total */}
-                                                            <div className="flex justify-between items-baseline mb-1.5">
-                                                                <span className="text-xs font-semibold text-slate-700 truncate pr-3 group-hover:text-slate-900 transition-colors" title={p.description}>
-                                                                    {p.description}
-                                                                </span>
-                                                                <span className="text-[10px] font-mono font-medium text-slate-400 shrink-0">
-                                                                    ₹{p.stats.total.toLocaleString()}
-                                                                </span>
-                                                            </div>
-                                                            {/* Horizontal Stacked Bar */}
-                                                            <div className="relative" style={{ width: `${Math.max(barWidthPct, 15)}%` }}>
-                                                                <div className="h-6 sm:h-7 rounded-lg overflow-hidden flex bg-slate-100/60 ring-1 ring-slate-100">
-                                                                    {p.stats.paid > 0 && (
-                                                                        <motion.div
-                                                                            initial={{ width: 0 }}
-                                                                            animate={{ width: `${paidPct}%` }}
-                                                                            transition={{ duration: 0.8, delay: i * 0.08, ease: [0.22, 1, 0.36, 1] }}
-                                                                            className="h-full bg-emerald-500 relative flex items-center justify-center overflow-hidden"
-                                                                            style={{
-                                                                                background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
-                                                                                minWidth: paidPct > 0 ? '2px' : '0'
-                                                                            }}
-                                                                        >
-                                                                            {paidPct > 20 && (
-                                                                                <span className="text-[9px] sm:text-[10px] font-bold text-white/90 px-1 whitespace-nowrap">
-                                                                                    ₹{p.stats.paid.toLocaleString()}
-                                                                                </span>
-                                                                            )}
-                                                                        </motion.div>
-                                                                    )}
-                                                                    {p.stats.pending > 0 && (
-                                                                        <motion.div
-                                                                            initial={{ width: 0 }}
-                                                                            animate={{ width: `${pendingPct}%` }}
-                                                                            transition={{ duration: 0.8, delay: i * 0.08 + 0.1, ease: [0.22, 1, 0.36, 1] }}
-                                                                            className="h-full relative flex items-center justify-center overflow-hidden"
-                                                                            style={{
-                                                                                background: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)',
-                                                                                minWidth: pendingPct > 0 ? '2px' : '0'
-                                                                            }}
-                                                                        >
-                                                                            {pendingPct > 20 && (
-                                                                                <span className="text-[9px] sm:text-[10px] font-bold text-white/90 px-1 whitespace-nowrap">
-                                                                                    ₹{p.stats.pending.toLocaleString()}
-                                                                                </span>
-                                                                            )}
-                                                                        </motion.div>
-                                                                    )}
+                                                        return (
+                                                            <div key={p.id} className="group">
+                                                                {/* Project Name & Total */}
+                                                                <div className="flex justify-between items-baseline mb-1.5">
+                                                                    <span className="text-xs font-semibold text-slate-700 truncate pr-3 group-hover:text-slate-900 transition-colors" title={p.description}>
+                                                                        {p.description}
+                                                                    </span>
+                                                                    <span className="text-[10px] font-mono font-medium text-slate-400 shrink-0">
+                                                                        ₹{p.stats.total.toLocaleString()}
+                                                                    </span>
+                                                                </div>
+                                                                {/* Horizontal Stacked Bar */}
+                                                                <div className="relative" style={{ width: `${Math.max(barWidthPct, 15)}%` }}>
+                                                                    <div className="h-6 sm:h-7 rounded-lg overflow-hidden flex bg-slate-100/60 ring-1 ring-slate-100">
+                                                                        {p.stats.paid > 0 && (
+                                                                            <motion.div
+                                                                                initial={{ width: 0 }}
+                                                                                animate={{ width: `${paidPct}%` }}
+                                                                                transition={{ duration: 0.8, delay: i * 0.08, ease: [0.22, 1, 0.36, 1] }}
+                                                                                className="h-full bg-emerald-500 relative flex items-center justify-center overflow-hidden"
+                                                                                style={{
+                                                                                    background: 'linear-gradient(135deg, #10b981 0%, #34d399 100%)',
+                                                                                    minWidth: paidPct > 0 ? '2px' : '0'
+                                                                                }}
+                                                                            >
+                                                                                {paidPct > 20 && (
+                                                                                    <span className="text-[9px] sm:text-[10px] font-bold text-white/90 px-1 whitespace-nowrap">
+                                                                                        ₹{p.stats.paid.toLocaleString()}
+                                                                                    </span>
+                                                                                )}
+                                                                            </motion.div>
+                                                                        )}
+                                                                        {p.stats.pending > 0 && (
+                                                                            <motion.div
+                                                                                initial={{ width: 0 }}
+                                                                                animate={{ width: `${pendingPct}%` }}
+                                                                                transition={{ duration: 0.8, delay: i * 0.08 + 0.1, ease: [0.22, 1, 0.36, 1] }}
+                                                                                className="h-full relative flex items-center justify-center overflow-hidden"
+                                                                                style={{
+                                                                                    background: 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)',
+                                                                                    minWidth: pendingPct > 0 ? '2px' : '0'
+                                                                                }}
+                                                                            >
+                                                                                {pendingPct > 20 && (
+                                                                                    <span className="text-[9px] sm:text-[10px] font-bold text-white/90 px-1 whitespace-nowrap">
+                                                                                        ₹{p.stats.pending.toLocaleString()}
+                                                                                    </span>
+                                                                                )}
+                                                                            </motion.div>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
                                                             </div>
-                                                        </div>
-                                                    );
-                                                })}
+                                                        );
+                                                    })}
+                                                </div>
                                             </div>
 
                                             {/* Legend */}
-                                            <div className="flex justify-center gap-6 mt-5 pt-4 border-t border-slate-100">
+                                            <div className="flex justify-center gap-6 mt-5 pt-4 border-t border-slate-100 shrink-0">
                                                 <div className="flex items-center gap-2">
                                                     <span className="w-3 h-2 rounded-sm" style={{ background: 'linear-gradient(135deg, #10b981, #34d399)' }} />
                                                     <span className="text-xs text-slate-500 font-medium">Paid</span>
