@@ -385,31 +385,35 @@ export default function DashboardPage() {
                                         <div className="lg:col-span-3 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm">
                                             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Project-wise Breakdown</h3>
                                             <p className="text-[11px] text-slate-400 mb-4">Paid vs pending amount per project</p>
-                                            <ResponsiveContainer width="100%" height={200}>
-                                                <BarChart data={barData} barCategoryGap="20%" barGap={2}>
-                                                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                                                    <XAxis
-                                                        dataKey="name"
-                                                        tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 500 }}
-                                                        axisLine={false}
-                                                        tickLine={false}
-                                                        interval={0}
-                                                        height={30}
-                                                    />
-                                                    <YAxis
-                                                        tick={{ fontSize: 10, fill: '#94a3b8' }}
-                                                        axisLine={false}
-                                                        tickLine={false}
-                                                        tickFormatter={(value) => value >= 1000 ? `₹${(value / 1000).toFixed(0)}k` : `₹${value}`}
-                                                        width={50}
-                                                    />
-                                                    <Tooltip content={<CustomBarTooltip />} cursor={{ fill: 'rgba(59,130,246,0.04)', radius: 8 }} />
-                                                    <Bar dataKey="Paid" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} />
-                                                    <Bar dataKey="Pending" stackId="a" fill="#fbbf24" radius={[4, 4, 0, 0]} />
-                                                </BarChart>
-                                            </ResponsiveContainer>
+                                            <div className="overflow-x-auto -mx-2 px-2 pb-2">
+                                                <div style={{ minWidth: `${Math.max(barData.length * 80, 280)}px` }}>
+                                                    <ResponsiveContainer width="100%" height={200}>
+                                                        <BarChart data={barData} barCategoryGap="20%" barGap={2}>
+                                                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                                                            <XAxis
+                                                                dataKey="name"
+                                                                tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 500 }}
+                                                                axisLine={false}
+                                                                tickLine={false}
+                                                                interval={0}
+                                                                height={30}
+                                                            />
+                                                            <YAxis
+                                                                tick={{ fontSize: 10, fill: '#94a3b8' }}
+                                                                axisLine={false}
+                                                                tickLine={false}
+                                                                tickFormatter={(value) => value >= 1000 ? `₹${(value / 1000).toFixed(0)}k` : `₹${value}`}
+                                                                width={45}
+                                                            />
+                                                            <Tooltip content={<CustomBarTooltip />} cursor={{ fill: 'rgba(59,130,246,0.04)', radius: 8 }} />
+                                                            <Bar dataKey="Paid" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} />
+                                                            <Bar dataKey="Pending" stackId="a" fill="#fbbf24" radius={[4, 4, 0, 0]} />
+                                                        </BarChart>
+                                                    </ResponsiveContainer>
+                                                </div>
+                                            </div>
                                             {/* Legend */}
-                                            <div className="flex justify-center gap-6 mt-3">
+                                            <div className="flex justify-center gap-6 mt-1">
                                                 <div className="flex items-center gap-2">
                                                     <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" />
                                                     <span className="text-xs text-slate-600 font-medium">Paid</span>
