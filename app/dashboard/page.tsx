@@ -388,8 +388,21 @@ export default function DashboardPage() {
                                             <div className="overflow-x-auto -mx-2 px-2 pb-2">
                                                 <div style={{ minWidth: `${Math.max(barData.length * 80, 280)}px` }}>
                                                     <ResponsiveContainer width="100%" height={200}>
-                                                        <BarChart data={barData} barCategoryGap="20%" barGap={2}>
-                                                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                                                        <BarChart data={barData} barCategoryGap="25%" barGap={3}>
+                                                            <defs>
+                                                                <linearGradient id="paidGradient" x1="0" y1="0" x2="0" y2="1">
+                                                                    <stop offset="0%" stopColor="#34d399" stopOpacity={1} />
+                                                                    <stop offset="100%" stopColor="#059669" stopOpacity={1} />
+                                                                </linearGradient>
+                                                                <linearGradient id="pendingGradient" x1="0" y1="0" x2="0" y2="1">
+                                                                    <stop offset="0%" stopColor="#fbbf24" stopOpacity={1} />
+                                                                    <stop offset="100%" stopColor="#f59e0b" stopOpacity={1} />
+                                                                </linearGradient>
+                                                                <filter id="barShadow" x="-10%" y="-10%" width="120%" height="130%">
+                                                                    <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#000" floodOpacity="0.08" />
+                                                                </filter>
+                                                            </defs>
+                                                            <CartesianGrid strokeDasharray="4 4" stroke="#e2e8f0" strokeOpacity={0.5} vertical={false} />
                                                             <XAxis
                                                                 dataKey="name"
                                                                 tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 500 }}
@@ -405,9 +418,9 @@ export default function DashboardPage() {
                                                                 tickFormatter={(value) => value >= 1000 ? `₹${(value / 1000).toFixed(0)}k` : `₹${value}`}
                                                                 width={45}
                                                             />
-                                                            <Tooltip content={<CustomBarTooltip />} cursor={{ fill: 'rgba(59,130,246,0.04)', radius: 8 }} />
-                                                            <Bar dataKey="Paid" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} />
-                                                            <Bar dataKey="Pending" stackId="a" fill="#fbbf24" radius={[4, 4, 0, 0]} />
+                                                            <Tooltip content={<CustomBarTooltip />} cursor={{ fill: 'rgba(99,102,241,0.06)', radius: 8 }} />
+                                                            <Bar dataKey="Paid" stackId="a" fill="url(#paidGradient)" radius={[0, 0, 0, 0]} filter="url(#barShadow)" />
+                                                            <Bar dataKey="Pending" stackId="a" fill="url(#pendingGradient)" radius={[6, 6, 0, 0]} filter="url(#barShadow)" />
                                                         </BarChart>
                                                     </ResponsiveContainer>
                                                 </div>
