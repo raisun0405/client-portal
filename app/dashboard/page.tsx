@@ -381,61 +381,70 @@ export default function DashboardPage() {
                                             </div>
                                         </div>
 
-                                        {/* Bar Chart - Per-Project Breakdown */}
-                                        <div className="lg:col-span-3 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm">
-                                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Project-wise Breakdown</h3>
-                                            <p className="text-[11px] text-slate-400 mb-4">Paid vs pending amount per project</p>
-                                            <div className="flex flex-col gap-4 mt-5">
+                                        {/* Project-wise Ledger - Scrollable to prevent alignment issues */}
+                                        <div className="lg:col-span-3 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm flex flex-col h-full">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <div>
+                                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Project Ledger</h3>
+                                                    <p className="text-[11px] text-slate-400">Detailed financial breakdown per project</p>
+                                                </div>
+                                            </div>
+
+                                            {/* Scrollable Container with standard height matching Donut Chart */}
+                                            <div className="flex-1 flex flex-col gap-3 h-[220px] overflow-y-auto pr-2 custom-scrollbar">
                                                 {projects.map((p, i) => {
                                                     const total = p.stats.total || 1; // safely prevent div by zero
                                                     const paidPercent = (p.stats.paid / total) * 100;
                                                     const pendingPercent = (p.stats.pending / total) * 100;
 
                                                     return (
-                                                        <div key={p.id} className="flex flex-col gap-1.5 group cursor-default">
-                                                            <div className="flex justify-between items-end">
-                                                                <span className="text-xs font-bold text-slate-700 truncate pr-4 group-hover:text-slate-900 transition-colors">
-                                                                    {p.description}
-                                                                </span>
-                                                                <span className="text-[10px] font-mono font-medium text-slate-500 shrink-0">
-                                                                    <span className="text-emerald-600">₹{p.stats.paid.toLocaleString()}</span>
-                                                                    <span className="text-slate-300 mx-1">/</span>
-                                                                    <span className="text-slate-400">Total ₹{p.stats.total.toLocaleString()}</span>
-                                                                </span>
+                                                        <div key={p.id} className="flex flex-col gap-2 p-3 sm:p-3.5 rounded-xl bg-slate-50/50 hover:bg-slate-50 border border-slate-100 transition-colors group cursor-default">
+                                                            <div className="flex justify-between items-center gap-4">
+                                                                <div className="flex items-center gap-2 min-w-0">
+                                                                    <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${p.status === 'Completed' ? 'bg-emerald-500' : 'bg-blue-500'}`} />
+                                                                    <span className="text-xs font-bold text-slate-700 truncate group-hover:text-slate-900 transition-colors" title={p.description}>
+                                                                        {p.description}
+                                                                    </span>
+                                                                </div>
+
+                                                                {/* Financial Data Split */}
+                                                                <div className="flex items-center gap-3 text-[10px] font-mono font-medium shrink-0">
+                                                                    <div className="flex flex-col items-end">
+                                                                        <span className="text-slate-400 text-[9px] uppercase tracking-wider">Paid</span>
+                                                                        <span className="text-emerald-600">₹{p.stats.paid.toLocaleString()}</span>
+                                                                    </div>
+                                                                    <div className="w-px h-6 bg-slate-200" />
+                                                                    <div className="flex flex-col items-start">
+                                                                        <span className="text-slate-400 text-[9px] uppercase tracking-wider">Total</span>
+                                                                        <span className="text-slate-600">₹{p.stats.total.toLocaleString()}</span>
+                                                                    </div>
+                                                                </div>
                                                             </div>
-                                                            {/* Custom Inline Segmented Bar */}
-                                                            <div className="w-full h-1.5 sm:h-2 bg-slate-100/80 rounded-full overflow-hidden flex ring-1 ring-slate-200/50 shadow-inner shadow-slate-900/5">
+
+                                                            {/* Ultra-slim Micro Bar */}
+                                                            <div className="w-full h-1 bg-slate-200/50 rounded-full overflow-hidden flex mt-0.5 relative">
                                                                 <motion.div
                                                                     initial={{ width: 0 }}
                                                                     animate={{ width: `${paidPercent}%` }}
-                                                                    transition={{ duration: 1, delay: i * 0.1, ease: 'easeOut' }}
-                                                                    className="h-full bg-emerald-500 relative"
-                                                                    style={{ borderRight: paidPercent > 0 && pendingPercent > 0 ? '1px solid rgba(255,255,255,0.5)' : 'none' }}
+                                                                    transition={{ duration: 1, delay: i * 0.05, ease: 'easeOut' }}
+                                                                    className="h-full bg-emerald-500 relative z-10"
+                                                                    style={{ borderRight: paidPercent > 0 && pendingPercent > 0 ? '1px solid rgba(255,255,255,0.7)' : 'none' }}
                                                                 />
                                                                 <motion.div
                                                                     initial={{ width: 0 }}
                                                                     animate={{ width: `${pendingPercent}%` }}
-                                                                    transition={{ duration: 1, delay: i * 0.1, ease: 'easeOut' }}
-                                                                    className="h-full bg-amber-400"
+                                                                    transition={{ duration: 1, delay: i * 0.05, ease: 'easeOut' }}
+                                                                    className="h-full bg-amber-400 relative z-10"
                                                                 />
                                                             </div>
                                                         </div>
                                                     );
                                                 })}
                                                 {projects.length === 0 && (
-                                                    <p className="text-xs text-slate-400 text-center py-4">No billing data available.</p>
+                                                    <div className="flex-1 flex items-center justify-center">
+                                                        <p className="text-xs text-slate-400">No project billing data available.</p>
+                                                    </div>
                                                 )}
-                                            </div>
-                                            {/* Legend */}
-                                            <div className="flex justify-center gap-6 mt-1">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" />
-                                                    <span className="text-xs text-slate-600 font-medium">Paid</span>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="w-2.5 h-2.5 rounded-sm bg-amber-400" />
-                                                    <span className="text-xs text-slate-600 font-medium">Pending</span>
-                                                </div>
                                             </div>
                                         </div>
                                     </div>
