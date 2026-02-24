@@ -323,14 +323,14 @@ export default function DashboardPage() {
                                         </div>
                                     </div>
 
-                                    {/* Charts Row - Fixed height, no stretch */}
-                                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6 lg:h-[340px]">
+                                    {/* Charts Row */}
+                                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
                                         {/* Donut Chart - Payment Overview */}
-                                        <div className="lg:col-span-2 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm flex flex-col">
+                                        <div className="lg:col-span-2 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm">
                                             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Payment Overview</h3>
                                             <p className="text-[11px] text-slate-400 mb-4">{paymentPercent}% of total value has been paid</p>
-                                            <div className="relative flex-1 flex items-center justify-center">
-                                                <ResponsiveContainer width="100%" height={180}>
+                                            <div className="relative">
+                                                <ResponsiveContainer width="100%" height={200}>
                                                     <PieChart>
                                                         <Pie
                                                             data={paymentDonutData}
@@ -381,80 +381,77 @@ export default function DashboardPage() {
                                             </div>
                                         </div>
 
-                                        {/* Project Ledger - Compact table style, scrollable */}
-                                        <div className="lg:col-span-3 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm flex flex-col">
-                                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Project Ledger</h3>
-                                            <p className="text-[11px] text-slate-400 mb-4">Financial breakdown per project</p>
-
-                                            {/* Table Header */}
-                                            <div className="flex items-center text-[9px] sm:text-[10px] font-semibold text-slate-400 uppercase tracking-wider pb-2 border-b border-slate-100 mb-1 px-1">
-                                                <span className="flex-1">Project</span>
-                                                <span className="w-16 sm:w-20 text-right">Paid</span>
-                                                <span className="w-16 sm:w-20 text-right">Total</span>
-                                                <span className="w-12 sm:w-16 text-right">%</span>
+                                        {/* Bar Chart - Per-Project Breakdown */}
+                                        <div className="lg:col-span-3 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm">
+                                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Project-wise Breakdown</h3>
+                                            <p className="text-[11px] text-slate-400 mb-4">Paid vs pending amount per project</p>
+                                            <div className="overflow-x-auto -mx-2 px-2 pb-2">
+                                                <div style={{ minWidth: `${Math.max(barData.length * 80, 280)}px` }}>
+                                                    <ResponsiveContainer width="100%" height={200}>
+                                                        <BarChart data={barData} barCategoryGap="20%" barGap={2}>
+                                                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                                                            <XAxis
+                                                                dataKey="name"
+                                                                tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 500 }}
+                                                                axisLine={false}
+                                                                tickLine={false}
+                                                                interval={0}
+                                                                height={30}
+                                                            />
+                                                            <YAxis
+                                                                tick={{ fontSize: 10, fill: '#94a3b8' }}
+                                                                axisLine={false}
+                                                                tickLine={false}
+                                                                tickFormatter={(value) => value >= 1000 ? `₹${(value / 1000).toFixed(0)}k` : `₹${value}`}
+                                                                width={45}
+                                                            />
+                                                            <Tooltip content={<CustomBarTooltip />} cursor={{ fill: 'rgba(59,130,246,0.04)', radius: 8 }} />
+                                                            <Bar dataKey="Paid" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} />
+                                                            <Bar dataKey="Pending" stackId="a" fill="#fbbf24" radius={[4, 4, 0, 0]} />
+                                                        </BarChart>
+                                                    </ResponsiveContainer>
+                                                </div>
                                             </div>
-
-                                            {/* Scrollable List */}
-                                            <div className="flex-1 overflow-y-auto min-h-0">
-                                                {projects.map((p, i) => {
-                                                    const total = p.stats.total || 1;
-                                                    const paidPct = Math.round((p.stats.paid / total) * 100);
-                                                    return (
-                                                        <div key={p.id} className="flex items-center py-2.5 px-1 border-b border-slate-50 last:border-b-0 hover:bg-slate-50/60 transition-colors group cursor-default">
-                                                            <div className="flex-1 flex items-center gap-2 min-w-0 pr-2">
-                                                                <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${paidPct === 100 ? 'bg-emerald-500' : paidPct > 0 ? 'bg-blue-500' : 'bg-amber-400'}`} />
-                                                                <span className="text-xs font-semibold text-slate-700 truncate group-hover:text-slate-900 transition-colors" title={p.description}>
-                                                                    {p.description}
-                                                                </span>
-                                                            </div>
-                                                            <span className="w-16 sm:w-20 text-right text-xs font-mono font-medium text-emerald-600">
-                                                                ₹{p.stats.paid.toLocaleString()}
-                                                            </span>
-                                                            <span className="w-16 sm:w-20 text-right text-xs font-mono font-medium text-slate-500">
-                                                                ₹{p.stats.total.toLocaleString()}
-                                                            </span>
-                                                            <span className={`w-12 sm:w-16 text-right text-xs font-bold ${paidPct === 100 ? 'text-emerald-600' : paidPct > 50 ? 'text-blue-600' : 'text-amber-600'}`}>
-                                                                {paidPct}%
-                                                            </span>
-                                                        </div>
-                                                    );
-                                                })}
-                                                {projects.length === 0 && (
-                                                    <div className="flex-1 flex items-center justify-center py-8">
-                                                        <p className="text-xs text-slate-400">No billing data available.</p>
-                                                    </div>
-                                                )}
+                                            {/* Legend */}
+                                            <div className="flex justify-center gap-6 mt-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" />
+                                                    <span className="text-xs text-slate-600 font-medium">Paid</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="w-2.5 h-2.5 rounded-sm bg-amber-400" />
+                                                    <span className="text-xs text-slate-600 font-medium">Pending</span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* Overall Progress Bar */}
                                     <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm mt-4 sm:mt-6">
-                                        <div className="flex items-center justify-between mb-4">
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
                                             <div>
                                                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Overall Progress</h3>
                                                 <p className="text-[11px] text-slate-400 mt-0.5">Average completion across all projects</p>
                                             </div>
-                                            <div className="flex items-center gap-4">
-                                                <div className="text-right">
-                                                    <span className="text-2xl font-black text-slate-900">{avgProgress}%</span>
-                                                </div>
-                                                <div className="hidden sm:flex flex-col items-end text-[11px]">
-                                                    <span className="text-emerald-600 font-bold">{completedProjects} completed</span>
-                                                    <span className="text-blue-600 font-medium">{activeProjects} in progress</span>
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-2xl font-black text-slate-900">{avgProgress}%</span>
+                                                <div className="text-right hidden sm:block">
+                                                    <p className="text-[11px] text-emerald-600 font-bold">{completedProjects} completed</p>
+                                                    <p className="text-[11px] text-blue-600 font-medium">{activeProjects} in progress</p>
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="relative h-3 w-full bg-slate-100 rounded-full overflow-hidden">
+                                        <div className="relative h-4 w-full bg-slate-100 rounded-full overflow-hidden ring-1 ring-slate-200/50">
                                             <motion.div
                                                 initial={{ width: 0 }}
                                                 animate={{ width: `${avgProgress}%` }}
                                                 transition={{ duration: 1.2, ease: 'easeOut' }}
-                                                className={`absolute inset-y-0 left-0 rounded-full ${avgProgress === 100 ? 'bg-emerald-500' : 'bg-blue-500'}`}
+                                                className={`absolute inset-y-0 left-0 rounded-full ${avgProgress === 100 ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' : 'bg-gradient-to-r from-blue-600 to-blue-400'}`}
                                             />
+                                            <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.15)_50%,transparent_100%)]" />
                                         </div>
                                         {/* Mobile summary */}
-                                        <div className="flex justify-between mt-3 sm:hidden text-[11px]">
+                                        <div className="flex justify-between mt-2 sm:hidden text-[11px]">
                                             <span className="text-emerald-600 font-bold">{completedProjects} completed</span>
                                             <span className="text-blue-600 font-medium">{activeProjects} in progress</span>
                                         </div>
