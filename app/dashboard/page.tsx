@@ -323,14 +323,14 @@ export default function DashboardPage() {
                                         </div>
                                     </div>
 
-                                    {/* Charts Row */}
-                                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
+                                    {/* Charts Row - Fixed height, no stretch */}
+                                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6 lg:h-[340px]">
                                         {/* Donut Chart - Payment Overview */}
-                                        <div className="lg:col-span-2 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm">
+                                        <div className="lg:col-span-2 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm flex flex-col">
                                             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Payment Overview</h3>
                                             <p className="text-[11px] text-slate-400 mb-4">{paymentPercent}% of total value has been paid</p>
-                                            <div className="relative">
-                                                <ResponsiveContainer width="100%" height={200}>
+                                            <div className="relative flex-1 flex items-center justify-center">
+                                                <ResponsiveContainer width="100%" height={180}>
                                                     <PieChart>
                                                         <Pie
                                                             data={paymentDonutData}
@@ -381,68 +381,47 @@ export default function DashboardPage() {
                                             </div>
                                         </div>
 
-                                        {/* Project-wise Ledger - Scrollable to prevent alignment issues */}
-                                        <div className="lg:col-span-3 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm flex flex-col h-full">
-                                            <div className="flex items-center justify-between mb-4">
-                                                <div>
-                                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Project Ledger</h3>
-                                                    <p className="text-[11px] text-slate-400">Detailed financial breakdown per project</p>
-                                                </div>
+                                        {/* Project Ledger - Compact table style, scrollable */}
+                                        <div className="lg:col-span-3 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm flex flex-col">
+                                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Project Ledger</h3>
+                                            <p className="text-[11px] text-slate-400 mb-4">Financial breakdown per project</p>
+
+                                            {/* Table Header */}
+                                            <div className="flex items-center text-[9px] sm:text-[10px] font-semibold text-slate-400 uppercase tracking-wider pb-2 border-b border-slate-100 mb-1 px-1">
+                                                <span className="flex-1">Project</span>
+                                                <span className="w-16 sm:w-20 text-right">Paid</span>
+                                                <span className="w-16 sm:w-20 text-right">Total</span>
+                                                <span className="w-12 sm:w-16 text-right">%</span>
                                             </div>
 
-                                            {/* Scrollable Container with standard height matching Donut Chart */}
-                                            <div className="flex-1 flex flex-col gap-3 h-[220px] overflow-y-auto pr-2 custom-scrollbar">
+                                            {/* Scrollable List */}
+                                            <div className="flex-1 overflow-y-auto min-h-0">
                                                 {projects.map((p, i) => {
-                                                    const total = p.stats.total || 1; // safely prevent div by zero
-                                                    const paidPercent = (p.stats.paid / total) * 100;
-                                                    const pendingPercent = (p.stats.pending / total) * 100;
-
+                                                    const total = p.stats.total || 1;
+                                                    const paidPct = Math.round((p.stats.paid / total) * 100);
                                                     return (
-                                                        <div key={p.id} className="flex flex-col gap-2 p-3 sm:p-3.5 rounded-xl bg-slate-50/50 hover:bg-slate-50 border border-slate-100 transition-colors group cursor-default">
-                                                            <div className="flex justify-between items-center gap-4">
-                                                                <div className="flex items-center gap-2 min-w-0">
-                                                                    <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${p.status === 'Completed' ? 'bg-emerald-500' : 'bg-blue-500'}`} />
-                                                                    <span className="text-xs font-bold text-slate-700 truncate group-hover:text-slate-900 transition-colors" title={p.description}>
-                                                                        {p.description}
-                                                                    </span>
-                                                                </div>
-
-                                                                {/* Financial Data Split */}
-                                                                <div className="flex items-center gap-3 text-[10px] font-mono font-medium shrink-0">
-                                                                    <div className="flex flex-col items-end">
-                                                                        <span className="text-slate-400 text-[9px] uppercase tracking-wider">Paid</span>
-                                                                        <span className="text-emerald-600">₹{p.stats.paid.toLocaleString()}</span>
-                                                                    </div>
-                                                                    <div className="w-px h-6 bg-slate-200" />
-                                                                    <div className="flex flex-col items-start">
-                                                                        <span className="text-slate-400 text-[9px] uppercase tracking-wider">Total</span>
-                                                                        <span className="text-slate-600">₹{p.stats.total.toLocaleString()}</span>
-                                                                    </div>
-                                                                </div>
+                                                        <div key={p.id} className="flex items-center py-2.5 px-1 border-b border-slate-50 last:border-b-0 hover:bg-slate-50/60 transition-colors group cursor-default">
+                                                            <div className="flex-1 flex items-center gap-2 min-w-0 pr-2">
+                                                                <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${paidPct === 100 ? 'bg-emerald-500' : paidPct > 0 ? 'bg-blue-500' : 'bg-amber-400'}`} />
+                                                                <span className="text-xs font-semibold text-slate-700 truncate group-hover:text-slate-900 transition-colors" title={p.description}>
+                                                                    {p.description}
+                                                                </span>
                                                             </div>
-
-                                                            {/* Ultra-slim Micro Bar */}
-                                                            <div className="w-full h-1 bg-slate-200/50 rounded-full overflow-hidden flex mt-0.5 relative">
-                                                                <motion.div
-                                                                    initial={{ width: 0 }}
-                                                                    animate={{ width: `${paidPercent}%` }}
-                                                                    transition={{ duration: 1, delay: i * 0.05, ease: 'easeOut' }}
-                                                                    className="h-full bg-emerald-500 relative z-10"
-                                                                    style={{ borderRight: paidPercent > 0 && pendingPercent > 0 ? '1px solid rgba(255,255,255,0.7)' : 'none' }}
-                                                                />
-                                                                <motion.div
-                                                                    initial={{ width: 0 }}
-                                                                    animate={{ width: `${pendingPercent}%` }}
-                                                                    transition={{ duration: 1, delay: i * 0.05, ease: 'easeOut' }}
-                                                                    className="h-full bg-amber-400 relative z-10"
-                                                                />
-                                                            </div>
+                                                            <span className="w-16 sm:w-20 text-right text-xs font-mono font-medium text-emerald-600">
+                                                                ₹{p.stats.paid.toLocaleString()}
+                                                            </span>
+                                                            <span className="w-16 sm:w-20 text-right text-xs font-mono font-medium text-slate-500">
+                                                                ₹{p.stats.total.toLocaleString()}
+                                                            </span>
+                                                            <span className={`w-12 sm:w-16 text-right text-xs font-bold ${paidPct === 100 ? 'text-emerald-600' : paidPct > 50 ? 'text-blue-600' : 'text-amber-600'}`}>
+                                                                {paidPct}%
+                                                            </span>
                                                         </div>
                                                     );
                                                 })}
                                                 {projects.length === 0 && (
-                                                    <div className="flex-1 flex items-center justify-center">
-                                                        <p className="text-xs text-slate-400">No project billing data available.</p>
+                                                    <div className="flex-1 flex items-center justify-center py-8">
+                                                        <p className="text-xs text-slate-400">No billing data available.</p>
                                                     </div>
                                                 )}
                                             </div>
