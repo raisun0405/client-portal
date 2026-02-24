@@ -430,30 +430,31 @@ export default function DashboardPage() {
 
                                     {/* Overall Progress Bar */}
                                     <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm mt-4 sm:mt-6">
-                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                                        <div className="flex items-center justify-between mb-4">
                                             <div>
                                                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Overall Progress</h3>
                                                 <p className="text-[11px] text-slate-400 mt-0.5">Average completion across all projects</p>
                                             </div>
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-2xl font-black text-slate-900">{avgProgress}%</span>
-                                                <div className="text-right hidden sm:block">
-                                                    <p className="text-[11px] text-emerald-600 font-bold">{completedProjects} completed</p>
-                                                    <p className="text-[11px] text-blue-600 font-medium">{activeProjects} in progress</p>
+                                            <div className="flex items-center gap-4">
+                                                <div className="text-right">
+                                                    <span className="text-2xl font-black text-slate-900">{avgProgress}%</span>
+                                                </div>
+                                                <div className="hidden sm:flex flex-col items-end text-[11px]">
+                                                    <span className="text-emerald-600 font-bold">{completedProjects} completed</span>
+                                                    <span className="text-blue-600 font-medium">{activeProjects} in progress</span>
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="relative h-4 w-full bg-slate-100 rounded-full overflow-hidden ring-1 ring-slate-200/50">
+                                        <div className="relative h-3 w-full bg-slate-100 rounded-full overflow-hidden">
                                             <motion.div
                                                 initial={{ width: 0 }}
                                                 animate={{ width: `${avgProgress}%` }}
                                                 transition={{ duration: 1.2, ease: 'easeOut' }}
-                                                className={`absolute inset-y-0 left-0 rounded-full ${avgProgress === 100 ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' : 'bg-gradient-to-r from-blue-600 to-blue-400'}`}
+                                                className={`absolute inset-y-0 left-0 rounded-full ${avgProgress === 100 ? 'bg-emerald-500' : 'bg-blue-500'}`}
                                             />
-                                            <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.15)_50%,transparent_100%)]" />
                                         </div>
                                         {/* Mobile summary */}
-                                        <div className="flex justify-between mt-2 sm:hidden text-[11px]">
+                                        <div className="flex justify-between mt-3 sm:hidden text-[11px]">
                                             <span className="text-emerald-600 font-bold">{completedProjects} completed</span>
                                             <span className="text-blue-600 font-medium">{activeProjects} in progress</span>
                                         </div>
