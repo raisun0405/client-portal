@@ -5,8 +5,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { getClientSession, logoutClient } from '../actions'; // Import server actions
-import { LayoutGrid, LogOut, FolderOpen, Loader2, X, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Calendar, ArrowRight } from 'lucide-react';
+import { LayoutGrid, LogOut, FolderOpen, Loader2, X, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Calendar, ArrowRight, TrendingUp, Wallet, CheckCircle2, Clock } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
 // Types
 type Project = {
@@ -218,9 +219,9 @@ export default function DashboardPage() {
             </header>
 
             <main className="max-w-7xl mx-auto p-6 md:p-10">
-                <div className="mb-8">
-                    <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Your Portfolio</h2>
-                    <p className="text-slate-500 mt-1">Select a project to view detailed status and requests.</p>
+                <div className="mb-6 sm:mb-8">
+                    <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Dashboard</h2>
+                    <p className="text-sm text-slate-500 mt-1">Overview of all your projects & financials.</p>
                 </div>
 
                 {projects.length === 0 && !loading ? (
@@ -228,73 +229,308 @@ export default function DashboardPage() {
                         <p className="text-slate-400">No projects found for this account.</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {projects.map((project, idx) => (
-                            <motion.div
-                                key={project.id}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: idx * 0.1 }}
-                                onClick={() => handleProjectClick(project)}
-                                className="group bg-white rounded-2xl p-6 shadow-sm hover:shadow-xl hover:shadow-blue-900/5 border border-slate-100 hover:border-blue-100 transition-all cursor-pointer relative overflow-hidden"
-                            >
-                                <div className="absolute top-0 right-0 p-6 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <FolderOpen size={20} className="text-blue-400" />
-                                </div>
+                    <>
+                        {/* ========== ANALYTICS DASHBOARD ========== */}
+                        {projects.length > 0 && (() => {
+                            // Compute aggregate stats
+                            const totalInvestment = projects.reduce((s, p) => s + p.stats.total, 0);
+                            const totalPaid = projects.reduce((s, p) => s + p.stats.paid, 0);
+                            const totalPending = projects.reduce((s, p) => s + p.stats.pending, 0);
+                            const completedProjects = projects.filter(p => p.status === 'Completed').length;
+                            const activeProjects = projects.filter(p => p.status !== 'Completed').length;
+                            const avgProgress = projects.length > 0 ? Math.round(projects.reduce((s, p) => s + p.stats.progress, 0) / projects.length) : 0;
+                            const paymentPercent = totalInvestment > 0 ? Math.round((totalPaid / totalInvestment) * 100) : 0;
 
-                                <div className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 mb-4">
-                                    {project.category}
-                                </div>
+                            // Donut chart data
+                            const paymentDonutData = [
+                                { name: 'Paid', value: totalPaid },
+                                { name: 'Pending', value: totalPending },
+                            ];
+                            const DONUT_COLORS = ['#10b981', '#f59e0b'];
 
-                                <h3 className="text-lg font-semibold text-slate-900 mb-2 leading-snug">{project.description}</h3>
+                            // Bar chart data (per project)
+                            const barData = projects.map(p => ({
+                                name: p.description.length > 18 ? p.description.substring(0, 18) + '…' : p.description,
+                                fullName: p.description,
+                                Paid: p.stats.paid,
+                                Pending: p.stats.pending,
+                            }));
 
-                                <div className="flex items-center gap-3 mb-4">
-                                    <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${project.status === 'Completed' ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'
-                                        }`}>
-                                        {project.status}
-                                    </span>
-                                    <span className="inline-flex items-center gap-1 text-xs text-slate-400">
-                                        <Calendar size={12} />
-                                        {new Date(project.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                    </span>
-                                </div>
+                            // Custom tooltip for bar chart
+                            const CustomBarTooltip = ({ active, payload, label }: any) => {
+                                if (active && payload && payload.length) {
+                                    const fullName = payload[0]?.payload?.fullName || label;
+                                    return (
+                                        <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200 p-3 text-xs">
+                                            <p className="font-bold text-slate-900 mb-1.5">{fullName}</p>
+                                            <div className="space-y-1">
+                                                <p className="flex items-center gap-2">
+                                                    <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+                                                    <span className="text-slate-500">Paid:</span>
+                                                    <span className="font-bold text-emerald-600">₹{payload[0]?.value?.toLocaleString()}</span>
+                                                </p>
+                                                <p className="flex items-center gap-2">
+                                                    <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
+                                                    <span className="text-slate-500">Pending:</span>
+                                                    <span className="font-bold text-amber-600">₹{payload[1]?.value?.toLocaleString()}</span>
+                                                </p>
+                                            </div>
+                                        </div>
+                                    );
+                                }
+                                return null;
+                            };
 
-                                {/* Progress Bar */}
-                                <div className="mb-5">
-                                    <div className="flex justify-between text-xs text-slate-500 mb-1.5">
-                                        <span className="font-medium">Completion</span>
-                                        <span className="font-bold text-slate-700">{project.stats.progress}%</span>
+                            return (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.5 }}
+                                    className="mb-10"
+                                >
+                                    {/* Summary Stat Cards */}
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
+                                        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <div className="p-1.5 bg-blue-50 rounded-lg"><Wallet size={14} className="text-blue-600" /></div>
+                                                <span className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Value</span>
+                                            </div>
+                                            <p className="text-lg sm:text-2xl font-bold text-slate-900 tracking-tight">₹{totalInvestment.toLocaleString()}</p>
+                                        </div>
+                                        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <div className="p-1.5 bg-emerald-50 rounded-lg"><TrendingUp size={14} className="text-emerald-600" /></div>
+                                                <span className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider">Paid</span>
+                                            </div>
+                                            <p className="text-lg sm:text-2xl font-bold text-emerald-600 tracking-tight">₹{totalPaid.toLocaleString()}</p>
+                                        </div>
+                                        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <div className="p-1.5 bg-amber-50 rounded-lg"><Clock size={14} className="text-amber-600" /></div>
+                                                <span className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider">Pending</span>
+                                            </div>
+                                            <p className="text-lg sm:text-2xl font-bold text-amber-600 tracking-tight">₹{totalPending.toLocaleString()}</p>
+                                        </div>
+                                        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <div className="p-1.5 bg-violet-50 rounded-lg"><CheckCircle2 size={14} className="text-violet-600" /></div>
+                                                <span className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider">Projects</span>
+                                            </div>
+                                            <p className="text-lg sm:text-2xl font-bold text-slate-900 tracking-tight">
+                                                {completedProjects}<span className="text-slate-400 text-sm font-normal">/{projects.length}</span>
+                                                <span className="text-xs sm:text-sm font-normal text-slate-400 ml-1">done</span>
+                                            </p>
+                                        </div>
                                     </div>
-                                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full bg-blue-500 rounded-full transition-all duration-700 ease-out"
-                                            style={{ width: `${project.stats.progress}%` }}
-                                        />
-                                    </div>
-                                </div>
 
-                                {/* Financial Table */}
-                                <div className="border border-slate-100 rounded-lg overflow-hidden">
-                                    <table className="w-full text-center text-xs">
-                                        <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-100">
-                                            <tr>
-                                                <th className="py-2 border-r border-slate-100">Total</th>
-                                                <th className="py-2 border-r border-slate-100">Paid</th>
-                                                <th className="py-2">Pending</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="bg-white text-slate-900 font-semibold">
-                                            <tr>
-                                                <td className="py-2 border-r border-slate-100">₹{project.stats.total}</td>
-                                                <td className="py-2 border-r border-slate-100 text-green-600">₹{project.stats.paid}</td>
-                                                <td className="py-2 text-amber-600">₹{project.stats.pending}</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </motion.div>
-                        ))}
-                    </div>
+                                    {/* Charts Row */}
+                                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
+                                        {/* Donut Chart - Payment Overview */}
+                                        <div className="lg:col-span-2 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm">
+                                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Payment Overview</h3>
+                                            <p className="text-[11px] text-slate-400 mb-4">{paymentPercent}% of total value has been paid</p>
+                                            <div className="relative">
+                                                <ResponsiveContainer width="100%" height={200}>
+                                                    <PieChart>
+                                                        <Pie
+                                                            data={paymentDonutData}
+                                                            cx="50%"
+                                                            cy="50%"
+                                                            innerRadius={55}
+                                                            outerRadius={80}
+                                                            paddingAngle={4}
+                                                            dataKey="value"
+                                                            stroke="none"
+                                                            startAngle={90}
+                                                            endAngle={-270}
+                                                        >
+                                                            {paymentDonutData.map((entry, index) => (
+                                                                <Cell key={`cell-${index}`} fill={DONUT_COLORS[index]} />
+                                                            ))}
+                                                        </Pie>
+                                                        <Tooltip
+                                                            formatter={(value: any) => [`₹${Number(value).toLocaleString()}`, '']}
+                                                            contentStyle={{
+                                                                backgroundColor: 'rgba(255,255,255,0.95)',
+                                                                backdropFilter: 'blur(8px)',
+                                                                borderRadius: '12px',
+                                                                border: '1px solid #e2e8f0',
+                                                                boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                                                                fontSize: '12px',
+                                                                fontWeight: 600,
+                                                            }}
+                                                        />
+                                                    </PieChart>
+                                                </ResponsiveContainer>
+                                                {/* Center label */}
+                                                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                                    <span className="text-2xl font-black text-slate-900">{paymentPercent}%</span>
+                                                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Paid</span>
+                                                </div>
+                                            </div>
+                                            {/* Legend */}
+                                            <div className="flex justify-center gap-6 mt-2">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                                                    <span className="text-xs text-slate-600 font-medium">Paid</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+                                                    <span className="text-xs text-slate-600 font-medium">Pending</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Bar Chart - Per-Project Breakdown */}
+                                        <div className="lg:col-span-3 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm">
+                                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Project-wise Breakdown</h3>
+                                            <p className="text-[11px] text-slate-400 mb-4">Paid vs pending amount per project</p>
+                                            <ResponsiveContainer width="100%" height={200}>
+                                                <BarChart data={barData} barCategoryGap="20%" barGap={2}>
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                                                    <XAxis
+                                                        dataKey="name"
+                                                        tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 500 }}
+                                                        axisLine={false}
+                                                        tickLine={false}
+                                                        interval={0}
+                                                        angle={projects.length > 3 ? -20 : 0}
+                                                        textAnchor={projects.length > 3 ? 'end' : 'middle'}
+                                                        height={projects.length > 3 ? 50 : 30}
+                                                    />
+                                                    <YAxis
+                                                        tick={{ fontSize: 10, fill: '#94a3b8' }}
+                                                        axisLine={false}
+                                                        tickLine={false}
+                                                        tickFormatter={(value) => value >= 1000 ? `₹${(value / 1000).toFixed(0)}k` : `₹${value}`}
+                                                        width={50}
+                                                    />
+                                                    <Tooltip content={<CustomBarTooltip />} cursor={{ fill: 'rgba(59,130,246,0.04)', radius: 8 }} />
+                                                    <Bar dataKey="Paid" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} />
+                                                    <Bar dataKey="Pending" stackId="a" fill="#fbbf24" radius={[4, 4, 0, 0]} />
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                            {/* Legend */}
+                                            <div className="flex justify-center gap-6 mt-3">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" />
+                                                    <span className="text-xs text-slate-600 font-medium">Paid</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="w-2.5 h-2.5 rounded-sm bg-amber-400" />
+                                                    <span className="text-xs text-slate-600 font-medium">Pending</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Overall Progress Bar */}
+                                    <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm mt-4 sm:mt-6">
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                                            <div>
+                                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Overall Progress</h3>
+                                                <p className="text-[11px] text-slate-400 mt-0.5">Average completion across all projects</p>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-2xl font-black text-slate-900">{avgProgress}%</span>
+                                                <div className="text-right hidden sm:block">
+                                                    <p className="text-[11px] text-emerald-600 font-bold">{completedProjects} completed</p>
+                                                    <p className="text-[11px] text-blue-600 font-medium">{activeProjects} in progress</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="relative h-4 w-full bg-slate-100 rounded-full overflow-hidden ring-1 ring-slate-200/50">
+                                            <motion.div
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${avgProgress}%` }}
+                                                transition={{ duration: 1.2, ease: 'easeOut' }}
+                                                className={`absolute inset-y-0 left-0 rounded-full ${avgProgress === 100 ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' : 'bg-gradient-to-r from-blue-600 to-blue-400'}`}
+                                            />
+                                            <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.15)_50%,transparent_100%)]" />
+                                        </div>
+                                        {/* Mobile summary */}
+                                        <div className="flex justify-between mt-2 sm:hidden text-[11px]">
+                                            <span className="text-emerald-600 font-bold">{completedProjects} completed</span>
+                                            <span className="text-blue-600 font-medium">{activeProjects} in progress</span>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            );
+                        })()}
+
+                        {/* ========== PROJECTS HEADING ========== */}
+                        <div className="mb-6">
+                            <h3 className="text-lg font-bold text-slate-900 tracking-tight">Your Projects</h3>
+                            <p className="text-sm text-slate-500 mt-0.5">Select a project to view detailed status and feature requests.</p>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {projects.map((project, idx) => (
+                                <motion.div
+                                    key={project.id}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: idx * 0.1 }}
+                                    onClick={() => handleProjectClick(project)}
+                                    className="group bg-white rounded-2xl p-6 shadow-sm hover:shadow-xl hover:shadow-blue-900/5 border border-slate-100 hover:border-blue-100 transition-all cursor-pointer relative overflow-hidden"
+                                >
+                                    <div className="absolute top-0 right-0 p-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <FolderOpen size={20} className="text-blue-400" />
+                                    </div>
+
+                                    <div className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 mb-4">
+                                        {project.category}
+                                    </div>
+
+                                    <h3 className="text-lg font-semibold text-slate-900 mb-2 leading-snug">{project.description}</h3>
+
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${project.status === 'Completed' ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'
+                                            }`}>
+                                            {project.status}
+                                        </span>
+                                        <span className="inline-flex items-center gap-1 text-xs text-slate-400">
+                                            <Calendar size={12} />
+                                            {new Date(project.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                        </span>
+                                    </div>
+
+                                    {/* Progress Bar */}
+                                    <div className="mb-5">
+                                        <div className="flex justify-between text-xs text-slate-500 mb-1.5">
+                                            <span className="font-medium">Completion</span>
+                                            <span className="font-bold text-slate-700">{project.stats.progress}%</span>
+                                        </div>
+                                        <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-blue-500 rounded-full transition-all duration-700 ease-out"
+                                                style={{ width: `${project.stats.progress}%` }}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Financial Table */}
+                                    <div className="border border-slate-100 rounded-lg overflow-hidden">
+                                        <table className="w-full text-center text-xs">
+                                            <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-100">
+                                                <tr>
+                                                    <th className="py-2 border-r border-slate-100">Total</th>
+                                                    <th className="py-2 border-r border-slate-100">Paid</th>
+                                                    <th className="py-2">Pending</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="bg-white text-slate-900 font-semibold">
+                                                <tr>
+                                                    <td className="py-2 border-r border-slate-100">₹{project.stats.total}</td>
+                                                    <td className="py-2 border-r border-slate-100 text-green-600">₹{project.stats.paid}</td>
+                                                    <td className="py-2 text-amber-600">₹{project.stats.pending}</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </div>
+                    </>
                 )}
             </main>
 
