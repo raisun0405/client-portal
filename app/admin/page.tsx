@@ -74,10 +74,7 @@ export default function AdminLoginPage() {
                 {/* Main Card */}
                 <div className="bg-white/70 backdrop-blur-2xl rounded-3xl p-8 sm:p-10 shadow-[0_8px_40px_rgba(0,0,0,0.06)] border border-white/80 ring-1 ring-slate-900/[0.04]">
                     {/* Header */}
-                    <div className="flex flex-col items-center mb-8">
-                        <div className="w-16 h-16 bg-gradient-to-br from-slate-800 to-slate-950 text-white rounded-2xl flex items-center justify-center mb-5 shadow-lg shadow-slate-900/20 ring-1 ring-white/10">
-                            <span className="text-xl font-black tracking-tight select-none">RS</span>
-                        </div>
+                    <div className="text-center mb-8">
                         <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Admin Login</h1>
                         <p className="text-slate-400 text-sm mt-1.5 font-medium">Sign in to manage the portal</p>
                     </div>
