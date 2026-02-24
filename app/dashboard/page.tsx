@@ -250,7 +250,7 @@ export default function DashboardPage() {
 
                             // Bar chart data (per project)
                             const barData = projects.map(p => ({
-                                name: p.description.length > 18 ? p.description.substring(0, 18) + '…' : p.description,
+                                name: p.description.length > 10 ? p.description.substring(0, 10) + '…' : p.description,
                                 fullName: p.description,
                                 Paid: p.stats.paid,
                                 Pending: p.stats.pending,
@@ -394,9 +394,7 @@ export default function DashboardPage() {
                                                         axisLine={false}
                                                         tickLine={false}
                                                         interval={0}
-                                                        angle={projects.length > 3 ? -20 : 0}
-                                                        textAnchor={projects.length > 3 ? 'end' : 'middle'}
-                                                        height={projects.length > 3 ? 50 : 30}
+                                                        height={30}
                                                     />
                                                     <YAxis
                                                         tick={{ fontSize: 10, fill: '#94a3b8' }}
