@@ -390,39 +390,41 @@ export default function AdminDashboard() {
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
-            <header className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between sticky top-0 z-10 gap-3 sm:gap-0">
-                <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
-                    {view !== 'clients' && (
-                        <button onClick={handleBack} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                            <ArrowLeft size={20} />
-                        </button>
-                    )}
-                    <div>
-                        <h1 className="font-bold text-lg">Admin Dashboard</h1>
-                        <p className="text-xs text-slate-500">
-                            {view === 'clients' ? 'Manage Clients' :
-                                view === 'projects' ? `Projects for ${selectedClient?.name}` :
-                                    view === 'links' ? `Links for ${selectedProject?.description}` :
-                                        `Features for ${selectedProject?.description?.substring(0, 20)}...`}
-                        </p>
+            <header className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 sm:py-4 sticky top-0 z-10">
+                <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
+                        {view !== 'clients' && (
+                            <button onClick={handleBack} className="p-1.5 sm:p-2 hover:bg-slate-100 rounded-full transition-colors shrink-0">
+                                <ArrowLeft size={18} className="sm:w-5 sm:h-5" />
+                            </button>
+                        )}
+                        <div className="min-w-0">
+                            <h1 className="font-bold text-base sm:text-lg">Admin Dashboard</h1>
+                            <p className="text-[11px] sm:text-xs text-slate-500 truncate max-w-[200px] sm:max-w-none">
+                                {view === 'clients' ? 'Manage Clients' :
+                                    view === 'projects' ? `Projects for ${selectedClient?.name}` :
+                                        view === 'links' ? `Links for ${selectedProject?.description}` :
+                                            `Features for ${selectedProject?.description?.substring(0, 20)}...`}
+                            </p>
+                        </div>
                     </div>
-                </div>
-                <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 w-full sm:w-auto">
-                    <button
-                        onClick={() => { setFormData({}); setEditingId(null); setShowModal(true); }}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors flex-1 sm:flex-none justify-center"
-                    >
-                        <Plus size={16} />
-                        <span className="inline sm:hidden">Add</span>
-                        <span className="hidden sm:inline">{view === 'clients' ? 'Add Client' : view === 'projects' ? 'Add Project' : view === 'links' ? 'Add Link' : 'Add Feature'}</span>
-                    </button>
-                    <button
-                        onClick={async () => { await supabase.auth.signOut(); router.push('/admin'); }}
-                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Logout"
-                    >
-                        <LogOut size={20} />
-                    </button>
+                    <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+                        <button
+                            onClick={() => { setFormData({}); setEditingId(null); setShowModal(true); }}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 transition-colors"
+                        >
+                            <Plus size={14} className="sm:w-4 sm:h-4" />
+                            <span className="hidden sm:inline">{view === 'clients' ? 'Add Client' : view === 'projects' ? 'Add Project' : view === 'links' ? 'Add Link' : 'Add Feature'}</span>
+                            <span className="sm:hidden">Add</span>
+                        </button>
+                        <button
+                            onClick={async () => { await supabase.auth.signOut(); router.push('/admin'); }}
+                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Logout"
+                        >
+                            <LogOut size={18} className="sm:w-5 sm:h-5" />
+                        </button>
+                    </div>
                 </div>
             </header>
 
@@ -442,27 +444,27 @@ export default function AdminDashboard() {
                 {view === 'clients' && !loading && (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {clients.map(client => (
-                            <motion.div layout key={client.id} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
+                            <motion.div layout key={client.id} className="bg-white p-4 sm:p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
                                 <div>
                                     <div className="flex justify-between items-start mb-2">
                                         <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
                                             <Users size={20} />
                                         </div>
-                                        <div className="flex gap-1 sm:opacity-0 opacity-100 group-hover:opacity-100 transition-opacity">
-                                            <button onClick={() => handleEditClient(client)} className="text-slate-400 hover:text-blue-600 p-1">
+                                        <div className="flex gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button onClick={() => handleEditClient(client)} className="text-slate-400 hover:text-blue-600 p-1.5 rounded-md hover:bg-blue-50">
                                                 <Pencil size={14} />
                                             </button>
-                                            <button onClick={() => handleDelete(client.id, 'clients')} className="text-slate-300 hover:text-red-500 p-1">
+                                            <button onClick={() => handleDelete(client.id, 'clients')} className="text-slate-300 hover:text-red-500 p-1.5 rounded-md hover:bg-red-50">
                                                 <Trash2 size={14} />
                                             </button>
                                         </div>
                                     </div>
-                                    <h3 className="font-semibold text-lg">{client.name}</h3>
-                                    <code className="text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded mt-2 block w-fit">{client.access_key}</code>
+                                    <h3 className="font-semibold text-base sm:text-lg">{client.name}</h3>
+                                    <code className="text-[11px] sm:text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded mt-2 block w-fit break-all">{client.access_key}</code>
                                 </div>
                                 <button
                                     onClick={() => handleClientSelect(client)}
-                                    className="mt-6 w-full py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 font-medium rounded-lg text-sm transition-colors"
+                                    className="mt-4 sm:mt-6 w-full py-2.5 sm:py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 font-medium rounded-lg text-sm transition-colors active:bg-slate-200"
                                 >
                                     View Projects
                                 </button>
@@ -476,67 +478,76 @@ export default function AdminDashboard() {
                 {view === 'projects' && !loading && (
                     <div className="space-y-4">
                         {projects.map(project => (
-                            <motion.div layout key={project.id} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-4 group">
-                                <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
-                                    <div className="flex items-start gap-3 sm:gap-4 w-full">
-                                        <div className="p-3 bg-blue-50 text-blue-600 rounded-xl shrink-0">
-                                            <FolderPlus size={20} className="sm:w-6 sm:h-6" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <h3 className="font-bold text-slate-900 truncate">{project.description}</h3>
-                                            <div className="flex flex-wrap gap-2 mt-1">
-                                                <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600">{project.category}</span>
-                                                <span className={`text-xs font-medium px-2 py-0.5 rounded ${project.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{project.status}</span>
-                                                <span className="inline-flex items-center gap-1 text-xs text-slate-400 px-2 py-0.5 whitespace-nowrap">
-                                                    <Calendar size={11} />
-                                                    {new Date(project.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                                </span>
-                                            </div>
-                                            {/* Progress Bar */}
-                                            <div className="mt-4 w-full max-w-[240px]">
-                                                <div className="flex justify-between items-end text-xs mb-1.5">
-                                                    <span className="text-slate-500 font-medium">Progress</span>
-                                                    <div className="text-right">
-                                                        <span className="font-bold text-slate-700 block">{project.stats.progress}%</span>
-                                                        <span className="text-[10px] text-slate-400 font-normal">
-                                                            {project.stats.completedFeatures}/{project.stats.totalFeatures} tasks
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
-                                                    <div
-                                                        className={`h-full rounded-full transition-all duration-700 ease-out ${project.stats.progress === 100 ? 'bg-green-500' : 'bg-blue-500'
-                                                            }`}
-                                                        style={{ width: `${project.stats.progress}%` }}
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
+                            <motion.div layout key={project.id} className="bg-white p-4 sm:p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3 sm:gap-4 group">
+                                {/* Project Info Row */}
+                                <div className="flex items-start gap-3 sm:gap-4">
+                                    <div className="p-2.5 sm:p-3 bg-blue-50 text-blue-600 rounded-xl shrink-0">
+                                        <FolderPlus size={20} className="sm:w-6 sm:h-6" />
                                     </div>
-                                    <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end border-t border-slate-100 sm:border-0 pt-3 sm:pt-0 mt-2 sm:mt-0">
-                                        <button onClick={() => handleEditProject(project)} className="text-slate-400 hover:text-blue-600 sm:opacity-0 opacity-100 group-hover:opacity-100 transition-opacity p-2 border border-slate-200 sm:border-transparent rounded-lg sm:rounded-none">
-                                            <Pencil size={16} />
-                                        </button>
-                                        <button onClick={() => handleDelete(project.id, 'projects')} className="text-slate-300 hover:text-red-500 sm:opacity-0 opacity-100 group-hover:opacity-100 transition-opacity p-2 border border-slate-200 sm:border-transparent rounded-lg sm:rounded-none">
-                                            <Trash2 size={16} />
-                                        </button>
-                                        <button
-                                            onClick={() => handleProjectLinksSelect(project)}
-                                            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition-colors border border-slate-200 sm:border-transparent"
-                                        >
-                                            Links
-                                        </button>
-                                        <button
-                                            onClick={() => handleProjectSelect(project)}
-                                            className="flex-1 sm:flex-none px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors text-center"
-                                        >
-                                            Manage Features
-                                        </button>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-start justify-between gap-2">
+                                            <h3 className="font-bold text-slate-900 text-sm sm:text-base leading-snug">{project.description}</h3>
+                                            <div className="hidden sm:flex items-center gap-2 shrink-0">
+                                                <button onClick={() => handleEditProject(project)} className="text-slate-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity p-2">
+                                                    <Pencil size={16} />
+                                                </button>
+                                                <button onClick={() => handleDelete(project.id, 'projects')} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-2">
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-wrap gap-1.5 sm:gap-2 mt-1.5">
+                                            <span className="text-[11px] sm:text-xs font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600">{project.category}</span>
+                                            <span className={`text-[11px] sm:text-xs font-medium px-2 py-0.5 rounded ${project.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{project.status}</span>
+                                            <span className="inline-flex items-center gap-1 text-[11px] sm:text-xs text-slate-400 px-1.5 py-0.5 whitespace-nowrap">
+                                                <Calendar size={10} className="sm:w-[11px] sm:h-[11px]" />
+                                                {new Date(project.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
 
-                                {/* Financial Table */}
-                                <div className="border border-slate-100 rounded-lg overflow-hidden">
+                                {/* Progress Bar */}
+                                <div className="w-full">
+                                    <div className="flex justify-between items-end text-xs mb-1.5">
+                                        <span className="text-slate-500 font-medium">Progress</span>
+                                        <div className="text-right">
+                                            <span className="font-bold text-slate-700">{project.stats.progress}%</span>
+                                            <span className="text-[10px] text-slate-400 font-normal ml-1">
+                                                ({project.stats.completedFeatures}/{project.stats.totalFeatures})
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
+                                        <div
+                                            className={`h-full rounded-full transition-all duration-700 ease-out ${project.stats.progress === 100 ? 'bg-green-500' : 'bg-blue-500'}`}
+                                            style={{ width: `${project.stats.progress}%` }}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Financial Summary */}
+                                <div className="grid grid-cols-3 gap-1 bg-slate-50 rounded-lg p-2.5 sm:p-0 sm:bg-transparent sm:rounded-none">
+                                    {/* Desktop: table layout */}
+                                    <div className="hidden sm:contents">
+                                    </div>
+                                    {/* Shared: stat blocks that work on both */}
+                                    <div className="text-center">
+                                        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-medium sm:hidden">Total</p>
+                                        <p className="text-xs sm:text-sm font-bold text-slate-900 mt-0.5">₹{project.stats.total}</p>
+                                    </div>
+                                    <div className="text-center border-x border-slate-200/60">
+                                        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-medium sm:hidden">Paid</p>
+                                        <p className="text-xs sm:text-sm font-bold text-green-600 mt-0.5">₹{project.stats.paid}</p>
+                                    </div>
+                                    <div className="text-center">
+                                        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-medium sm:hidden">Pending</p>
+                                        <p className="text-xs sm:text-sm font-bold text-amber-600 mt-0.5">₹{project.stats.pending}</p>
+                                    </div>
+                                </div>
+
+                                {/* Desktop: table header row (hidden on mobile since labels are inline) */}
+                                <div className="hidden sm:block border border-slate-100 rounded-lg overflow-hidden -mt-2">
                                     <table className="w-full text-center text-xs">
                                         <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-100">
                                             <tr>
@@ -554,6 +565,29 @@ export default function AdminDashboard() {
                                         </tbody>
                                     </table>
                                 </div>
+
+                                {/* Action Buttons */}
+                                <div className="flex items-center gap-2 pt-2 border-t border-slate-100 sm:border-0 sm:pt-0 sm:justify-end">
+                                    <button onClick={() => handleEditProject(project)} className="sm:hidden p-2 text-slate-400 hover:text-blue-600 rounded-lg border border-slate-200 active:bg-blue-50">
+                                        <Pencil size={15} />
+                                    </button>
+                                    <button onClick={() => handleDelete(project.id, 'projects')} className="sm:hidden p-2 text-slate-300 hover:text-red-500 rounded-lg border border-slate-200 active:bg-red-50">
+                                        <Trash2 size={15} />
+                                    </button>
+                                    <div className="flex-1 sm:flex-none" />
+                                    <button
+                                        onClick={() => handleProjectLinksSelect(project)}
+                                        className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs sm:text-sm font-medium transition-colors active:bg-slate-300"
+                                    >
+                                        Links
+                                    </button>
+                                    <button
+                                        onClick={() => handleProjectSelect(project)}
+                                        className="px-3 sm:px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs sm:text-sm font-medium transition-colors active:bg-blue-800"
+                                    >
+                                        Manage Features
+                                    </button>
+                                </div>
                             </motion.div>
                         ))}
                         {projects.length === 0 && <div className="text-center py-10 text-slate-400">No projects yet. Click "Add Project" to create one.</div>}
@@ -564,14 +598,14 @@ export default function AdminDashboard() {
                 {view === 'links' && !loading && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {links.map((link, index) => (
-                            <div key={index} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
-                                <div className="overflow-hidden">
-                                    <h4 className="font-semibold text-slate-900">{link.title}</h4>
-                                    <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline truncate block">
+                            <div key={index} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between gap-3">
+                                <div className="overflow-hidden min-w-0 flex-1">
+                                    <h4 className="font-semibold text-sm sm:text-base text-slate-900">{link.title}</h4>
+                                    <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-[11px] sm:text-xs text-blue-500 hover:underline truncate block">
                                         {link.url}
                                     </a>
                                 </div>
-                                <button onClick={() => handleDeleteLink(index)} className="p-2 text-slate-300 hover:text-red-500 transition-colors">
+                                <button onClick={() => handleDeleteLink(index)} className="p-2 text-slate-300 hover:text-red-500 transition-colors shrink-0 rounded-md hover:bg-red-50">
                                     <Trash2 size={16} />
                                 </button>
                             </div>
@@ -585,7 +619,7 @@ export default function AdminDashboard() {
                     <div>
                         {/* Sorting Controls */}
                         {features.length > 1 && (
-                            <div className="flex items-center justify-end gap-2 mb-4">
+                            <div className="flex items-center justify-between sm:justify-end gap-2 mb-4">
                                 <span className="text-xs text-slate-500">Sort by:</span>
                                 <div className="flex bg-white border border-slate-200 rounded-lg p-0.5">
                                     {(['amount', 'status', 'created_at'] as SortField[]).map((field) => (
@@ -599,7 +633,7 @@ export default function AdminDashboard() {
                                                     setSortOrder('asc');
                                                 }
                                             }}
-                                            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1 ${sortField === field ? 'bg-blue-600 text-white' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'}`}
+                                            className={`px-2.5 sm:px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1 ${sortField === field ? 'bg-blue-600 text-white' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'}`}
                                         >
                                             {field === 'created_at' ? 'Date' : field.charAt(0).toUpperCase() + field.slice(1)}
                                             {sortField === field && (
@@ -611,7 +645,8 @@ export default function AdminDashboard() {
                             </div>
                         )}
 
-                        <div className="bg-white rounded-none sm:rounded-xl border-y sm:border border-slate-200 overflow-x-auto -mx-4 sm:mx-0 p-0 sm:p-0 w-screen sm:w-auto">
+                        {/* Desktop Table - hidden on mobile */}
+                        <div className="hidden sm:block bg-white rounded-xl border border-slate-200 overflow-x-auto">
                             <table className="w-full text-left text-sm min-w-[700px]">
                                 <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
                                     <tr>
@@ -687,6 +722,60 @@ export default function AdminDashboard() {
                             </table>
                             {features.length === 0 && <div className="p-8 text-center text-slate-400">No features added yet.</div>}
                         </div>
+
+                        {/* Mobile Cards - shown only on mobile */}
+                        <div className="sm:hidden space-y-3">
+                            {[...features].sort((a, b) => {
+                                let comparison = 0;
+                                if (sortField === 'amount') comparison = (a.amount || 0) - (b.amount || 0);
+                                else if (sortField === 'status') {
+                                    const statusOrder = ['Requested', 'Approved', 'Working', 'Updating', 'Completed'];
+                                    comparison = statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status);
+                                } else if (sortField === 'created_at') comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+                                return sortOrder === 'asc' ? comparison : -comparison;
+                            }).map((feature) => (
+                                <div key={feature.id} className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
+                                    <div className="flex items-start justify-between gap-2">
+                                        <h4 className="font-semibold text-slate-900 text-sm leading-snug flex-1">{feature.description}</h4>
+                                        <div className="flex items-center gap-1.5 shrink-0">
+                                            <button onClick={() => handleEditFeature(feature)} className="p-1.5 text-slate-400 hover:text-blue-600 rounded-md hover:bg-blue-50 transition-colors">
+                                                <Pencil size={14} />
+                                            </button>
+                                            <button onClick={() => handleDelete(feature.id, 'features')} className="p-1.5 text-slate-400 hover:text-red-500 rounded-md hover:bg-red-50 transition-colors">
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        <span className={`inline-flex px-2 py-0.5 rounded text-[11px] font-medium ${feature.status === 'Completed' ? 'bg-green-50 text-green-700' : feature.status === 'Working' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>{feature.status}</span>
+                                        <span className={`inline-flex px-2 py-0.5 rounded text-[11px] font-medium ${feature.payment_status === 'Paid' ? 'bg-green-50 text-green-700' : feature.payment_status === 'Partial' ? 'bg-blue-50 text-blue-700' : 'bg-red-50 text-red-700'}`}>{feature.payment_status}</span>
+                                        {feature.is_new_request ? (
+                                            <span className="inline-flex px-2 py-0.5 rounded text-[11px] font-medium bg-purple-50 text-purple-700">Extra</span>
+                                        ) : (
+                                            <span className="inline-flex px-2 py-0.5 rounded text-[11px] font-medium bg-indigo-50 text-indigo-700">Core</span>
+                                        )}
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100">
+                                        <div>
+                                            <p className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">Amount</p>
+                                            <p className="text-sm font-bold text-slate-900 mt-0.5">₹{feature.amount || 0}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">Paid</p>
+                                            <p className="text-sm font-bold text-green-600 mt-0.5">₹{feature.paid_amount || 0}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">Date</p>
+                                            <p className="text-xs text-slate-600 mt-0.5">{feature.created_at ? new Date(feature.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '-'}</p>
+                                        </div>
+                                    </div>
+                                    {feature.estimation && (
+                                        <p className="text-xs text-slate-500"><span className="font-medium text-slate-400">Est:</span> {feature.estimation}</p>
+                                    )}
+                                </div>
+                            ))}
+                            {features.length === 0 && <div className="p-8 text-center text-slate-400 bg-white rounded-xl border border-dashed border-slate-300">No features added yet.</div>}
+                        </div>
                     </div>
                 )}
             </main>
@@ -694,19 +783,20 @@ export default function AdminDashboard() {
             {/* ========== CREATE MODAL ========== */}
             <AnimatePresence>
                 {showModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/30 backdrop-blur-sm">
+                    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/30 backdrop-blur-sm">
                         <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden"
+                            initial={{ opacity: 0, y: 50, scale: 0.98 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 50, scale: 0.98 }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                            className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden max-h-[90vh] sm:max-h-[85vh] flex flex-col"
                         >
-                            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                                <h3 className="font-semibold">{editingId ? 'Edit' : 'Add New'} {view === 'clients' ? 'Client' : view === 'projects' ? 'Project' : view === 'links' ? 'Link' : 'Feature'}</h3>
-                                <button onClick={() => { setShowModal(false); setEditingId(null); }}><X size={20} className="text-slate-400" /></button>
+                            <div className="px-5 sm:px-6 py-3.5 sm:py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+                                <h3 className="font-semibold text-sm sm:text-base">{editingId ? 'Edit' : 'Add New'} {view === 'clients' ? 'Client' : view === 'projects' ? 'Project' : view === 'links' ? 'Link' : 'Feature'}</h3>
+                                <button onClick={() => { setShowModal(false); setEditingId(null); }} className="p-1 rounded-md hover:bg-slate-200 transition-colors"><X size={20} className="text-slate-400" /></button>
                             </div>
 
-                            <div className="p-6 space-y-4">
+                            <div className="p-5 sm:p-6 space-y-4 overflow-y-auto">
                                 {/* ===== CLIENT FORM ===== */}
                                 {view === 'clients' && (
                                     <div className="space-y-3">
