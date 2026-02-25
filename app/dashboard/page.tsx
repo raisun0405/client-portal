@@ -333,19 +333,19 @@ export default function DashboardPage() {
                                                 <ResponsiveContainer width="100%" height={200}>
                                                     <PieChart>
                                                         <Pie
-                                                            data={paymentDonutData}
+                                                            data={paymentDonutData.filter(d => d.value > 0)}
                                                             cx="50%"
                                                             cy="50%"
                                                             innerRadius={55}
                                                             outerRadius={80}
-                                                            paddingAngle={4}
+                                                            paddingAngle={totalPaid > 0 && totalPending > 0 ? 4 : 0}
                                                             dataKey="value"
                                                             stroke="none"
                                                             startAngle={90}
                                                             endAngle={-270}
                                                         >
                                                             {paymentDonutData.map((entry, index) => (
-                                                                <Cell key={`cell-${index}`} fill={DONUT_COLORS[index]} />
+                                                                entry.value > 0 ? <Cell key={`cell-${index}`} fill={DONUT_COLORS[index]} /> : null
                                                             ))}
                                                         </Pie>
                                                         <Tooltip
