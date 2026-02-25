@@ -224,11 +224,98 @@ export default function DashboardPage() {
                     <p className="text-sm text-slate-500 mt-1">Overview of all your projects & financials.</p>
                 </div>
 
+                {/* Skeleton Loading State */}
+                {loading && projects.length === 0 && (
+                    <div className="animate-fade-in">
+                        {/* Skeleton Stat Cards */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
+                            {[...Array(4)].map((_, i) => (
+                                <div key={i} className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100 shadow-sm">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <div className="skeleton w-8 h-8 rounded-lg" />
+                                        <div className="skeleton h-3 w-16 rounded-md" />
+                                    </div>
+                                    <div className="skeleton h-7 w-24 rounded-lg" />
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Skeleton Charts Row */}
+                        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6 mb-10">
+                            {/* Skeleton Donut Chart */}
+                            <div className="lg:col-span-2 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm">
+                                <div className="skeleton h-3 w-32 rounded-md mb-2" />
+                                <div className="skeleton h-2.5 w-48 rounded-md mb-6" />
+                                <div className="flex items-center justify-center py-4">
+                                    <div className="skeleton w-[160px] h-[160px] rounded-full" style={{ background: 'linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 37%, #f1f5f9 63%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s ease-in-out infinite' }} />
+                                </div>
+                                <div className="flex justify-center gap-6 mt-4">
+                                    <div className="flex items-center gap-2">
+                                        <div className="skeleton w-2.5 h-2.5 rounded-full" />
+                                        <div className="skeleton h-3 w-10 rounded-md" />
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="skeleton w-2.5 h-2.5 rounded-full" />
+                                        <div className="skeleton h-3 w-14 rounded-md" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Skeleton Bar Chart */}
+                            <div className="lg:col-span-3 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm">
+                                <div className="skeleton h-3 w-40 rounded-md mb-2" />
+                                <div className="skeleton h-2.5 w-56 rounded-md mb-6" />
+                                <div className="flex items-end gap-3 h-[160px] px-2">
+                                    {[65, 85, 45, 70, 55, 90].map((h, i) => (
+                                        <div key={i} className="flex-1 flex flex-col gap-1 justify-end">
+                                            <div className="skeleton rounded-t-md" style={{ height: `${h}%` }} />
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="flex justify-between mt-3 px-2">
+                                    {[...Array(6)].map((_, i) => (
+                                        <div key={i} className="skeleton h-2.5 w-8 rounded-md" />
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Skeleton Progress Bar */}
+                        <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm mb-10">
+                            <div className="flex justify-between mb-3">
+                                <div className="skeleton h-3 w-28 rounded-md" />
+                                <div className="skeleton h-3 w-12 rounded-md" />
+                            </div>
+                            <div className="skeleton h-4 w-full rounded-full" />
+                        </div>
+
+                        {/* Skeleton Project Cards */}
+                        <div className="mb-6">
+                            <div className="skeleton h-5 w-32 rounded-md mb-2" />
+                            <div className="skeleton h-3 w-64 rounded-md" />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {[...Array(3)].map((_, i) => (
+                                <div key={i} className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+                                    <div className="skeleton h-5 w-20 rounded-full mb-4" />
+                                    <div className="skeleton h-5 w-3/4 rounded-md mb-2" />
+                                    <div className="skeleton h-3 w-1/2 rounded-md mb-4" />
+                                    <div className="skeleton h-2 w-full rounded-full mb-4" />
+                                    <div className="border border-slate-100 rounded-lg overflow-hidden">
+                                        <div className="skeleton h-8 w-full rounded-none" />
+                                        <div className="skeleton h-8 w-full rounded-none" />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 {projects.length === 0 && !loading ? (
                     <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-slate-300">
                         <p className="text-slate-400">No projects found for this account.</p>
                     </div>
-                ) : (
+                ) : !loading && (
                     <>
                         {/* ========== ANALYTICS DASHBOARD ========== */}
                         {projects.length > 0 && (() => {
