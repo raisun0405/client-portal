@@ -115,7 +115,7 @@ export default function LoginPage() {
                 value={accessKey}
                 onChange={(e) => setAccessKey(e.target.value)}
                 placeholder="Access Key (e.g., client-demo-001)"
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium text-center tracking-wide"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:placeholder:text-transparent focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium text-center tracking-wide"
               />
 
               <div className="flex items-center justify-between px-1 pt-2">
