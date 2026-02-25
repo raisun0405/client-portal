@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { loginClient } from './actions';
+import { loginClient, getClientSession } from './actions';
 import { KeyRound, ArrowRight, Loader2, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -10,9 +10,28 @@ export default function LoginPage() {
   const [accessKey, setAccessKey] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   const [isNavigating, setIsNavigating] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
+
+  // Auto-redirect if a "Remember Me" session cookie exists
+  useEffect(() => {
+    const checkExistingSession = async () => {
+      try {
+        const session = await getClientSession();
+        if (session) {
+          setIsNavigating(true);
+          router.push('/dashboard');
+          return;
+        }
+      } catch (err) {
+        // No valid session, show login form
+      }
+      setCheckingSession(false);
+    };
+    checkExistingSession();
+  }, [router]);
 
   // Hidden admin shortcut: Ctrl + Shift + A
   useEffect(() => {
@@ -47,10 +66,10 @@ export default function LoginPage() {
     }
   };
 
-  // Full-screen loading overlay during navigation
-  if (isNavigating) {
+  // Show loading while checking session or navigating
+  if (checkingSession || isNavigating) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 animate-fade-in">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-linear-to-br from-blue-50 to-indigo-50 animate-fade-in">
         <div className="flex items-center gap-2 mb-6">
           <span className="w-3 h-3 rounded-full bg-blue-500 loader-dot"></span>
           <span className="w-3 h-3 rounded-full bg-blue-500 loader-dot"></span>
@@ -62,7 +81,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 to-indigo-50 p-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -71,7 +90,7 @@ export default function LoginPage() {
       >
         <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8 border border-white/50">
           <div className="flex flex-col items-center mb-8">
-            <div className="w-24 h-24 rounded-full p-1 bg-gradient-to-tr from-blue-500 to-purple-500 shadow-lg mb-4">
+            <div className="w-24 h-24 rounded-full p-1 bg-linear-to-tr from-blue-500 to-purple-500 shadow-lg mb-4">
               <div className="w-full h-full rounded-full overflow-hidden border-4 border-white">
                 <img
                   src="https://raw.githubusercontent.com/raisun0405/Mescellanious/main/Spiderman%20listening%20to%20music.jpeg"
