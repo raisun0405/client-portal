@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { Users, Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut, ArrowUp, ArrowDown, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// --- Types ---
+
 // --- Types ---
 type Client = {
     id: string;
@@ -526,8 +526,8 @@ export default function AdminDashboard() {
                                     </div>
                                 </div>
 
-                                {/* Financial Summary */}
-                                <div className="grid grid-cols-3 gap-1 bg-slate-50 rounded-lg p-2.5 sm:p-0 sm:bg-transparent sm:rounded-none">
+                                {/* Financial Summary - Mobile Only */}
+                                <div className="grid grid-cols-3 gap-1 bg-slate-50 rounded-lg p-2.5 sm:hidden">
                                     {/* Desktop: table layout */}
                                     <div className="hidden sm:contents">
                                     </div>

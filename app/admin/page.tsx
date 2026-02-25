@@ -38,7 +38,7 @@ export default function AdminLoginPage() {
     // Full-screen loading overlay during navigation
     if (isNavigating) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 via-white to-blue-50 animate-fade-in">
+            <div className="min-h-screen flex flex-col items-center justify-center bg-linear-to-br from-slate-50 via-white to-blue-50 animate-fade-in">
                 <div className="flex items-center gap-2 mb-6">
                     <span className="w-3 h-3 rounded-full bg-slate-900 loader-dot"></span>
                     <span className="w-3 h-3 rounded-full bg-slate-900 loader-dot"></span>
@@ -50,7 +50,7 @@ export default function AdminLoginPage() {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 via-white to-blue-50/60 p-4 relative overflow-hidden">
+        <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-slate-100 via-white to-blue-50/60 p-4 relative overflow-hidden">
             {/* Subtle ambient background shapes */}
             <div className="absolute top-[-20%] right-[-10%] w-[500px] h-[500px] bg-blue-100/40 rounded-full blur-[100px] pointer-events-none" />
             <div className="absolute bottom-[-20%] left-[-10%] w-[400px] h-[400px] bg-violet-100/30 rounded-full blur-[100px] pointer-events-none" />
@@ -72,7 +72,7 @@ export default function AdminLoginPage() {
                 </button>
 
                 {/* Main Card */}
-                <div className="bg-white/70 backdrop-blur-2xl rounded-3xl p-8 sm:p-10 shadow-[0_8px_40px_rgba(0,0,0,0.06)] border border-white/80 ring-1 ring-slate-900/[0.04]">
+                <div className="bg-white/70 backdrop-blur-2xl rounded-3xl p-8 sm:p-10 shadow-[0_8px_40px_rgba(0,0,0,0.06)] border border-white/80 ring-1 ring-slate-900/4">
                     {/* Header */}
                     <div className="text-center mb-8">
                         <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Admin Login</h1>
@@ -85,10 +85,10 @@ export default function AdminLoginPage() {
                         <div className="space-y-2">
                             <label className="text-xs font-semibold text-slate-500 ml-0.5 uppercase tracking-wider">Email</label>
                             <div className={`relative rounded-xl border transition-all duration-200 ${focusedField === 'email'
-                                ? 'border-slate-900 ring-4 ring-slate-900/[0.06] shadow-sm'
+                                ? 'border-slate-900 ring-4 ring-slate-900/6 shadow-sm'
                                 : 'border-slate-200 hover:border-slate-300'
                                 }`}>
-                                <Mail className={`absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors duration-200 ${focusedField === 'email' ? 'text-slate-900' : 'text-slate-350'
+                                <Mail className={`absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors duration-200 ${focusedField === 'email' ? 'text-slate-900' : 'text-slate-400'
                                     }`} size={17} strokeWidth={1.8} />
                                 <input
                                     type="email"
@@ -106,10 +106,10 @@ export default function AdminLoginPage() {
                         <div className="space-y-2">
                             <label className="text-xs font-semibold text-slate-500 ml-0.5 uppercase tracking-wider">Password</label>
                             <div className={`relative rounded-xl border transition-all duration-200 ${focusedField === 'password'
-                                ? 'border-slate-900 ring-4 ring-slate-900/[0.06] shadow-sm'
+                                ? 'border-slate-900 ring-4 ring-slate-900/6 shadow-sm'
                                 : 'border-slate-200 hover:border-slate-300'
                                 }`}>
-                                <Lock className={`absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors duration-200 ${focusedField === 'password' ? 'text-slate-900' : 'text-slate-350'
+                                <Lock className={`absolute left-3.5 top-1/2 -translate-y-1/2 transition-colors duration-200 ${focusedField === 'password' ? 'text-slate-900' : 'text-slate-400'
                                     }`} size={17} strokeWidth={1.8} />
                                 <input
                                     type={showPassword ? 'text' : 'password'}
@@ -123,7 +123,7 @@ export default function AdminLoginPage() {
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-350 hover:text-slate-600 transition-colors p-0.5"
+                                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-0.5"
                                     tabIndex={-1}
                                 >
                                     {showPassword ? <EyeOff size={17} strokeWidth={1.8} /> : <Eye size={17} strokeWidth={1.8} />}

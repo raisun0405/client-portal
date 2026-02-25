@@ -459,7 +459,7 @@ export default function DashboardPage() {
                                                 initial={{ width: 0 }}
                                                 animate={{ width: `${avgProgress}%` }}
                                                 transition={{ duration: 1.2, ease: 'easeOut' }}
-                                                className={`absolute inset-y-0 left-0 rounded-full ${avgProgress === 100 ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' : 'bg-gradient-to-r from-blue-600 to-blue-400'}`}
+                                                className={`absolute inset-y-0 left-0 rounded-full ${avgProgress === 100 ? 'bg-linear-to-r from-emerald-500 to-emerald-400' : 'bg-linear-to-r from-blue-600 to-blue-400'}`}
                                             />
                                             <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.15)_50%,transparent_100%)]" />
                                         </div>
@@ -572,15 +572,15 @@ export default function DashboardPage() {
                                         {selectedProject.status}
                                     </span>
                                 </div>
-                                <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight leading-tight break-words">{selectedProject.description}</h2>
+                                <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight leading-tight wrap-break-word">{selectedProject.description}</h2>
                                 <p className="text-slate-400 text-xs sm:text-sm mt-1.5 font-medium flex items-center gap-1.5">
-                                    <Calendar size={14} className="flex-shrink-0" />
+                                    <Calendar size={14} className="shrink-0" />
                                     Started on {new Date(selectedProject.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
                                 </p>
                             </div>
                             <button
                                 onClick={closeModal}
-                                className="flex-shrink-0 p-2 sm:p-2.5 bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-full transition-all duration-200"
+                                className="shrink-0 p-2 sm:p-2.5 bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-full transition-all duration-200"
                             >
                                 <X size={20} className="sm:w-6 sm:h-6" />
                             </button>
@@ -628,7 +628,7 @@ export default function DashboardPage() {
                                                 initial={{ width: 0 }}
                                                 animate={{ width: `${(selectedProject.stats.paid / (selectedProject.stats.total || 1)) * 100}%` }}
                                                 transition={{ duration: 1, ease: "easeOut" }}
-                                                className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-gradient-to-r from-emerald-500 to-emerald-400 relative"
+                                                className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-linear-to-r from-emerald-500 to-emerald-400 relative"
                                             >
                                                 <div className="absolute inset-0 bg-white/10" />
                                             </motion.div>
@@ -656,7 +656,7 @@ export default function DashboardPage() {
                                                         <p className="font-semibold text-slate-900 text-sm group-hover:text-blue-700 transition-colors">{link.title}</p>
                                                         <p className="text-xs text-slate-400 truncate w-full group-hover:text-blue-400/80 transition-colors">{link.url.split('//')[1] || link.url}</p>
                                                     </div>
-                                                    <ArrowRight size={14} className="ml-auto text-slate-300 group-hover:text-blue-400 group-hover:translate-x-1 transition-all flex-shrink-0" />
+                                                    <ArrowRight size={14} className="ml-auto text-slate-300 group-hover:text-blue-400 group-hover:translate-x-1 transition-all shrink-0" />
                                                 </a>
                                             ))
                                         ) : (

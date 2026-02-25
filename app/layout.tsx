@@ -13,8 +13,8 @@ export const metadata: Metadata = {
   description: "Secure client portal to track project progress, feature requests, and financial status in real-time.",
   applicationName: "My Project Portal",
   keywords: ["client portal", "project management", "dashboard", "collaboration", "web development"],
-  authors: [{ name: "Your Name" }],
-  creator: "Your Name",
+  authors: [{ name: "Rai Sun" }],
+  creator: "Rai Sun",
   openGraph: {
     type: "website",
     locale: "en_US",
