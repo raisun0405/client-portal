@@ -380,16 +380,36 @@ export default function AdminDashboard() {
         };
 
         if (editingId) {
+            // Capture old feature data BEFORE updating for comparison
+            const oldFeature = features.find(f => f.id === editingId);
+            const oldAmount = oldFeature ? Number(oldFeature.amount) || 0 : 0;
+            const oldPaidAmount = oldFeature ? Number(oldFeature.paid_amount) || 0 : 0;
+            const oldStatus = oldFeature?.status || '';
+
             // UPDATE
             const { error } = await supabase.from('features').update(payload).eq('id', editingId);
             if (!error && selectedProject) {
                 fetchFeatures(selectedProject.id);
                 if (selectedClient) fetchProjects(selectedClient.id); // Refresh stats
 
-                // Log activity
+                // Log activity with detailed change tracking
                 if (selectedClient) {
-                    const isCompleted = payload.status === 'Completed';
-                    const isPaid = paymentStatus === 'Paid' && paidAmount > 0;
+                    const isCompleted = payload.status === 'Completed' && oldStatus !== 'Completed';
+                    const amountChanged = amount !== oldAmount;
+                    const paymentChanged = paidAmount !== oldPaidAmount;
+
+                    // Build detailed change descriptions
+                    const changes: string[] = [];
+                    if (amountChanged) {
+                        changes.push(`Amount: ₹${oldAmount.toLocaleString()} → ₹${amount.toLocaleString()}`);
+                    }
+                    if (paymentChanged) {
+                        changes.push(`Payment: ₹${oldPaidAmount.toLocaleString()} → ₹${paidAmount.toLocaleString()}`);
+                    }
+                    if (payload.status !== oldStatus && !isCompleted) {
+                        changes.push(`Status: ${oldStatus} → ${payload.status}`);
+                    }
+
                     let actionType: 'feature_completed' | 'payment_received' | 'feature_updated' | 'status_changed' = 'feature_updated';
                     let title = 'Feature Updated';
                     let desc = `"${payload.description}" in "${selectedProject.description}" was updated`;
@@ -398,10 +418,17 @@ export default function AdminDashboard() {
                         actionType = 'feature_completed';
                         title = 'Feature Completed';
                         desc = `"${payload.description}" in "${selectedProject.description}" was completed`;
-                    } else if (isPaid) {
+                        if (amount > 0) desc += ` (₹${amount.toLocaleString()})`;
+                    } else if (paymentChanged && paidAmount > oldPaidAmount) {
                         actionType = 'payment_received';
-                        title = 'Payment Received';
-                        desc = `₹${paidAmount.toLocaleString()} received for "${payload.description}"`;
+                        const paymentDiff = paidAmount - oldPaidAmount;
+                        title = `Payment Received — ₹${paymentDiff.toLocaleString()}`;
+                        desc = `₹${paymentDiff.toLocaleString()} received for "${payload.description}" (Total paid: ₹${paidAmount.toLocaleString()}/${amount.toLocaleString()})`;
+                    } else if (amountChanged) {
+                        title = 'Amount Updated';
+                        desc = `"${payload.description}" — ₹${oldAmount.toLocaleString()} → ₹${amount.toLocaleString()}`;
+                    } else if (changes.length > 0) {
+                        desc = `"${payload.description}" — ${changes.join(', ')}`;
                     }
 
                     await logActivity({
@@ -410,7 +437,17 @@ export default function AdminDashboard() {
                         actionType,
                         title,
                         description: desc,
-                        metadata: { feature: payload.description, amount, paidAmount, status: payload.status, paymentStatus },
+                        metadata: {
+                            feature: payload.description,
+                            amount,
+                            paidAmount,
+                            oldAmount,
+                            oldPaidAmount,
+                            oldStatus,
+                            status: payload.status,
+                            paymentStatus,
+                            changes,
+                        },
                     });
                 }
             } else {
@@ -429,9 +466,9 @@ export default function AdminDashboard() {
                         clientId: selectedClient.id,
                         projectId: selectedProject?.id || null,
                         actionType: 'feature_added',
-                        title: 'New Feature Added',
-                        description: `"${payload.description}" was added to "${selectedProject?.description}"${amount > 0 ? ` (₹${amount.toLocaleString()})` : ''}`,
-                        metadata: { feature: payload.description, amount, status: payload.status, isNewRequest: payload.is_new_request },
+                        title: amount > 0 ? `New Feature Added — ₹${amount.toLocaleString()}` : 'New Feature Added',
+                        description: `"${payload.description}" was added to "${selectedProject?.description}"${amount > 0 ? ` with cost ₹${amount.toLocaleString()}` : ''}`,
+                        metadata: { feature: payload.description, amount, paidAmount: 0, status: payload.status, isNewRequest: payload.is_new_request },
                     });
                 }
             } else {

@@ -546,10 +546,28 @@ export default function DashboardPage() {
 
                                                                         {/* Content */}
                                                                         <div className="flex-1 min-w-0 pt-0.5">
-                                                                            <div className="flex items-center gap-2 mb-0.5">
+                                                                            <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                                                                                 <span className={`text-[10px] font-bold uppercase tracking-wider ${meta.textColor} ${meta.bgLight} px-1.5 py-0.5 rounded`}>
                                                                                     {meta.label}
                                                                                 </span>
+
+                                                                                {/* ₹ Amount Badge for payment/amount logs */}
+                                                                                {log.action_type === 'payment_received' && log.metadata?.paidAmount && (
+                                                                                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                                                                                        ₹{Number(log.metadata.paidAmount - (log.metadata.oldPaidAmount || 0)).toLocaleString()}
+                                                                                    </span>
+                                                                                )}
+                                                                                {log.action_type === 'feature_added' && log.metadata?.amount > 0 && (
+                                                                                    <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
+                                                                                        ₹{Number(log.metadata.amount).toLocaleString()}
+                                                                                    </span>
+                                                                                )}
+                                                                                {log.action_type === 'feature_updated' && log.metadata?.oldAmount !== undefined && log.metadata?.amount !== log.metadata?.oldAmount && (
+                                                                                    <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                                                                                        ₹{Number(log.metadata.oldAmount).toLocaleString()} → ₹{Number(log.metadata.amount).toLocaleString()}
+                                                                                    </span>
+                                                                                )}
+
                                                                                 <span className="text-[10px] text-slate-300 font-medium">
                                                                                     {getRelativeTime(log.created_at)}
                                                                                 </span>
@@ -559,6 +577,21 @@ export default function DashboardPage() {
                                                                                 <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed truncate">
                                                                                     {log.description}
                                                                                 </p>
+                                                                            )}
+
+                                                                            {/* Payment progress mini bar */}
+                                                                            {log.action_type === 'payment_received' && log.metadata?.amount > 0 && (
+                                                                                <div className="mt-1.5 flex items-center gap-2">
+                                                                                    <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden max-w-[120px]">
+                                                                                        <div
+                                                                                            className="h-full bg-emerald-400 rounded-full transition-all"
+                                                                                            style={{ width: `${Math.min((Number(log.metadata.paidAmount) / Number(log.metadata.amount)) * 100, 100)}%` }}
+                                                                                        />
+                                                                                    </div>
+                                                                                    <span className="text-[9px] text-slate-400 font-mono">
+                                                                                        ₹{Number(log.metadata.paidAmount).toLocaleString()}/{Number(log.metadata.amount).toLocaleString()}
+                                                                                    </span>
+                                                                                </div>
                                                                             )}
                                                                         </div>
                                                                     </motion.div>
