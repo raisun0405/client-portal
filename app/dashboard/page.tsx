@@ -568,7 +568,7 @@ export default function DashboardPage() {
                                                                                     </span>
                                                                                 )}
 
-                                                                                <span className="text-[10px] text-slate-300 font-medium">
+                                                                                <span className="text-[10px] text-slate-500 font-semibold">
                                                                                     {getRelativeTime(log.created_at)}
                                                                                 </span>
                                                                             </div>
