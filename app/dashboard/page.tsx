@@ -4,10 +4,11 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { fetchActivityLogs, type ActivityLog } from '@/lib/activityLogger';
 import { getClientSession, logoutClient } from '../actions'; // Import server actions
-import { LayoutGrid, LogOut, FolderOpen, Loader2, X, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Calendar, ArrowRight, TrendingUp, Wallet, CheckCircle2, Clock } from 'lucide-react';
+import { LayoutGrid, LogOut, FolderOpen, Loader2, X, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Calendar, ArrowRight, TrendingUp, Wallet, CheckCircle2, Clock, FileText, Zap, CreditCard, Link2, Trash2, RefreshCw, PackagePlus, Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 // Types
 type Project = {
@@ -59,6 +60,10 @@ export default function DashboardPage() {
     const [sortField, setSortField] = useState<SortField>('created_at');
     const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
 
+    // Activity logs state
+    const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+    const [loadingLogs, setLoadingLogs] = useState(false);
+
     useEffect(() => {
         const verifySession = async () => {
             try {
@@ -69,6 +74,7 @@ export default function DashboardPage() {
                 }
                 setClient(session);
                 fetchProjects(session.id);
+                loadActivityLogs(session.id);
             } catch (err) {
                 console.error("Session verification failed", err);
                 router.push('/');
@@ -169,6 +175,59 @@ export default function DashboardPage() {
         router.push('/');
     };
 
+    const loadActivityLogs = async (clientId: string) => {
+        setLoadingLogs(true);
+        const logs = await fetchActivityLogs(clientId, 25);
+        setActivityLogs(logs);
+        setLoadingLogs(false);
+    };
+
+    // Helper: get icon and color for activity type
+    const getActivityMeta = (actionType: string) => {
+        switch (actionType) {
+            case 'project_created':
+                return { icon: <PackagePlus size={16} />, color: 'bg-blue-500', bgLight: 'bg-blue-50', textColor: 'text-blue-600', label: 'New Project' };
+            case 'project_updated':
+                return { icon: <RefreshCw size={16} />, color: 'bg-slate-500', bgLight: 'bg-slate-50', textColor: 'text-slate-600', label: 'Updated' };
+            case 'project_completed':
+                return { icon: <CheckCircle2 size={16} />, color: 'bg-emerald-500', bgLight: 'bg-emerald-50', textColor: 'text-emerald-600', label: 'Completed' };
+            case 'feature_added':
+                return { icon: <Zap size={16} />, color: 'bg-violet-500', bgLight: 'bg-violet-50', textColor: 'text-violet-600', label: 'Feature Added' };
+            case 'feature_updated':
+                return { icon: <FileText size={16} />, color: 'bg-sky-500', bgLight: 'bg-sky-50', textColor: 'text-sky-600', label: 'Feature Updated' };
+            case 'feature_completed':
+                return { icon: <CheckCircle2 size={16} />, color: 'bg-emerald-500', bgLight: 'bg-emerald-50', textColor: 'text-emerald-600', label: 'Feature Done' };
+            case 'feature_deleted':
+                return { icon: <Trash2 size={16} />, color: 'bg-red-500', bgLight: 'bg-red-50', textColor: 'text-red-600', label: 'Removed' };
+            case 'payment_received':
+                return { icon: <CreditCard size={16} />, color: 'bg-amber-500', bgLight: 'bg-amber-50', textColor: 'text-amber-600', label: 'Payment' };
+            case 'link_added':
+                return { icon: <Link2 size={16} />, color: 'bg-indigo-500', bgLight: 'bg-indigo-50', textColor: 'text-indigo-600', label: 'Link Added' };
+            case 'link_removed':
+                return { icon: <Trash2 size={16} />, color: 'bg-rose-500', bgLight: 'bg-rose-50', textColor: 'text-rose-600', label: 'Link Removed' };
+            case 'status_changed':
+                return { icon: <RefreshCw size={16} />, color: 'bg-teal-500', bgLight: 'bg-teal-50', textColor: 'text-teal-600', label: 'Status Changed' };
+            default:
+                return { icon: <Activity size={16} />, color: 'bg-slate-400', bgLight: 'bg-slate-50', textColor: 'text-slate-500', label: 'Activity' };
+        }
+    };
+
+    // Helper: format relative time
+    const getRelativeTime = (dateStr: string) => {
+        const now = new Date();
+        const date = new Date(dateStr);
+        const diffMs = now.getTime() - date.getTime();
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return `${diffMins}m ago`;
+        if (diffHours < 24) return `${diffHours}h ago`;
+        if (diffDays < 7) return `${diffDays}d ago`;
+        return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+    };
+
     if (loading && !client) return (
         <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center animate-fade-in">
             <div className="flex items-center gap-2 mb-6">
@@ -261,20 +320,23 @@ export default function DashboardPage() {
                                 </div>
                             </div>
 
-                            {/* Skeleton Bar Chart */}
+                            {/* Skeleton Activity Log */}
                             <div className="lg:col-span-3 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm">
-                                <div className="skeleton h-3 w-40 rounded-md mb-2" />
+                                <div className="skeleton h-3 w-24 rounded-md mb-2" />
                                 <div className="skeleton h-2.5 w-56 rounded-md mb-6" />
-                                <div className="flex items-end gap-3 h-[160px] px-2">
-                                    {[65, 85, 45, 70, 55, 90].map((h, i) => (
-                                        <div key={i} className="flex-1 flex flex-col gap-1 justify-end">
-                                            <div className="skeleton rounded-t-md" style={{ height: `${h}%` }} />
+                                <div className="space-y-4">
+                                    {[...Array(4)].map((_, i) => (
+                                        <div key={i} className="flex items-start gap-3">
+                                            <div className="skeleton w-[30px] h-[30px] rounded-full shrink-0" />
+                                            <div className="flex-1 space-y-1.5">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="skeleton h-3 w-16 rounded-md" />
+                                                    <div className="skeleton h-2.5 w-10 rounded-md" />
+                                                </div>
+                                                <div className="skeleton h-3 w-3/4 rounded-md" />
+                                                <div className="skeleton h-2.5 w-1/2 rounded-md" />
+                                            </div>
                                         </div>
-                                    ))}
-                                </div>
-                                <div className="flex justify-between mt-3 px-2">
-                                    {[...Array(6)].map((_, i) => (
-                                        <div key={i} className="skeleton h-2.5 w-8 rounded-md" />
                                     ))}
                                 </div>
                             </div>
@@ -334,39 +396,6 @@ export default function DashboardPage() {
                                 { name: 'Pending', value: totalPending },
                             ];
                             const DONUT_COLORS = ['#10b981', '#f59e0b'];
-
-                            // Bar chart data (per project)
-                            const barData = projects.map(p => ({
-                                name: p.description.length > 10 ? p.description.substring(0, 10) + '…' : p.description,
-                                fullName: p.description,
-                                Paid: p.stats.paid,
-                                Pending: p.stats.pending,
-                            }));
-
-                            // Custom tooltip for bar chart
-                            const CustomBarTooltip = ({ active, payload, label }: any) => {
-                                if (active && payload && payload.length) {
-                                    const fullName = payload[0]?.payload?.fullName || label;
-                                    return (
-                                        <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-slate-200 p-3 text-xs">
-                                            <p className="font-bold text-slate-900 mb-1.5">{fullName}</p>
-                                            <div className="space-y-1">
-                                                <p className="flex items-center gap-2">
-                                                    <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
-                                                    <span className="text-slate-500">Paid:</span>
-                                                    <span className="font-bold text-emerald-600">₹{payload[0]?.value?.toLocaleString()}</span>
-                                                </p>
-                                                <p className="flex items-center gap-2">
-                                                    <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
-                                                    <span className="text-slate-500">Pending:</span>
-                                                    <span className="font-bold text-amber-600">₹{payload[1]?.value?.toLocaleString()}</span>
-                                                </p>
-                                            </div>
-                                        </div>
-                                    );
-                                }
-                                return null;
-                            };
 
                             return (
                                 <motion.div
@@ -468,60 +497,76 @@ export default function DashboardPage() {
                                             </div>
                                         </div>
 
-                                        {/* Bar Chart - Per-Project Breakdown */}
+                                        {/* Activity Log Timeline */}
                                         <div className="lg:col-span-3 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm">
-                                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Project-wise Breakdown</h3>
-                                            <p className="text-[11px] text-slate-400 mb-4">Paid vs pending amount per project</p>
-                                            <div className="overflow-x-auto -mx-2 px-2 pb-2">
-                                                <div style={{ minWidth: `${Math.max(barData.length * 80, 280)}px` }}>
-                                                    <ResponsiveContainer width="100%" height={200}>
-                                                        <BarChart data={barData} barCategoryGap="25%" barGap={3}>
-                                                            <defs>
-                                                                <linearGradient id="paidGradient" x1="0" y1="0" x2="0" y2="1">
-                                                                    <stop offset="0%" stopColor="#34d399" stopOpacity={1} />
-                                                                    <stop offset="100%" stopColor="#059669" stopOpacity={1} />
-                                                                </linearGradient>
-                                                                <linearGradient id="pendingGradient" x1="0" y1="0" x2="0" y2="1">
-                                                                    <stop offset="0%" stopColor="#fbbf24" stopOpacity={1} />
-                                                                    <stop offset="100%" stopColor="#f59e0b" stopOpacity={1} />
-                                                                </linearGradient>
-                                                                <filter id="barShadow" x="-10%" y="-10%" width="120%" height="130%">
-                                                                    <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#000" floodOpacity="0.08" />
-                                                                </filter>
-                                                            </defs>
-                                                            <CartesianGrid strokeDasharray="4 4" stroke="#e2e8f0" strokeOpacity={0.5} vertical={false} />
-                                                            <XAxis
-                                                                dataKey="name"
-                                                                tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 500 }}
-                                                                axisLine={false}
-                                                                tickLine={false}
-                                                                interval={0}
-                                                                height={30}
-                                                            />
-                                                            <YAxis
-                                                                tick={{ fontSize: 10, fill: '#94a3b8' }}
-                                                                axisLine={false}
-                                                                tickLine={false}
-                                                                tickFormatter={(value) => value >= 1000 ? `₹${(value / 1000).toFixed(0)}k` : `₹${value}`}
-                                                                width={45}
-                                                            />
-                                                            <Tooltip content={<CustomBarTooltip />} cursor={{ fill: 'rgba(99,102,241,0.06)', radius: 8 }} />
-                                                            <Bar dataKey="Paid" stackId="a" fill="url(#paidGradient)" radius={[6, 6, 0, 0]} filter="url(#barShadow)" />
-                                                            <Bar dataKey="Pending" stackId="a" fill="url(#pendingGradient)" radius={[6, 6, 0, 0]} filter="url(#barShadow)" />
-                                                        </BarChart>
-                                                    </ResponsiveContainer>
+                                            <div className="flex items-center justify-between mb-4">
+                                                <div>
+                                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Activity Log</h3>
+                                                    <p className="text-[11px] text-slate-400">Recent changes and updates across your projects</p>
+                                                </div>
+                                                <div className="p-1.5 bg-violet-50 rounded-lg">
+                                                    <Activity size={14} className="text-violet-500" />
                                                 </div>
                                             </div>
-                                            {/* Legend */}
-                                            <div className="flex justify-center gap-6 mt-1">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" />
-                                                    <span className="text-xs text-slate-600 font-medium">Paid</span>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="w-2.5 h-2.5 rounded-sm bg-amber-400" />
-                                                    <span className="text-xs text-slate-600 font-medium">Pending</span>
-                                                </div>
+
+                                            <div className="overflow-y-auto max-h-[260px] custom-scrollbar pr-1">
+                                                {loadingLogs ? (
+                                                    <div className="flex flex-col items-center justify-center py-10">
+                                                        <Loader2 className="animate-spin text-slate-300 mb-2" size={24} />
+                                                        <p className="text-xs text-slate-400">Loading activity...</p>
+                                                    </div>
+                                                ) : activityLogs.length === 0 ? (
+                                                    <div className="flex flex-col items-center justify-center py-10 text-center">
+                                                        <div className="p-3 bg-slate-50 rounded-full mb-3">
+                                                            <Activity size={20} className="text-slate-300" />
+                                                        </div>
+                                                        <p className="text-sm text-slate-400 font-medium">No activity yet</p>
+                                                        <p className="text-xs text-slate-300 mt-1">Changes will appear here as they happen</p>
+                                                    </div>
+                                                ) : (
+                                                    <div className="relative">
+                                                        {/* Timeline line */}
+                                                        <div className="absolute left-[15px] top-2 bottom-2 w-px bg-gradient-to-b from-slate-200 via-slate-200 to-transparent" />
+
+                                                        <div className="space-y-0.5">
+                                                            {activityLogs.map((log, idx) => {
+                                                                const meta = getActivityMeta(log.action_type);
+                                                                return (
+                                                                    <motion.div
+                                                                        key={log.id}
+                                                                        initial={{ opacity: 0, x: -10 }}
+                                                                        animate={{ opacity: 1, x: 0 }}
+                                                                        transition={{ delay: idx * 0.04, duration: 0.3 }}
+                                                                        className="relative flex items-start gap-3 py-2.5 px-1 rounded-lg hover:bg-slate-50/80 transition-colors group"
+                                                                    >
+                                                                        {/* Icon dot */}
+                                                                        <div className={`relative z-10 shrink-0 w-[30px] h-[30px] rounded-full ${meta.color} flex items-center justify-center text-white shadow-sm ring-2 ring-white`}>
+                                                                            {meta.icon}
+                                                                        </div>
+
+                                                                        {/* Content */}
+                                                                        <div className="flex-1 min-w-0 pt-0.5">
+                                                                            <div className="flex items-center gap-2 mb-0.5">
+                                                                                <span className={`text-[10px] font-bold uppercase tracking-wider ${meta.textColor} ${meta.bgLight} px-1.5 py-0.5 rounded`}>
+                                                                                    {meta.label}
+                                                                                </span>
+                                                                                <span className="text-[10px] text-slate-300 font-medium">
+                                                                                    {getRelativeTime(log.created_at)}
+                                                                                </span>
+                                                                            </div>
+                                                                            <p className="text-xs font-semibold text-slate-800 leading-snug">{log.title}</p>
+                                                                            {log.description && (
+                                                                                <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed truncate">
+                                                                                    {log.description}
+                                                                                </p>
+                                                                            )}
+                                                                        </div>
+                                                                    </motion.div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>

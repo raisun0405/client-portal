@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { logActivity } from '@/lib/activityLogger';
 import { Users, Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut, ArrowUp, ArrowDown, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -256,6 +257,16 @@ export default function AdminDashboard() {
             }).eq('id', editingId);
             if (!error && selectedClient) {
                 fetchProjects(selectedClient.id);
+                // Log activity
+                const isCompleted = formData.status === 'Completed';
+                await logActivity({
+                    clientId: selectedClient.id,
+                    projectId: editingId,
+                    actionType: isCompleted ? 'project_completed' : 'project_updated',
+                    title: isCompleted ? 'Project Completed' : 'Project Updated',
+                    description: `"${formData.description}" was ${isCompleted ? 'marked as completed' : 'updated'}`,
+                    metadata: { category: formData.category, status: formData.status },
+                });
             } else {
                 alert('Error: ' + error?.message);
             }
@@ -269,12 +280,21 @@ export default function AdminDashboard() {
                 links: []
             };
             const { data, error } = await supabase.from('projects').insert([payload]).select();
-            if (!error && data) {
+            if (!error && data && selectedClient) {
                 const newProject: ProjectWithStats = {
                     ...data[0],
                     stats: { total: 0, paid: 0, pending: 0, progress: 0 }
                 };
                 setProjects([newProject, ...projects]);
+                // Log activity
+                await logActivity({
+                    clientId: selectedClient.id,
+                    projectId: data[0].id,
+                    actionType: 'project_created',
+                    title: 'New Project Created',
+                    description: `"${payload.description}" was created under ${payload.category}`,
+                    metadata: { category: payload.category, status: payload.status },
+                });
             } else {
                 alert('Error: ' + error?.message);
             }
@@ -302,6 +322,18 @@ export default function AdminDashboard() {
 
             // Update in projects list
             setProjects(projects.map(p => p.id === selectedProject.id ? updatedProject : p));
+
+            // Log activity
+            if (selectedClient) {
+                await logActivity({
+                    clientId: selectedClient.id,
+                    projectId: selectedProject.id,
+                    actionType: 'link_added',
+                    title: 'Link Added',
+                    description: `"${formData.link_title}" link was added to "${selectedProject.description}"`,
+                    metadata: { link_title: formData.link_title, link_url: formData.link_url },
+                });
+            }
 
             setShowModal(false);
             setFormData({});
@@ -353,6 +385,34 @@ export default function AdminDashboard() {
             if (!error && selectedProject) {
                 fetchFeatures(selectedProject.id);
                 if (selectedClient) fetchProjects(selectedClient.id); // Refresh stats
+
+                // Log activity
+                if (selectedClient) {
+                    const isCompleted = payload.status === 'Completed';
+                    const isPaid = paymentStatus === 'Paid' && paidAmount > 0;
+                    let actionType: 'feature_completed' | 'payment_received' | 'feature_updated' | 'status_changed' = 'feature_updated';
+                    let title = 'Feature Updated';
+                    let desc = `"${payload.description}" in "${selectedProject.description}" was updated`;
+
+                    if (isCompleted) {
+                        actionType = 'feature_completed';
+                        title = 'Feature Completed';
+                        desc = `"${payload.description}" in "${selectedProject.description}" was completed`;
+                    } else if (isPaid) {
+                        actionType = 'payment_received';
+                        title = 'Payment Received';
+                        desc = `₹${paidAmount.toLocaleString()} received for "${payload.description}"`;
+                    }
+
+                    await logActivity({
+                        clientId: selectedClient.id,
+                        projectId: selectedProject.id,
+                        actionType,
+                        title,
+                        description: desc,
+                        metadata: { feature: payload.description, amount, paidAmount, status: payload.status, paymentStatus },
+                    });
+                }
             } else {
                 alert('Error: ' + error?.message);
             }
@@ -362,7 +422,18 @@ export default function AdminDashboard() {
             const { data, error } = await supabase.from('features').insert([insertPayload]).select();
             if (!error && data) {
                 setFeatures([...features, data[0]]);
-                if (selectedClient) fetchProjects(selectedClient.id);
+                if (selectedClient) {
+                    fetchProjects(selectedClient.id);
+                    // Log activity
+                    await logActivity({
+                        clientId: selectedClient.id,
+                        projectId: selectedProject?.id || null,
+                        actionType: 'feature_added',
+                        title: 'New Feature Added',
+                        description: `"${payload.description}" was added to "${selectedProject?.description}"${amount > 0 ? ` (₹${amount.toLocaleString()})` : ''}`,
+                        metadata: { feature: payload.description, amount, status: payload.status, isNewRequest: payload.is_new_request },
+                    });
+                }
             } else {
                 alert('Error: ' + error?.message);
             }
@@ -374,14 +445,47 @@ export default function AdminDashboard() {
 
     const handleDelete = async (id: string, table: string) => {
         if (!confirm("Are you sure you want to delete this?")) return;
+
+        // Get info before deleting for activity log
+        let deletedItemDesc = '';
+        if (table === 'features') {
+            const feature = features.find(f => f.id === id);
+            deletedItemDesc = feature?.description || 'Unknown feature';
+        } else if (table === 'projects') {
+            const project = projects.find(p => p.id === id);
+            deletedItemDesc = project?.description || 'Unknown project';
+        }
+
         await supabase.from(table).delete().eq('id', id);
 
         if (table === 'clients') fetchClients();
-        if (table === 'projects' && selectedClient) fetchProjects(selectedClient.id);
+        if (table === 'projects' && selectedClient) {
+            fetchProjects(selectedClient.id);
+            // Log activity
+            await logActivity({
+                clientId: selectedClient.id,
+                projectId: id,
+                actionType: 'project_updated',
+                title: 'Project Removed',
+                description: `"${deletedItemDesc}" was removed`,
+                metadata: { deleted: true },
+            });
+        }
         if (table === 'features' && selectedProject) {
             fetchFeatures(selectedProject.id);
             // Also refresh project stats
-            if (selectedClient) fetchProjects(selectedClient.id);
+            if (selectedClient) {
+                fetchProjects(selectedClient.id);
+                // Log activity
+                await logActivity({
+                    clientId: selectedClient.id,
+                    projectId: selectedProject.id,
+                    actionType: 'feature_deleted',
+                    title: 'Feature Removed',
+                    description: `"${deletedItemDesc}" was removed from "${selectedProject.description}"`,
+                    metadata: { deleted: true },
+                });
+            }
         }
     };
 
