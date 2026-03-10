@@ -15,19 +15,22 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const router = useRouter();
 
-  // Auto-redirect if a "Remember Me" session cookie exists
+  // Auto-redirect if a valid session cookie exists (session or Remember Me)
   useEffect(() => {
     const checkExistingSession = async () => {
       try {
         const session = await getClientSession();
         if (session) {
+          // Keep checkingSession=true so the loading screen stays visible
+          // during navigation — prevents a flash of the login form.
           setIsNavigating(true);
           router.push('/dashboard');
-          return;
+          return; // Don't call setCheckingSession(false) — stay on loader
         }
       } catch (err) {
-        // No valid session, show login form
+        // No valid session — show the login form
       }
+      // Only reveal the login form when we know for sure there is no session
       setCheckingSession(false);
     };
     checkExistingSession();

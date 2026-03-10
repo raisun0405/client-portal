@@ -171,8 +171,14 @@ export default function DashboardPage() {
     };
 
     const handleLogout = async () => {
-        await logoutClient();
-        router.push('/');
+        try {
+            await logoutClient();
+        } catch (err) {
+            console.error('Logout failed:', err);
+        } finally {
+            // Always redirect to login regardless of whether logout succeeded
+            router.push('/');
+        }
     };
 
     const loadActivityLogs = async (clientId: string) => {

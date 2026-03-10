@@ -30,9 +30,6 @@ export async function loginClient(accessKey: string, rememberMe: boolean): Promi
         }
 
         // 2. Set Secure HTTP-Only Cookie
-        // If "Remember Me" is checked, set expiration to 30 days. Otherwise, session cookie.
-        const expires = rememberMe ? Date.now() + 30 * 24 * 60 * 60 * 1000 : undefined;
-
         // We store the client ID and Name in the cookie (could be encrypted for more security, 
         // but HttpOnly prevents client-side access effectively for this use case).
         // Ideally, we'd sign this token, but for now we'll store a JSON string.
@@ -42,14 +39,20 @@ export async function loginClient(accessKey: string, rememberMe: boolean): Promi
             access_key: data.access_key
         });
 
-        const cookieStore = await cookies();
-        cookieStore.set(COOKIE_NAME, sessionData, {
+        const cookieOptions: any = {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
+            sameSite: 'lax', // Changed from 'strict' to 'lax' for better compatibility
             path: '/',
-            expires: expires
-        });
+        };
+
+        // If "Remember Me" is checked, set maxAge to 30 days. Otherwise, it's a session cookie.
+        if (rememberMe) {
+            cookieOptions.maxAge = 30 * 24 * 60 * 60; // 30 days in seconds
+        }
+
+        const cookieStore = await cookies();
+        cookieStore.set(COOKIE_NAME, sessionData, cookieOptions);
 
         return { success: true, data };
     } catch (err) {
