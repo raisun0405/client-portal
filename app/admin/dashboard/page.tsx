@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { logActivity } from '@/lib/activityLogger';
 import { Users, Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut, ArrowUp, ArrowDown, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -84,7 +84,7 @@ export default function AdminDashboard() {
     useEffect(() => {
         // Check Supabase Auth Session
         const checkAuth = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
+            const { data: { session } } = await supabaseAdmin.auth.getSession();
             if (!session) {
                 router.push('/admin');
             } else {
@@ -559,7 +559,7 @@ export default function AdminDashboard() {
                             <span className="sm:hidden">Add</span>
                         </button>
                         <button
-                            onClick={async () => { await supabase.auth.signOut(); router.push('/admin'); }}
+                            onClick={async () => { await supabaseAdmin.auth.signOut(); router.push('/admin'); }}
                             className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                             title="Logout"
                         >

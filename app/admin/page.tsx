@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { ShieldCheck, Loader2, Lock, Mail, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -21,7 +21,7 @@ export default function AdminLoginPage() {
         setLoading(true);
         setError('');
 
-        const { error: authError } = await supabase.auth.signInWithPassword({
+        const { error: authError } = await supabaseAdmin.auth.signInWithPassword({
             email,
             password
         });
