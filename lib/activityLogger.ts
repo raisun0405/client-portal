@@ -24,6 +24,8 @@ export type ActivityLog = {
     description: string | null;
     metadata: Record<string, any>;
     created_at: string;
+    notified_at?: string | null;
+    read_at?: string | null;
 };
 
 /**

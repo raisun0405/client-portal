@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { fetchActivityLogs, type ActivityLog } from '@/lib/activityLogger';
-import { getClientSession, logoutClient } from '../actions'; // Import server actions
+import { getClientSession, logoutClient, markLogsAsRead } from '../actions'; // Import server actions
 import { LayoutGrid, LogOut, FolderOpen, Loader2, X, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Calendar, ArrowRight, TrendingUp, Wallet, CheckCircle2, Clock, FileText, Zap, CreditCard, Link2, Trash2, RefreshCw, PackagePlus, Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
@@ -189,6 +189,12 @@ export default function DashboardPage() {
         const logs = await fetchActivityLogs(clientId, 25);
         setActivityLogs(logs);
         setLoadingLogs(false);
+
+        // Mark unread logs as read
+        const unreadIds = logs.filter(l => !l.read_at).map(l => l.id);
+        if (unreadIds.length > 0) {
+            await markLogsAsRead(unreadIds);
+        }
     };
 
     // Helper: get icon and color for activity type
@@ -595,6 +601,20 @@ export default function DashboardPage() {
                                                                                 <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed truncate">
                                                                                     {log.description}
                                                                                 </p>
+                                                                            )}
+
+                                                                            {/* Visual Diff for object changes */}
+                                                                            {log.metadata?.changes && Object.keys(log.metadata.changes).length > 0 && (
+                                                                                <div className="mt-1.5 space-y-1 bg-slate-50 border border-slate-100 rounded-lg p-2">
+                                                                                    {Object.entries(log.metadata.changes).map(([key, diff]: [string, any], i) => (
+                                                                                        <div key={i} className="flex items-center gap-1.5 text-[10px] font-mono">
+                                                                                            <span className="text-slate-500 font-semibold">{key}:</span>
+                                                                                            <span className="text-slate-400 line-through decoration-red-300/60">{diff.old || 'none'}</span>
+                                                                                            <ArrowRight size={10} className="text-slate-300" />
+                                                                                            <span className="text-emerald-600 font-bold bg-emerald-50 px-1 rounded">{diff.new}</span>
+                                                                                        </div>
+                                                                                    ))}
+                                                                                </div>
                                                                             )}
 
                                                                             {/* Payment progress mini bar */}

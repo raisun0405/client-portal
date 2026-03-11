@@ -419,19 +419,25 @@ export default function AdminDashboard() {
                     const amountChanged = amount !== oldAmount;
                     const paymentChanged = paidAmount !== oldPaidAmount;
 
-                    // Build detailed change descriptions
+                    // Build detailed change descriptions and structured diffs
                     const changes: string[] = [];
+                    const structuredChanges: Record<string, { old: any; new: any }> = {};
+
                     if (paymentConfirmedChanged) {
                         changes.push(isPaymentConfirmed ? 'Rate confirmed' : 'Rate set to pending');
+                        structuredChanges['Payment Status'] = { old: oldPaymentConfirmed ? 'Confirmed' : 'Pending', new: isPaymentConfirmed ? 'Confirmed' : 'Pending' };
                     }
                     if (isPaymentConfirmed && amountChanged) {
                         changes.push(`Amount: ₹${oldAmount.toLocaleString()} → ₹${amount.toLocaleString()}`);
+                        structuredChanges['Total Amount'] = { old: `₹${oldAmount.toLocaleString()}`, new: `₹${amount.toLocaleString()}` };
                     }
                     if (isPaymentConfirmed && paymentChanged) {
                         changes.push(`Payment: ₹${oldPaidAmount.toLocaleString()} → ₹${paidAmount.toLocaleString()}`);
+                        structuredChanges['Amount Paid'] = { old: `₹${oldPaidAmount.toLocaleString()}`, new: `₹${paidAmount.toLocaleString()}` };
                     }
-                    if (payload.status !== oldStatus && !isCompleted) {
-                        changes.push(`Status: ${oldStatus} → ${payload.status}`);
+                    if (payload.status !== oldStatus) {
+                        if (!isCompleted) changes.push(`Status: ${oldStatus} → ${payload.status}`);
+                        structuredChanges['Status'] = { old: oldStatus, new: payload.status };
                     }
 
                     let actionType: 'feature_completed' | 'payment_received' | 'feature_updated' | 'status_changed' | 'rate_confirmed' | 'rate_pending' = 'feature_updated';
@@ -474,14 +480,7 @@ export default function AdminDashboard() {
                             feature: payload.description,
                             amount: isPaymentConfirmed ? amount : null,
                             paidAmount: isPaymentConfirmed ? paidAmount : null,
-                            oldAmount: oldPaymentConfirmed ? oldAmount : null,
-                            oldPaidAmount: oldPaymentConfirmed ? oldPaidAmount : null,
-                            oldStatus,
-                            status: payload.status,
-                            paymentStatus,
-                            paymentConfirmed: isPaymentConfirmed,
-                            paymentConfirmedChanged,
-                            changes,
+                            changes: structuredChanges,
                         },
                     });
                 }
