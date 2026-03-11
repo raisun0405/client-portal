@@ -9,6 +9,8 @@ export type ActivityAction =
     | 'feature_completed'
     | 'feature_deleted'
     | 'payment_received'
+    | 'rate_confirmed'
+    | 'rate_pending'
     | 'link_added'
     | 'link_removed'
     | 'status_changed';

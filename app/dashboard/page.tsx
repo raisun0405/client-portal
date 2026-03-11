@@ -216,6 +216,10 @@ export default function DashboardPage() {
                 return { icon: <Trash2 size={16} />, color: 'bg-rose-500', bgLight: 'bg-rose-50', textColor: 'text-rose-600', label: 'Link Removed' };
             case 'status_changed':
                 return { icon: <RefreshCw size={16} />, color: 'bg-teal-500', bgLight: 'bg-teal-50', textColor: 'text-teal-600', label: 'Status Changed' };
+            case 'rate_confirmed':
+                return { icon: <CheckCircle2 size={16} />, color: 'bg-green-500', bgLight: 'bg-green-50', textColor: 'text-green-600', label: 'Rate Confirmed' };
+            case 'rate_pending':
+                return { icon: <Clock size={16} />, color: 'bg-orange-500', bgLight: 'bg-orange-50', textColor: 'text-orange-600', label: 'Rate Pending' };
             default:
                 return { icon: <Activity size={16} />, color: 'bg-slate-400', bgLight: 'bg-slate-50', textColor: 'text-slate-500', label: 'Activity' };
         }
@@ -574,6 +578,11 @@ export default function DashboardPage() {
                                                                                 {log.action_type === 'feature_updated' && log.metadata?.oldAmount !== undefined && log.metadata?.amount !== log.metadata?.oldAmount && (
                                                                                     <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded flex items-center gap-0.5">
                                                                                         ₹{Number(log.metadata.oldAmount).toLocaleString()} → ₹{Number(log.metadata.amount).toLocaleString()}
+                                                                                    </span>
+                                                                                )}
+                                                                                {log.action_type === 'rate_confirmed' && log.metadata?.amount > 0 && (
+                                                                                    <span className="text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">
+                                                                                        ₹{Number(log.metadata.amount).toLocaleString()}
                                                                                     </span>
                                                                                 )}
 

@@ -401,37 +401,51 @@ export default function AdminDashboard() {
 
                 // Log activity with detailed change tracking
                 if (selectedClient) {
+                    const oldPaymentConfirmed = oldFeature?.payment_confirmed !== false;
+                    const paymentConfirmedChanged = isPaymentConfirmed !== oldPaymentConfirmed;
                     const isCompleted = payload.status === 'Completed' && oldStatus !== 'Completed';
                     const amountChanged = amount !== oldAmount;
                     const paymentChanged = paidAmount !== oldPaidAmount;
 
                     // Build detailed change descriptions
                     const changes: string[] = [];
-                    if (amountChanged) {
+                    if (paymentConfirmedChanged) {
+                        changes.push(isPaymentConfirmed ? 'Rate confirmed' : 'Rate set to pending');
+                    }
+                    if (isPaymentConfirmed && amountChanged) {
                         changes.push(`Amount: ₹${oldAmount.toLocaleString()} → ₹${amount.toLocaleString()}`);
                     }
-                    if (paymentChanged) {
+                    if (isPaymentConfirmed && paymentChanged) {
                         changes.push(`Payment: ₹${oldPaidAmount.toLocaleString()} → ₹${paidAmount.toLocaleString()}`);
                     }
                     if (payload.status !== oldStatus && !isCompleted) {
                         changes.push(`Status: ${oldStatus} → ${payload.status}`);
                     }
 
-                    let actionType: 'feature_completed' | 'payment_received' | 'feature_updated' | 'status_changed' = 'feature_updated';
+                    let actionType: 'feature_completed' | 'payment_received' | 'feature_updated' | 'status_changed' | 'rate_confirmed' | 'rate_pending' = 'feature_updated';
                     let title = 'Feature Updated';
                     let desc = `"${payload.description}" in "${selectedProject.description}" was updated`;
 
-                    if (isCompleted) {
+                    // Priority: rate_confirmed > completed > payment > amount > general
+                    if (paymentConfirmedChanged && isPaymentConfirmed) {
+                        actionType = 'rate_confirmed';
+                        title = amount > 0 ? `Rate Confirmed — ₹${amount.toLocaleString()}` : 'Rate Confirmed';
+                        desc = `Rate for "${payload.description}" in "${selectedProject.description}" has been confirmed${amount > 0 ? ` at ₹${amount.toLocaleString()}` : ''}`;
+                    } else if (paymentConfirmedChanged && !isPaymentConfirmed) {
+                        actionType = 'rate_pending';
+                        title = 'Rate Set to Pending';
+                        desc = `Rate for "${payload.description}" in "${selectedProject.description}" is now pending confirmation`;
+                    } else if (isCompleted) {
                         actionType = 'feature_completed';
                         title = 'Feature Completed';
                         desc = `"${payload.description}" in "${selectedProject.description}" was completed`;
-                        if (amount > 0) desc += ` (₹${amount.toLocaleString()})`;
-                    } else if (paymentChanged && paidAmount > oldPaidAmount) {
+                        if (isPaymentConfirmed && amount > 0) desc += ` (₹${amount.toLocaleString()})`;
+                    } else if (isPaymentConfirmed && paymentChanged && paidAmount > oldPaidAmount) {
                         actionType = 'payment_received';
                         const paymentDiff = paidAmount - oldPaidAmount;
                         title = `Payment Received — ₹${paymentDiff.toLocaleString()}`;
                         desc = `₹${paymentDiff.toLocaleString()} received for "${payload.description}" (Total paid: ₹${paidAmount.toLocaleString()}/${amount.toLocaleString()})`;
-                    } else if (amountChanged) {
+                    } else if (isPaymentConfirmed && amountChanged) {
                         title = 'Amount Updated';
                         desc = `"${payload.description}" — ₹${oldAmount.toLocaleString()} → ₹${amount.toLocaleString()}`;
                     } else if (changes.length > 0) {
@@ -446,13 +460,15 @@ export default function AdminDashboard() {
                         description: desc,
                         metadata: {
                             feature: payload.description,
-                            amount,
-                            paidAmount,
-                            oldAmount,
-                            oldPaidAmount,
+                            amount: isPaymentConfirmed ? amount : null,
+                            paidAmount: isPaymentConfirmed ? paidAmount : null,
+                            oldAmount: oldPaymentConfirmed ? oldAmount : null,
+                            oldPaidAmount: oldPaymentConfirmed ? oldPaidAmount : null,
                             oldStatus,
                             status: payload.status,
                             paymentStatus,
+                            paymentConfirmed: isPaymentConfirmed,
+                            paymentConfirmedChanged,
                             changes,
                         },
                     });
@@ -469,13 +485,21 @@ export default function AdminDashboard() {
                 if (selectedClient) {
                     fetchProjects(selectedClient.id);
                     // Log activity
+                    const logTitle = isPaymentConfirmed && amount > 0
+                        ? `New Feature Added — ₹${amount.toLocaleString()}`
+                        : isPaymentConfirmed
+                            ? 'New Feature Added'
+                            : 'New Feature Added (Rate Pending)';
+                    const logDesc = isPaymentConfirmed
+                        ? `"${payload.description}" was added to "${selectedProject?.description}"${amount > 0 ? ` with cost ₹${amount.toLocaleString()}` : ''}`
+                        : `"${payload.description}" was added to "${selectedProject?.description}" — rate is pending confirmation`;
                     await logActivity({
                         clientId: selectedClient.id,
                         projectId: selectedProject?.id || null,
                         actionType: 'feature_added',
-                        title: amount > 0 ? `New Feature Added — ₹${amount.toLocaleString()}` : 'New Feature Added',
-                        description: `"${payload.description}" was added to "${selectedProject?.description}"${amount > 0 ? ` with cost ₹${amount.toLocaleString()}` : ''}`,
-                        metadata: { feature: payload.description, amount, paidAmount: 0, status: payload.status, isNewRequest: payload.is_new_request },
+                        title: logTitle,
+                        description: logDesc,
+                        metadata: { feature: payload.description, amount: isPaymentConfirmed ? amount : null, paidAmount: 0, status: payload.status, isNewRequest: payload.is_new_request, paymentConfirmed: isPaymentConfirmed },
                     });
                 }
             } else {
