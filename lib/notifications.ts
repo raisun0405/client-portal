@@ -195,7 +195,7 @@ function generateDigestEmailHTML(logs: ActivityLog[], clientName: string, projec
 
         return `
             <tr>
-                <td style="padding: 24px 0; border-bottom: 1px solid #E5E5E5;">
+                <td style="padding: 32px 0; border-bottom: 1px solid #E5E5E5;">
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                         <tr>
                             <td>
@@ -228,9 +228,9 @@ function generateDigestEmailHTML(logs: ActivityLog[], clientName: string, projec
         /* Mobile responsive adjustments */
         @media screen and (max-width: 600px) {
             .mob-p-wrap { padding: 40px 16px !important; }
-            .mob-p-top { padding: 32px 24px 16px 24px !important; }
+            .mob-p-top { padding: 32px 24px 24px 24px !important; }
             .mob-p-mid { padding: 0 24px !important; }
-            .mob-p-bot { padding: 0 24px 32px 24px !important; }
+            .mob-p-bot { padding: 24px 24px 32px 24px !important; }
             .mob-text-lg { font-size: 24px !important; }
         }
     </style>
@@ -254,7 +254,7 @@ function generateDigestEmailHTML(logs: ActivityLog[], clientName: string, projec
                     
                     <!-- Content Area -->
                     <tr>
-                        <td style="padding: 48px 48px 24px 48px;" class="mob-p-top">
+                        <td style="padding: 48px 48px 32px 48px;" class="mob-p-top">
                             
                             <!-- Tags / Metadata -->
                             <div style="margin-bottom: 24px; line-height: 1;">
@@ -270,7 +270,7 @@ function generateDigestEmailHTML(logs: ActivityLog[], clientName: string, projec
                             </h1>
 
                             <!-- Greeting -->
-                            <div style="margin-bottom: 8px; border-left: 2px solid #000000; padding-left: 20px;">
+                            <div style="border-left: 2px solid #000000; padding-left: 20px;">
                                 <p style="margin: 0; font-size: 14px; color: #000000; font-weight: 500;">
                                     Dear ${clientName},
                                 </p>
@@ -282,20 +282,16 @@ function generateDigestEmailHTML(logs: ActivityLog[], clientName: string, projec
                     <!-- Timeline Injection Area -->
                     <tr>
                         <td style="padding: 0 48px;" class="mob-p-mid">
-                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                                <tr>
-                                    <td style="border-top: 1px solid #E5E5E5; padding-top: 32px; padding-bottom: 32px;">
-                                        <!-- Injected Timeline Items go here -->
-                                        ${timelineItems}
-                                    </td>
-                                </tr>
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top: 1px solid #E5E5E5;">
+                                <!-- Injected Timeline Items go here -->
+                                ${timelineItems}
                             </table>
                         </td>
                     </tr>
 
                     <!-- Action Button -->
                     <tr>
-                        <td style="padding: 0 48px 48px 48px;" class="mob-p-bot">
+                        <td style="padding: 32px 48px 48px 48px;" class="mob-p-bot">
                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                                 <tr>
                                     <td align="center">
