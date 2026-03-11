@@ -51,7 +51,7 @@ function generateSingleActivityEmailHTML(log: ActivityLog, clientName: string, p
 
     // Amount badge if present
     const amountBadge = log.metadata?.amount && log.metadata.amount > 0
-        ? `<span style="display:inline-block;background:${colors.bg};color:${colors.text};padding:4px 12px;border-radius:20px;font-size:14px;font-weight:700;margin-top:8px;">₹${Number(log.metadata.amount).toLocaleString()}</span>`
+        ? `<span style="display: inline-block; border: 1px solid #E5E5E5; color: #000000; padding: 6px 12px; font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px;">Amount: ₹${Number(log.metadata.amount).toLocaleString()}</span>`
         : '';
 
     return `<!DOCTYPE html>
@@ -60,104 +60,99 @@ function generateSingleActivityEmailHTML(log: ActivityLog, clientName: string, p
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${log.title}</title>
+    <style>
+        /* Fallback web fonts for clients that support them */
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital@0;1&family=Inter:wght@300;400;500&display=swap');
+    </style>
 </head>
-<body style="margin:0;padding:0;background-color:#F8FAFC;font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F8FAFC;">
+<body style="margin:0;padding:0;background-color:#F7F7F7;font-family:'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F7F7F7;">
         <tr>
-            <td align="center" style="padding:40px 16px;">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;">
-                    
-                    <!-- Header -->
+            <td align="center" style="padding: 60px 20px;">
+                
+                <!-- Minimal Header -->
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto;">
                     <tr>
-                        <td style="padding:0 0 32px;">
-                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                        <td align="center" style="padding-bottom: 30px;">
+                            <span style="font-size: 10px; font-weight: 500; color: #000000; letter-spacing: 4px; text-transform: uppercase;">Client Portal</span>
+                        </td>
+                    </tr>
+                </table>
+
+                <!-- Main Content Card -->
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #FFFFFF; border: 1px solid #E5E5E5;">
+                    
+                    <!-- Content Area -->
+                    <tr>
+                        <td style="padding: 48px;">
+                            
+                            <!-- Tags / Metadata -->
+                            <div style="margin-bottom: 24px;">
+                                <span style="display: inline-block; border: 1px solid #E5E5E5; color: #000000; padding: 6px 12px; font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px;">
+                                    ${label}
+                                </span>
+                                ${projectName ? `<span style="display: inline-block; color: #666666; padding: 6px 0 6px 12px; font-size: 10px; font-weight: 400; text-transform: uppercase; letter-spacing: 1px;">// &nbsp;&nbsp;${projectName}</span>` : ''}
+                            </div>
+
+                            <!-- Editorial Title -->
+                            <h1 style="margin: 0 0 24px 0; font-family: 'Playfair Display', Georgia, serif; font-size: 28px; font-weight: normal; color: #000000; line-height: 1.3;">
+                                ${log.title}
+                            </h1>
+
+                            <!-- Greeting & Description -->
+                            <div style="margin-bottom: 32px; border-left: 2px solid #000000; padding-left: 20px;">
+                                <p style="margin: 0 0 12px 0; font-size: 14px; color: #000000; font-weight: 500;">
+                                    Dear ${clientName},
+                                </p>
+                                ${log.description ? `<p style="margin: 0; font-size: 14px; color: #555555; line-height: 1.8; font-weight: 300;">${log.description}</p>` : ''}
+                            </div>
+
+                            <!-- Dynamic Badge/Amount Wrapper -->
+                            ${amountBadge ? `<div style="margin-bottom: 32px;">${amountBadge}</div>` : ''}
+
+                            <!-- Action Button -->
+                            <table role="presentation" cellpadding="0" cellspacing="0">
                                 <tr>
                                     <td>
-                                        <div style="width:40px;height:40px;background:linear-gradient(135deg,#3B82F6,#8B5CF6);border-radius:12px;display:inline-block;vertical-align:middle;"></div>
-                                        <span style="font-size:20px;font-weight:800;color:#0F172A;margin-left:12px;vertical-align:middle;letter-spacing:-0.5px;">Client Portal</span>
+                                        <a href="https://user-update.netlify.app/" style="display: inline-block; background-color: #000000; color: #FFFFFF; padding: 14px 28px; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 2px; text-decoration: none; border: 1px solid #000000;">
+                                            View Details
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+
+                        </td>
+                    </tr>
+
+                    <!-- Footer Data -->
+                    <tr>
+                        <td style="padding: 24px 48px; background-color: #FAFAFA; border-top: 1px solid #E5E5E5;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td style="font-size: 12px; color: #888888; font-weight: 300;">
+                                        Timestamp
+                                    </td>
+                                    <td align="right" style="font-size: 12px; color: #000000; font-weight: 400;">
+                                        ${date} &mdash; ${time}
                                     </td>
                                 </tr>
                             </table>
                         </td>
                     </tr>
+                </table>
 
-                    <!-- Main Card -->
+                <!-- System Footer -->
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto;">
                     <tr>
-                        <td>
-                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FFFFFF;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08),0 4px 24px rgba(0,0,0,0.04);">
-                                
-                                <!-- Accent Bar -->
-                                <tr>
-                                    <td style="height:4px;background:linear-gradient(90deg,${colors.accent},${colors.text});"></td>
-                                </tr>
-
-                                <!-- Content -->
-                                <tr>
-                                    <td style="padding:32px 32px 24px;">
-                                        <!-- Greeting -->
-                                        <p style="margin:0 0 24px;font-size:16px;color:#64748B;line-height:1.5;">
-                                            Hi <strong style="color:#0F172A;">${clientName}</strong>,
-                                        </p>
-
-                                        <!-- Activity Badge -->
-                                        <div style="margin-bottom:20px;">
-                                            <span style="display:inline-block;background:${colors.bg};color:${colors.text};padding:6px 14px;border-radius:8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">
-                                                ${label}
-                                            </span>
-                                            ${projectName ? `<span style="display:inline-block;background:#F1F5F9;color:#64748B;padding:6px 14px;border-radius:8px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-left:6px;">${projectName}</span>` : ''}
-                                        </div>
-
-                                        <!-- Title -->
-                                        <h1 style="margin:0 0 8px;font-size:22px;font-weight:800;color:#0F172A;line-height:1.3;letter-spacing:-0.3px;">
-                                            ${log.title}
-                                        </h1>
-
-                                        <!-- Description -->
-                                        ${log.description ? `<p style="margin:0 0 16px;font-size:15px;color:#64748B;line-height:1.6;">${log.description}</p>` : ''}
-
-                                        <!-- Amount badge -->
-                                        ${amountBadge}
-                                    </td>
-                                </tr>
-
-                                <!-- Divider -->
-                                <tr>
-                                    <td style="padding:0 32px;">
-                                        <div style="height:1px;background:#F1F5F9;"></div>
-                                    </td>
-                                </tr>
-
-                                <!-- Date/Time -->
-                                <tr>
-                                    <td style="padding:16px 32px 24px;">
-                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-                                            <tr>
-                                                <td>
-                                                    <span style="font-size:13px;color:#94A3B8;">${date} at ${time}</span>
-                                                </td>
-                                                <td align="right">
-                                                    <a href="#" style="display:inline-block;background:linear-gradient(135deg,#3B82F6,#2563EB);color:#FFFFFF;padding:10px 24px;border-radius:10px;font-size:13px;font-weight:700;text-decoration:none;letter-spacing:0.3px;">
-                                                        View Portal →
-                                                    </a>
-                                                </td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                            </table>
-                        </td>
-                    </tr>
-
-                    <!-- Footer -->
-                    <tr>
-                        <td style="padding:32px 0 0;text-align:center;">
-                            <p style="margin:0;font-size:12px;color:#94A3B8;line-height:1.6;">
-                                This is an automated notification from your Client Portal.<br>
-                                You're receiving this because you're a registered client.
+                        <td align="center" style="padding-top: 32px;">
+                            <p style="margin: 0; font-size: 11px; color: #999999; line-height: 1.6; font-weight: 300;">
+                                This is an automated secure notification.<br>
+                                Client Portal &copy; ${new Date().getFullYear()}
                             </p>
                         </td>
                     </tr>
                 </table>
+
             </td>
         </tr>
     </table>
@@ -183,32 +178,28 @@ function generateDigestEmailHTML(logs: ActivityLog[], clientName: string, projec
     };
 
     const timelineItems = logs.map((log) => {
-        const colors = actionColors[log.action_type] || { bg: '#F1F5F9', text: '#475569', dot: '#64748B' };
         const label = log.action_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
         const date = new Date(log.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
         const projectName = log.project_id ? projectNames[log.project_id] : '';
         const amountTag = log.metadata?.amount && log.metadata.amount > 0
-            ? `<span style="background:${colors.bg};color:${colors.text};padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;margin-left:6px;">₹${Number(log.metadata.amount).toLocaleString()}</span>`
+            ? `<span style="border: 1px solid #E5E5E5; color: #000000; padding: 2px 6px; font-size: 9px; text-transform: uppercase; font-weight: 500; margin-left: 8px;">₹${Number(log.metadata.amount).toLocaleString()}</span>`
             : '';
 
         return `
             <tr>
-                <td style="padding:16px 24px;border-bottom:1px solid #F1F5F9;">
+                <td style="padding: 24px 0; border-bottom: 1px solid #E5E5E5;">
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                         <tr>
-                            <td width="10" valign="top" style="padding-top:6px;">
-                                <div style="width:10px;height:10px;border-radius:50%;background:${colors.dot};"></div>
-                            </td>
-                            <td style="padding-left:16px;">
-                                <div style="margin-bottom:4px;">
-                                    <span style="background:${colors.bg};color:${colors.text};padding:3px 10px;border-radius:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;">${label}</span>
-                                    ${projectName ? `<span style="font-size:10px;color:#94A3B8;margin-left:8px;">${projectName}</span>` : ''}
-                                    <span style="font-size:10px;color:#CBD5E1;margin-left:8px;">${date}</span>
+                            <td>
+                                <div style="margin-bottom: 8px;">
+                                    <span style="font-size: 10px; font-weight: 500; color: #666666; text-transform: uppercase; letter-spacing: 1px;">${date}</span>
+                                    <span style="font-size: 10px; font-weight: 500; color: #000000; text-transform: uppercase; letter-spacing: 1px; margin-left: 12px; border: 1px solid #E5E5E5; padding: 2px 6px;">${label}</span>
+                                    ${projectName ? `<span style="font-size: 10px; color: #999999; margin-left: 8px;">// ${projectName}</span>` : ''}
                                 </div>
-                                <p style="margin:4px 0 0;font-size:14px;font-weight:700;color:#0F172A;line-height:1.4;">
+                                <h3 style="margin: 0 0 4px 0; font-size: 16px; font-weight: 500; color: #000000; line-height: 1.4;">
                                     ${log.title}${amountTag}
-                                </p>
-                                ${log.description ? `<p style="margin:4px 0 0;font-size:13px;color:#64748B;line-height:1.4;">${log.description}</p>` : ''}
+                                </h3>
+                                ${log.description ? `<p style="margin: 0; font-size: 13px; color: #555555; line-height: 1.6;">${log.description}</p>` : ''}
                             </td>
                         </tr>
                     </table>
@@ -222,52 +213,97 @@ function generateDigestEmailHTML(logs: ActivityLog[], clientName: string, projec
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Project Update Digest</title>
+    <style>
+        /* Fallback web fonts for clients that support them */
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital@0;1&family=Inter:wght@300;400;500&display=swap');
+    </style>
 </head>
-<body style="margin:0;padding:0;background-color:#F8FAFC;font-family:'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F8FAFC;">
+<body style="margin:0;padding:0;background-color:#F7F7F7;font-family:'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F7F7F7;">
         <tr>
-            <td align="center" style="padding:40px 16px;">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;">
-                    <!-- Header -->
+            <td align="center" style="padding: 60px 20px;">
+                
+                <!-- Minimal Header -->
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto;">
                     <tr>
-                        <td style="padding:0 0 32px;">
-                            <div style="width:40px;height:40px;background:linear-gradient(135deg,#3B82F6,#8B5CF6);border-radius:12px;display:inline-block;vertical-align:middle;"></div>
-                            <span style="font-size:20px;font-weight:800;color:#0F172A;margin-left:12px;vertical-align:middle;letter-spacing:-0.5px;">Client Portal</span>
+                        <td align="center" style="padding-bottom: 30px;">
+                            <span style="font-size: 10px; font-weight: 500; color: #000000; letter-spacing: 4px; text-transform: uppercase;">Client Portal</span>
                         </td>
                     </tr>
-                    <!-- Card -->
+                </table>
+
+                <!-- Main Content Card -->
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #FFFFFF; border: 1px solid #E5E5E5;">
+                    
+                    <!-- Content Area -->
                     <tr>
-                        <td>
-                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FFFFFF;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08),0 4px 24px rgba(0,0,0,0.04);">
-                                <tr><td style="height:4px;background:linear-gradient(90deg,#3B82F6,#8B5CF6);"></td></tr>
+                        <td style="padding: 48px 48px 24px 48px;">
+                            
+                            <!-- Tags / Metadata -->
+                            <div style="margin-bottom: 24px;">
+                                <span style="display: inline-block; border: 1px solid #E5E5E5; color: #000000; padding: 6px 12px; font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px;">
+                                    Digest
+                                </span>
+                                <span style="display: inline-block; color: #666666; padding: 6px 0 6px 12px; font-size: 10px; font-weight: 400; text-transform: uppercase; letter-spacing: 1px;">// &nbsp;&nbsp;${logs.length} update${logs.length > 1 ? 's' : ''}</span>
+                            </div>
+
+                            <!-- Editorial Title -->
+                            <h1 style="margin: 0 0 24px 0; font-family: 'Playfair Display', Georgia, serif; font-size: 28px; font-weight: normal; color: #000000; line-height: 1.3;">
+                                Project Update Digest
+                            </h1>
+
+                            <!-- Greeting -->
+                            <div style="margin-bottom: 8px; border-left: 2px solid #000000; padding-left: 20px;">
+                                <p style="margin: 0; font-size: 14px; color: #000000; font-weight: 500;">
+                                    Dear ${clientName},
+                                </p>
+                            </div>
+
+                        </td>
+                    </tr>
+
+                    <!-- Timeline Injection Area -->
+                    <tr>
+                        <td style="padding: 0 48px;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                                 <tr>
-                                    <td style="padding:28px 24px 20px;">
-                                        <p style="margin:0 0 4px;font-size:16px;color:#64748B;">Hi <strong style="color:#0F172A;">${clientName}</strong>,</p>
-                                        <h1 style="margin:8px 0 4px;font-size:22px;font-weight:800;color:#0F172A;letter-spacing:-0.3px;">Project Update Digest</h1>
-                                        <p style="margin:0;font-size:14px;color:#94A3B8;">${logs.length} update${logs.length > 1 ? 's' : ''} for you</p>
+                                    <td style="border-top: 1px solid #E5E5E5; padding-top: 32px; padding-bottom: 32px;">
+                                        <!-- Injected Timeline Items go here -->
+                                        ${timelineItems}
                                     </td>
                                 </tr>
-                                <tr><td style="padding:0 24px;"><div style="height:1px;background:#F1F5F9;"></div></td></tr>
-                                ${timelineItems}
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Action Button -->
+                    <tr>
+                        <td style="padding: 0 48px 48px 48px;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                                 <tr>
-                                    <td style="padding:24px;text-align:center;">
-                                        <a href="#" style="display:inline-block;background:linear-gradient(135deg,#3B82F6,#2563EB);color:#FFFFFF;padding:12px 32px;border-radius:10px;font-size:14px;font-weight:700;text-decoration:none;letter-spacing:0.3px;">
-                                            View Full Timeline →
+                                    <td align="center">
+                                        <a href="https://user-update.netlify.app/" style="display: inline-block; background-color: #000000; color: #FFFFFF; padding: 14px 28px; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 2px; text-decoration: none; border: 1px solid #000000;">
+                                            View Full Timeline
                                         </a>
                                     </td>
                                 </tr>
                             </table>
                         </td>
                     </tr>
+                </table>
+
+                <!-- System Footer -->
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto;">
                     <tr>
-                        <td style="padding:32px 0 0;text-align:center;">
-                            <p style="margin:0;font-size:12px;color:#94A3B8;line-height:1.6;">
-                                This is an automated notification from your Client Portal.<br>
-                                You're receiving this because you're a registered client.
+                        <td align="center" style="padding-top: 32px;">
+                            <p style="margin: 0; font-size: 11px; color: #999999; line-height: 1.6; font-weight: 300;">
+                                This is an automated secure notification.<br>
+                                Client Portal &copy; ${new Date().getFullYear()}
                             </p>
                         </td>
                     </tr>
                 </table>
+
             </td>
         </tr>
     </table>
