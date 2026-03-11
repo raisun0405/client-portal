@@ -1215,32 +1215,33 @@ export default function AdminDashboard() {
                                                 </div>
 
                                                 {/* Send / Sent button */}
-                                                <div className="shrink-0 pt-0.5">
-                                                    {isSent ? (
-                                                        <div className="flex flex-col items-center gap-0.5">
-                                                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-green-50 text-green-600 text-[10px] font-bold border border-green-200">
-                                                                <MailCheck size={11} />
+                                                <div className="shrink-0 pt-0.5 flex flex-col items-end gap-1.5">
+                                                    {isSent && (
+                                                        <div className="flex flex-col items-end gap-0.5 mb-1">
+                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-green-50 text-green-600 text-[10px] font-bold border border-green-200">
+                                                                <MailCheck size={10} />
                                                                 Sent
                                                             </span>
                                                             <span className="text-[9px] text-slate-400">
                                                                 {getRelativeTime(log.notified_at!)}
                                                             </span>
                                                         </div>
-                                                    ) : (
-                                                        <button
-                                                            onClick={() => handleSendSingle(log.id)}
-                                                            disabled={isSending || !selectedClient?.email}
-                                                            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                                                                !selectedClient?.email
-                                                                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                                                                    : 'bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 hover:shadow-sm'
-                                                            } disabled:opacity-50`}
-                                                            title={!selectedClient?.email ? 'Add client email first' : 'Send this update via email'}
-                                                        >
-                                                            {isSending ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
-                                                            Send
-                                                        </button>
                                                     )}
+                                                    <button
+                                                        onClick={() => handleSendSingle(log.id)}
+                                                        disabled={isSending || !selectedClient?.email}
+                                                        className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                                            !selectedClient?.email
+                                                                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                                                : isSent
+                                                                    ? 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200 hover:shadow-sm'
+                                                                    : 'bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 hover:shadow-sm'
+                                                        } disabled:opacity-50`}
+                                                        title={!selectedClient?.email ? 'Add client email first' : isSent ? 'Resend this update via email' : 'Send this update via email'}
+                                                    >
+                                                        {isSending ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                                                        {isSent ? 'Resend' : 'Send'}
+                                                    </button>
                                                 </div>
                                             </div>
                                         );
