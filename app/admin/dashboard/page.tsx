@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabaseAdmin } from '@/lib/supabase';
-import { logActivity } from '@/lib/activityLogger';
-import { Users, Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut, ArrowUp, ArrowDown, Calendar } from 'lucide-react';
+import { logActivity, type ActivityLog } from '@/lib/activityLogger';
+import { sendNotification, sendDigestNotification } from '@/lib/notifications';
+import { Users, Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut, ArrowUp, ArrowDown, Calendar, Mail, MailCheck, Send, CheckCircle2, Clock, Zap, CreditCard, FileText, Link2, Activity, RefreshCw, PackagePlus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 
@@ -12,6 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 type Client = {
     id: string;
     name: string;
+    email: string | null;
     access_key: string;
     created_at: string;
 };
@@ -58,7 +60,7 @@ type ProjectWithStats = Project & {
 
 export default function AdminDashboard() {
     const router = useRouter();
-    const [view, setView] = useState<'clients' | 'projects' | 'features' | 'links'>('clients');
+    const [view, setView] = useState<'clients' | 'projects' | 'features' | 'links' | 'activity'>('clients');
 
     // Data State
     const [clients, setClients] = useState<Client[]>([]);
@@ -81,6 +83,13 @@ export default function AdminDashboard() {
     // Sorting state for features
     const [sortField, setSortField] = useState<SortField>('created_at');
     const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+
+    // Activity log state
+    const [activityLogs, setActivityLogs] = useState<(ActivityLog & { notified_at: string | null })[]>([]);
+    const [loadingLogs, setLoadingLogs] = useState(false);
+    const [sendingIds, setSendingIds] = useState<Set<string>>(new Set());
+    const [selectedLogIds, setSelectedLogIds] = useState<Set<string>>(new Set());
+    const [sendingDigest, setSendingDigest] = useState(false);
 
     useEffect(() => {
         // Check Supabase Auth Session
@@ -186,16 +195,17 @@ export default function AdminDashboard() {
             setSelectedProject(null);
             setFeatures([]);
             setLinks([]);
-        } else if (view === 'projects') {
+        } else if (view === 'projects' || view === 'activity') {
             setView('clients');
             setSelectedClient(null);
             setProjects([]);
+            setActivityLogs([]);
         }
     };
 
     // --- Edit Handlers (opens modal with existing data) ---
     const handleEditClient = (client: Client) => {
-        setFormData({ name: client.name, access_key: client.access_key });
+        setFormData({ name: client.name, email: client.email || '', access_key: client.access_key });
         setEditingId(client.id);
         setShowModal(true);
     };
@@ -227,6 +237,7 @@ export default function AdminDashboard() {
             // UPDATE
             const { error } = await supabaseAdmin.from('clients').update({
                 name: formData.name,
+                email: formData.email || null,
                 access_key: formData.access_key
             }).eq('id', editingId);
             if (!error) {
@@ -238,6 +249,7 @@ export default function AdminDashboard() {
             // CREATE
             const { data, error } = await supabaseAdmin.from('clients').insert([{
                 name: formData.name,
+                email: formData.email || null,
                 access_key: formData.access_key
             }]).select();
             if (!error && data) {
@@ -560,6 +572,101 @@ export default function AdminDashboard() {
     // Check if payment status field should show
     const showPaymentStatus = ['Approved', 'Working', 'Updating', 'Completed'].includes(formData.status);
 
+    // --- Activity Log Helpers ---
+    const fetchActivityLogs = async (clientId: string) => {
+        setLoadingLogs(true);
+        const { data } = await supabaseAdmin
+            .from('activity_logs')
+            .select('*')
+            .eq('client_id', clientId)
+            .order('created_at', { ascending: false })
+            .limit(50);
+        if (data) setActivityLogs(data);
+        setLoadingLogs(false);
+    };
+
+    const handleViewActivity = (client: Client) => {
+        setSelectedClient(client);
+        fetchActivityLogs(client.id);
+        setView('activity');
+        setSelectedLogIds(new Set());
+    };
+
+    const handleSendSingle = async (logId: string) => {
+        if (!selectedClient?.email) {
+            alert('This client has no email address. Edit the client to add one.');
+            return;
+        }
+        setSendingIds(prev => new Set(prev).add(logId));
+        const result = await sendNotification(logId, selectedClient.email, selectedClient.name);
+        if (result.success) {
+            // Refresh logs to get updated notified_at
+            fetchActivityLogs(selectedClient.id);
+        } else {
+            alert(result.message);
+        }
+        setSendingIds(prev => { const n = new Set(prev); n.delete(logId); return n; });
+    };
+
+    const handleSendDigest = async () => {
+        if (!selectedClient?.email) {
+            alert('This client has no email address. Edit the client to add one.');
+            return;
+        }
+        if (selectedLogIds.size === 0) {
+            alert('Select at least one log to send as digest.');
+            return;
+        }
+        setSendingDigest(true);
+        const result = await sendDigestNotification(Array.from(selectedLogIds), selectedClient.email, selectedClient.name);
+        if (result.success) {
+            fetchActivityLogs(selectedClient.id);
+            setSelectedLogIds(new Set());
+        } else {
+            alert(result.message);
+        }
+        setSendingDigest(false);
+    };
+
+    const toggleLogSelection = (logId: string) => {
+        setSelectedLogIds(prev => {
+            const n = new Set(prev);
+            if (n.has(logId)) n.delete(logId); else n.add(logId);
+            return n;
+        });
+    };
+
+    const getActivityMeta = (actionType: string) => {
+        switch (actionType) {
+            case 'project_created': return { icon: <PackagePlus size={14} />, color: 'bg-blue-500', bgLight: 'bg-blue-50', textColor: 'text-blue-600', label: 'New Project' };
+            case 'project_updated': return { icon: <RefreshCw size={14} />, color: 'bg-slate-500', bgLight: 'bg-slate-50', textColor: 'text-slate-600', label: 'Updated' };
+            case 'project_completed': return { icon: <CheckCircle2 size={14} />, color: 'bg-emerald-500', bgLight: 'bg-emerald-50', textColor: 'text-emerald-600', label: 'Completed' };
+            case 'feature_added': return { icon: <Zap size={14} />, color: 'bg-violet-500', bgLight: 'bg-violet-50', textColor: 'text-violet-600', label: 'Feature Added' };
+            case 'feature_updated': return { icon: <FileText size={14} />, color: 'bg-sky-500', bgLight: 'bg-sky-50', textColor: 'text-sky-600', label: 'Updated' };
+            case 'feature_completed': return { icon: <CheckCircle2 size={14} />, color: 'bg-emerald-500', bgLight: 'bg-emerald-50', textColor: 'text-emerald-600', label: 'Done' };
+            case 'feature_deleted': return { icon: <Trash2 size={14} />, color: 'bg-red-500', bgLight: 'bg-red-50', textColor: 'text-red-600', label: 'Removed' };
+            case 'payment_received': return { icon: <CreditCard size={14} />, color: 'bg-amber-500', bgLight: 'bg-amber-50', textColor: 'text-amber-600', label: 'Payment' };
+            case 'rate_confirmed': return { icon: <CheckCircle2 size={14} />, color: 'bg-green-500', bgLight: 'bg-green-50', textColor: 'text-green-600', label: 'Rate Confirmed' };
+            case 'rate_pending': return { icon: <Clock size={14} />, color: 'bg-orange-500', bgLight: 'bg-orange-50', textColor: 'text-orange-600', label: 'Rate Pending' };
+            case 'link_added': return { icon: <Link2 size={14} />, color: 'bg-indigo-500', bgLight: 'bg-indigo-50', textColor: 'text-indigo-600', label: 'Link Added' };
+            case 'link_removed': return { icon: <Trash2 size={14} />, color: 'bg-rose-500', bgLight: 'bg-rose-50', textColor: 'text-rose-600', label: 'Link Removed' };
+            case 'status_changed': return { icon: <RefreshCw size={14} />, color: 'bg-teal-500', bgLight: 'bg-teal-50', textColor: 'text-teal-600', label: 'Status Changed' };
+            default: return { icon: <Activity size={14} />, color: 'bg-slate-400', bgLight: 'bg-slate-50', textColor: 'text-slate-500', label: 'Activity' };
+        }
+    };
+
+    const getRelativeTime = (dateStr: string) => {
+        const diff = Date.now() - new Date(dateStr).getTime();
+        const mins = Math.floor(diff / 60000);
+        if (mins < 1) return 'Just now';
+        if (mins < 60) return `${mins}m ago`;
+        const hrs = Math.floor(mins / 60);
+        if (hrs < 24) return `${hrs}h ago`;
+        const days = Math.floor(hrs / 24);
+        if (days < 7) return `${days}d ago`;
+        return new Date(dateStr).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+    };
+
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
             <header className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 sm:py-4 sticky top-0 z-10">
@@ -576,19 +683,22 @@ export default function AdminDashboard() {
                                 {view === 'clients' ? 'Manage Clients' :
                                     view === 'projects' ? `Projects for ${selectedClient?.name}` :
                                         view === 'links' ? `Links for ${selectedProject?.description}` :
-                                            `Features for ${selectedProject?.description?.substring(0, 20)}...`}
+                                            view === 'activity' ? `Activity Log for ${selectedClient?.name}` :
+                                                `Features for ${selectedProject?.description?.substring(0, 20)}...`}
                             </p>
                         </div>
                     </div>
                     <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-                        <button
-                            onClick={() => { setFormData({}); setEditingId(null); setShowModal(true); }}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 transition-colors"
-                        >
-                            <Plus size={14} className="sm:w-4 sm:h-4" />
-                            <span className="hidden sm:inline">{view === 'clients' ? 'Add Client' : view === 'projects' ? 'Add Project' : view === 'links' ? 'Add Link' : 'Add Feature'}</span>
-                            <span className="sm:hidden">Add</span>
-                        </button>
+                        {view !== 'activity' && (
+                            <button
+                                onClick={() => { setFormData({}); setEditingId(null); setShowModal(true); }}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 transition-colors"
+                            >
+                                <Plus size={14} className="sm:w-4 sm:h-4" />
+                                <span className="hidden sm:inline">{view === 'clients' ? 'Add Client' : view === 'projects' ? 'Add Project' : view === 'links' ? 'Add Link' : 'Add Feature'}</span>
+                                <span className="sm:hidden">Add</span>
+                            </button>
+                        )}
                         <button
                             onClick={async () => { await supabaseAdmin.auth.signOut(); router.push('/admin'); }}
                             className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
@@ -632,14 +742,30 @@ export default function AdminDashboard() {
                                         </div>
                                     </div>
                                     <h3 className="font-semibold text-base sm:text-lg">{client.name}</h3>
+                                    {client.email && (
+                                        <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
+                                            <Mail size={11} />
+                                            {client.email}
+                                        </p>
+                                    )}
                                     <code className="text-[11px] sm:text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded mt-2 block w-fit break-all">{client.access_key}</code>
                                 </div>
-                                <button
-                                    onClick={() => handleClientSelect(client)}
-                                    className="mt-4 sm:mt-6 w-full py-2.5 sm:py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 font-medium rounded-lg text-sm transition-colors active:bg-slate-200"
-                                >
-                                    View Projects
-                                </button>
+                                <div className="flex gap-2 mt-4 sm:mt-6">
+                                    <button
+                                        onClick={() => handleClientSelect(client)}
+                                        className="flex-1 py-2.5 sm:py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 font-medium rounded-lg text-sm transition-colors active:bg-slate-200"
+                                    >
+                                        View Projects
+                                    </button>
+                                    <button
+                                        onClick={() => handleViewActivity(client)}
+                                        className="py-2.5 sm:py-2 px-3 bg-violet-50 hover:bg-violet-100 text-violet-600 font-medium rounded-lg text-sm transition-colors active:bg-violet-200 flex items-center gap-1.5"
+                                        title="Activity & Notifications"
+                                    >
+                                        <Mail size={14} />
+                                        <span className="hidden sm:inline">Notify</span>
+                                    </button>
+                                </div>
                             </motion.div>
                         ))}
                         {clients.length === 0 && <div className="col-span-full text-center py-10 text-slate-400">No clients yet. Click "Add Client" to create one.</div>}
@@ -974,6 +1100,156 @@ export default function AdminDashboard() {
                         </div>
                     </div>
                 )}
+
+                {/* ========== ACTIVITY VIEW ========== */}
+                {view === 'activity' && !loading && selectedClient && (
+                    <div className="space-y-4">
+                        {/* Email status banner */}
+                        {!selectedClient.email ? (
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3">
+                                <Mail size={20} className="text-amber-500 shrink-0" />
+                                <div>
+                                    <p className="text-sm font-semibold text-amber-800">No email address</p>
+                                    <p className="text-xs text-amber-600">Edit this client to add an email before sending notifications.</p>
+                                </div>
+                                <button
+                                    onClick={() => handleEditClient(selectedClient)}
+                                    className="ml-auto px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-lg text-xs font-semibold transition-colors"
+                                >
+                                    Add Email
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-3">
+                                <MailCheck size={18} className="text-green-600 shrink-0" />
+                                <p className="text-sm text-green-700">Notifications will be sent to <strong>{selectedClient.email}</strong></p>
+                            </div>
+                        )}
+
+                        {/* Batch actions bar */}
+                        {selectedLogIds.size > 0 && selectedClient.email && (
+                            <motion.div
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="bg-blue-600 text-white rounded-xl p-3 flex items-center justify-between sticky top-16 z-10 shadow-lg"
+                            >
+                                <span className="text-sm font-medium">{selectedLogIds.size} update{selectedLogIds.size > 1 ? 's' : ''} selected</span>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setSelectedLogIds(new Set())}
+                                        className="px-3 py-1.5 bg-blue-500 hover:bg-blue-400 rounded-lg text-xs font-semibold transition-colors"
+                                    >
+                                        Clear
+                                    </button>
+                                    <button
+                                        onClick={handleSendDigest}
+                                        disabled={sendingDigest}
+                                        className="px-4 py-1.5 bg-white text-blue-700 hover:bg-blue-50 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                                    >
+                                        {sendingDigest ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                                        Send Digest
+                                    </button>
+                                </div>
+                            </motion.div>
+                        )}
+
+                        {/* Timeline */}
+                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                                <div>
+                                    <h3 className="font-bold text-slate-900">Activity Timeline</h3>
+                                    <p className="text-xs text-slate-400">Click checkboxes to batch-select, or send individually</p>
+                                </div>
+                                <span className="text-xs text-slate-400 font-mono bg-slate-50 px-2 py-1 rounded">{activityLogs.length} logs</span>
+                            </div>
+
+                            {loadingLogs ? (
+                                <div className="flex justify-center py-16"><Loader2 className="animate-spin text-blue-500" size={28} /></div>
+                            ) : activityLogs.length === 0 ? (
+                                <div className="text-center py-16 text-slate-400">
+                                    <Activity size={32} className="mx-auto mb-2 text-slate-300" />
+                                    <p className="text-sm font-medium">No activity logs yet</p>
+                                </div>
+                            ) : (
+                                <div className="divide-y divide-slate-50">
+                                    {activityLogs.map((log) => {
+                                        const meta = getActivityMeta(log.action_type);
+                                        const isSent = !!log.notified_at;
+                                        const isSending = sendingIds.has(log.id);
+                                        const isSelected = selectedLogIds.has(log.id);
+
+                                        return (
+                                            <div key={log.id} className={`flex items-start gap-3 px-5 py-4 hover:bg-slate-50/50 transition-colors ${isSelected ? 'bg-blue-50/30' : ''}`}>
+                                                {/* Checkbox */}
+                                                <div className="pt-1 shrink-0">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isSelected}
+                                                        onChange={() => toggleLogSelection(log.id)}
+                                                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                                    />
+                                                </div>
+
+                                                {/* Icon */}
+                                                <div className={`p-2 rounded-lg ${meta.color} text-white shrink-0 mt-0.5`}>
+                                                    {meta.icon}
+                                                </div>
+
+                                                {/* Content */}
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                                                        <span className={`text-[10px] font-bold uppercase tracking-wider ${meta.textColor} ${meta.bgLight} px-1.5 py-0.5 rounded`}>
+                                                            {meta.label}
+                                                        </span>
+                                                        {log.metadata?.amount && log.metadata.amount > 0 && (
+                                                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                                                                ₹{Number(log.metadata.amount).toLocaleString()}
+                                                            </span>
+                                                        )}
+                                                        <span className="text-[10px] text-slate-400 font-medium">{getRelativeTime(log.created_at)}</span>
+                                                    </div>
+                                                    <p className="text-sm font-semibold text-slate-900 leading-snug">{log.title}</p>
+                                                    {log.description && (
+                                                        <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{log.description}</p>
+                                                    )}
+                                                </div>
+
+                                                {/* Send / Sent button */}
+                                                <div className="shrink-0 pt-0.5">
+                                                    {isSent ? (
+                                                        <div className="flex flex-col items-center gap-0.5">
+                                                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-green-50 text-green-600 text-[10px] font-bold border border-green-200">
+                                                                <MailCheck size={11} />
+                                                                Sent
+                                                            </span>
+                                                            <span className="text-[9px] text-slate-400">
+                                                                {getRelativeTime(log.notified_at!)}
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => handleSendSingle(log.id)}
+                                                            disabled={isSending || !selectedClient?.email}
+                                                            className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                                                !selectedClient?.email
+                                                                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                                                    : 'bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 hover:shadow-sm'
+                                                            } disabled:opacity-50`}
+                                                            title={!selectedClient?.email ? 'Add client email first' : 'Send this update via email'}
+                                                        >
+                                                            {isSending ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                                                            Send
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
             </main>
 
             {/* ========== CREATE MODAL ========== */}
@@ -1003,6 +1279,11 @@ export default function AdminDashboard() {
                                         <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-1">Access Key (Unique ID)</label>
                                             <input value={formData.access_key || ''} placeholder="Enter unique access key" className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, access_key: e.target.value })} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">Client Email (Optional)</label>
+                                            <input value={formData.email || ''} type="email" placeholder="e.g. client@example.com" className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, email: e.target.value })} />
+                                            <p className="text-[11px] text-slate-400 mt-1">Required for sending email notifications</p>
                                         </div>
                                     </div>
                                 )}
