@@ -1,13 +1,19 @@
 'use server';
 
 import { createClient } from '@supabase/supabase-js';
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.GMAIL_EMAIL,
+        pass: process.env.GMAIL_APP_PASSWORD,
+    },
+});
 
 type ActivityLog = {
     id: string;
@@ -296,17 +302,12 @@ export async function sendNotification(logId: string, clientEmail: string, clien
 
         const html = generateSingleActivityEmailHTML(log, clientName, projectName);
 
-        const { error: emailError } = await resend.emails.send({
-            from: 'Client Portal <onboarding@resend.dev>',
+        await transporter.sendMail({
+            from: `"Client Portal" <${process.env.GMAIL_EMAIL}>`,
             to: clientEmail,
             subject: log.title,
             html,
         });
-
-        if (emailError) {
-            console.error('Email send error:', emailError);
-            return { success: false, message: 'Failed to send email: ' + emailError.message };
-        }
 
         // Mark as notified
         await supabaseAdmin
@@ -348,17 +349,12 @@ export async function sendDigestNotification(logIds: string[], clientEmail: stri
 
         const html = generateDigestEmailHTML(logs, clientName, projectNames);
 
-        const { error: emailError } = await resend.emails.send({
-            from: 'Client Portal <onboarding@resend.dev>',
+        await transporter.sendMail({
+            from: `"Client Portal" <${process.env.GMAIL_EMAIL}>`,
             to: clientEmail,
             subject: `Project Update Digest — ${logs.length} update${logs.length > 1 ? 's' : ''}`,
             html,
         });
-
-        if (emailError) {
-            console.error('Email send error:', emailError);
-            return { success: false, message: 'Failed to send email: ' + emailError.message };
-        }
 
         // Mark all as notified
         const now = new Date().toISOString();
