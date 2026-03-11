@@ -87,11 +87,11 @@ function generateSingleActivityEmailHTML(log: ActivityLog, clientName: string, p
                         <td style="padding: 48px;">
                             
                             <!-- Tags / Metadata -->
-                            <div style="margin-bottom: 24px;">
-                                <span style="display: inline-block; border: 1px solid #E5E5E5; color: #000000; padding: 6px 12px; font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px;">
+                            <div style="margin-bottom: 24px; line-height: 1;">
+                                <span style="display: inline-block; vertical-align: middle; border: 1px solid #E5E5E5; color: #000000; padding: 6px 12px; font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px;">
                                     ${label}
                                 </span>
-                                ${projectName ? `<span style="display: inline-block; color: #666666; padding: 6px 0 6px 12px; font-size: 10px; font-weight: 400; text-transform: uppercase; letter-spacing: 1px;">// &nbsp;&nbsp;${projectName}</span>` : ''}
+                                ${projectName ? `<span style="display: inline-block; vertical-align: middle; color: #666666; padding: 6px 0 6px 12px; font-size: 10px; font-weight: 400; text-transform: uppercase; letter-spacing: 1px;">// &nbsp;&nbsp;${projectName}</span>` : ''}
                             </div>
 
                             <!-- Editorial Title -->
@@ -191,10 +191,10 @@ function generateDigestEmailHTML(logs: ActivityLog[], clientName: string, projec
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                         <tr>
                             <td>
-                                <div style="margin-bottom: 8px;">
-                                    <span style="font-size: 10px; font-weight: 500; color: #666666; text-transform: uppercase; letter-spacing: 1px;">${date}</span>
-                                    <span style="font-size: 10px; font-weight: 500; color: #000000; text-transform: uppercase; letter-spacing: 1px; margin-left: 12px; border: 1px solid #E5E5E5; padding: 2px 6px;">${label}</span>
-                                    ${projectName ? `<span style="font-size: 10px; color: #999999; margin-left: 8px;">// ${projectName}</span>` : ''}
+                                <div style="margin-bottom: 8px; line-height: 1;">
+                                    <span style="display: inline-block; vertical-align: middle; font-size: 10px; font-weight: 500; color: #666666; text-transform: uppercase; letter-spacing: 1px;">${date}</span>
+                                    <span style="display: inline-block; vertical-align: middle; font-size: 10px; font-weight: 500; color: #000000; text-transform: uppercase; letter-spacing: 1px; margin-left: 12px; border: 1px solid #E5E5E5; padding: 4px 6px;">${label}</span>
+                                    ${projectName ? `<span style="display: inline-block; vertical-align: middle; font-size: 10px; color: #999999; margin-left: 8px;">// ${projectName}</span>` : ''}
                                 </div>
                                 <h3 style="margin: 0 0 4px 0; font-size: 16px; font-weight: 500; color: #000000; line-height: 1.4;">
                                     ${log.title}${amountTag}
@@ -240,11 +240,11 @@ function generateDigestEmailHTML(logs: ActivityLog[], clientName: string, projec
                         <td style="padding: 48px 48px 24px 48px;">
                             
                             <!-- Tags / Metadata -->
-                            <div style="margin-bottom: 24px;">
-                                <span style="display: inline-block; border: 1px solid #E5E5E5; color: #000000; padding: 6px 12px; font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px;">
+                            <div style="margin-bottom: 24px; line-height: 1;">
+                                <span style="display: inline-block; vertical-align: middle; border: 1px solid #E5E5E5; color: #000000; padding: 6px 12px; font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px;">
                                     Digest
                                 </span>
-                                <span style="display: inline-block; color: #666666; padding: 6px 0 6px 12px; font-size: 10px; font-weight: 400; text-transform: uppercase; letter-spacing: 1px;">// &nbsp;&nbsp;${logs.length} update${logs.length > 1 ? 's' : ''}</span>
+                                <span style="display: inline-block; vertical-align: middle; color: #666666; padding: 6px 0 6px 12px; font-size: 10px; font-weight: 400; text-transform: uppercase; letter-spacing: 1px;">// &nbsp;&nbsp;${logs.length} update${logs.length > 1 ? 's' : ''}</span>
                             </div>
 
                             <!-- Editorial Title -->
