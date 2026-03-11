@@ -63,12 +63,20 @@ function generateSingleActivityEmailHTML(log: ActivityLog, clientName: string, p
     <style>
         /* Fallback web fonts for clients that support them */
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital@0;1&family=Inter:wght@300;400;500&display=swap');
+        
+        /* Mobile responsive adjustments */
+        @media screen and (max-width: 600px) {
+            .mob-p-wrap { padding: 40px 16px !important; }
+            .mob-p-main { padding: 32px 24px !important; }
+            .mob-p-foot { padding: 24px !important; }
+            .mob-text-lg { font-size: 24px !important; }
+        }
     </style>
 </head>
 <body style="margin:0;padding:0;background-color:#F7F7F7;font-family:'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif; -webkit-font-smoothing: antialiased;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F7F7F7;">
         <tr>
-            <td align="center" style="padding: 60px 20px;">
+            <td align="center" style="padding: 60px 20px;" class="mob-p-wrap">
                 
                 <!-- Minimal Header -->
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto;">
@@ -84,18 +92,18 @@ function generateSingleActivityEmailHTML(log: ActivityLog, clientName: string, p
                     
                     <!-- Content Area -->
                     <tr>
-                        <td style="padding: 48px;">
+                        <td style="padding: 48px;" class="mob-p-main">
                             
                             <!-- Tags / Metadata -->
                             <div style="margin-bottom: 24px; line-height: 1;">
-                                <span style="display: inline-block; vertical-align: middle; border: 1px solid #E5E5E5; color: #000000; padding: 6px 12px; font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px;">
+                                <span style="display: inline-block; vertical-align: middle; border: 1px solid #E5E5E5; color: #000000; padding: 6px 12px; font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; margin: 0 8px 8px 0;">
                                     ${label}
                                 </span>
-                                ${projectName ? `<span style="display: inline-block; vertical-align: middle; color: #666666; padding: 6px 0 6px 12px; font-size: 10px; font-weight: 400; text-transform: uppercase; letter-spacing: 1px;">// &nbsp;&nbsp;${projectName}</span>` : ''}
+                                ${projectName ? `<span style="display: inline-block; vertical-align: middle; color: #666666; padding: 6px 0 6px 0; font-size: 10px; font-weight: 400; text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; margin: 0 0 8px 0;">// &nbsp;&nbsp;${projectName}</span>` : ''}
                             </div>
 
                             <!-- Editorial Title -->
-                            <h1 style="margin: 0 0 24px 0; font-family: 'Playfair Display', Georgia, serif; font-size: 28px; font-weight: normal; color: #000000; line-height: 1.3;">
+                            <h1 style="margin: 0 0 24px 0; font-family: 'Playfair Display', Georgia, serif; font-size: 28px; font-weight: normal; color: #000000; line-height: 1.3;" class="mob-text-lg">
                                 ${log.title}
                             </h1>
 
@@ -126,7 +134,7 @@ function generateSingleActivityEmailHTML(log: ActivityLog, clientName: string, p
 
                     <!-- Footer Data -->
                     <tr>
-                        <td style="padding: 24px 48px; background-color: #FAFAFA; border-top: 1px solid #E5E5E5;">
+                        <td style="padding: 24px 48px; background-color: #FAFAFA; border-top: 1px solid #E5E5E5;" class="mob-p-foot">
                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                                 <tr>
                                     <td style="font-size: 12px; color: #888888; font-weight: 300;">
@@ -192,9 +200,9 @@ function generateDigestEmailHTML(logs: ActivityLog[], clientName: string, projec
                         <tr>
                             <td>
                                 <div style="margin-bottom: 8px; line-height: 1;">
-                                    <span style="display: inline-block; vertical-align: middle; font-size: 10px; font-weight: 500; color: #666666; text-transform: uppercase; letter-spacing: 1px;">${date}</span>
-                                    <span style="display: inline-block; vertical-align: middle; font-size: 10px; font-weight: 500; color: #000000; text-transform: uppercase; letter-spacing: 1px; margin-left: 12px; border: 1px solid #E5E5E5; padding: 4px 6px;">${label}</span>
-                                    ${projectName ? `<span style="display: inline-block; vertical-align: middle; font-size: 10px; color: #999999; margin-left: 8px;">// ${projectName}</span>` : ''}
+                                    <span style="display: inline-block; vertical-align: middle; font-size: 10px; font-weight: 500; color: #666666; text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; margin: 0 12px 6px 0;">${date}</span>
+                                    <span style="display: inline-block; vertical-align: middle; font-size: 10px; font-weight: 500; color: #000000; text-transform: uppercase; letter-spacing: 1px; border: 1px solid #E5E5E5; padding: 4px 6px; white-space: nowrap; margin: 0 12px 6px 0;">${label}</span>
+                                    ${projectName ? `<span style="display: inline-block; vertical-align: middle; font-size: 10px; color: #999999; white-space: nowrap; margin: 0 0 6px 0;">// ${projectName}</span>` : ''}
                                 </div>
                                 <h3 style="margin: 0 0 4px 0; font-size: 16px; font-weight: 500; color: #000000; line-height: 1.4;">
                                     ${log.title}${amountTag}
@@ -216,12 +224,21 @@ function generateDigestEmailHTML(logs: ActivityLog[], clientName: string, projec
     <style>
         /* Fallback web fonts for clients that support them */
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital@0;1&family=Inter:wght@300;400;500&display=swap');
+        
+        /* Mobile responsive adjustments */
+        @media screen and (max-width: 600px) {
+            .mob-p-wrap { padding: 40px 16px !important; }
+            .mob-p-top { padding: 32px 24px 16px 24px !important; }
+            .mob-p-mid { padding: 0 24px !important; }
+            .mob-p-bot { padding: 0 24px 32px 24px !important; }
+            .mob-text-lg { font-size: 24px !important; }
+        }
     </style>
 </head>
 <body style="margin:0;padding:0;background-color:#F7F7F7;font-family:'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif; -webkit-font-smoothing: antialiased;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F7F7F7;">
         <tr>
-            <td align="center" style="padding: 60px 20px;">
+            <td align="center" style="padding: 60px 20px;" class="mob-p-wrap">
                 
                 <!-- Minimal Header -->
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto;">
@@ -237,18 +254,18 @@ function generateDigestEmailHTML(logs: ActivityLog[], clientName: string, projec
                     
                     <!-- Content Area -->
                     <tr>
-                        <td style="padding: 48px 48px 24px 48px;">
+                        <td style="padding: 48px 48px 24px 48px;" class="mob-p-top">
                             
                             <!-- Tags / Metadata -->
                             <div style="margin-bottom: 24px; line-height: 1;">
-                                <span style="display: inline-block; vertical-align: middle; border: 1px solid #E5E5E5; color: #000000; padding: 6px 12px; font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px;">
+                                <span style="display: inline-block; vertical-align: middle; border: 1px solid #E5E5E5; color: #000000; padding: 6px 12px; font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; margin: 0 8px 8px 0;">
                                     Digest
                                 </span>
-                                <span style="display: inline-block; vertical-align: middle; color: #666666; padding: 6px 0 6px 12px; font-size: 10px; font-weight: 400; text-transform: uppercase; letter-spacing: 1px;">// &nbsp;&nbsp;${logs.length} update${logs.length > 1 ? 's' : ''}</span>
+                                <span style="display: inline-block; vertical-align: middle; color: #666666; padding: 6px 0 6px 0; font-size: 10px; font-weight: 400; text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; margin: 0 0 8px 0;">// &nbsp;&nbsp;${logs.length} update${logs.length > 1 ? 's' : ''}</span>
                             </div>
 
                             <!-- Editorial Title -->
-                            <h1 style="margin: 0 0 24px 0; font-family: 'Playfair Display', Georgia, serif; font-size: 28px; font-weight: normal; color: #000000; line-height: 1.3;">
+                            <h1 style="margin: 0 0 24px 0; font-family: 'Playfair Display', Georgia, serif; font-size: 28px; font-weight: normal; color: #000000; line-height: 1.3;" class="mob-text-lg">
                                 Project Update Digest
                             </h1>
 
@@ -264,7 +281,7 @@ function generateDigestEmailHTML(logs: ActivityLog[], clientName: string, projec
 
                     <!-- Timeline Injection Area -->
                     <tr>
-                        <td style="padding: 0 48px;">
+                        <td style="padding: 0 48px;" class="mob-p-mid">
                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                                 <tr>
                                     <td style="border-top: 1px solid #E5E5E5; padding-top: 32px; padding-bottom: 32px;">
@@ -278,7 +295,7 @@ function generateDigestEmailHTML(logs: ActivityLog[], clientName: string, projec
 
                     <!-- Action Button -->
                     <tr>
-                        <td style="padding: 0 48px 48px 48px;">
+                        <td style="padding: 0 48px 48px 48px;" class="mob-p-bot">
                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                                 <tr>
                                     <td align="center">
