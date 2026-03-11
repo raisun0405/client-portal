@@ -18,11 +18,14 @@ export type ActionResponse = {
 
 export async function loginClient(accessKey: string, rememberMe: boolean): Promise<ActionResponse> {
     try {
+        // Trim input in case the user accidentally added whitespace in the admin panel or input field
+        const cleanKey = accessKey.trim();
+
         // 1. Verify credentials with Supabase
         const { data, error } = await supabase
             .from('clients')
             .select('*')
-            .eq('access_key', accessKey)
+            .eq('access_key', cleanKey)
             .single();
 
         if (error || !data) {
@@ -30,14 +33,12 @@ export async function loginClient(accessKey: string, rememberMe: boolean): Promi
         }
 
         // 2. Set Secure HTTP-Only Cookie
-        // We store the client ID and Name in the cookie (could be encrypted for more security, 
-        // but HttpOnly prevents client-side access effectively for this use case).
-        // Ideally, we'd sign this token, but for now we'll store a JSON string.
-        const sessionData = JSON.stringify({
+        // Use encodeURIComponent to safeguard against invalid characters in names/keys breaking the cookie header
+        const sessionData = encodeURIComponent(JSON.stringify({
             id: data.id,
             name: data.name,
             access_key: data.access_key
-        });
+        }));
 
         const cookieOptions: any = {
             httpOnly: true,
@@ -54,7 +55,8 @@ export async function loginClient(accessKey: string, rememberMe: boolean): Promi
         const cookieStore = await cookies();
         cookieStore.set(COOKIE_NAME, sessionData, cookieOptions);
 
-        return { success: true, data };
+        // DO NOT return `data` - Next.js 14+ Server Actions throw fatal serialization errors for null-prototype objects returned by Supabase
+        return { success: true };
     } catch (err) {
         console.error('Login error:', err);
         return { success: false, message: 'An unexpected error occurred during login.' };
@@ -68,7 +70,12 @@ export async function getClientSession(): Promise<any | null> {
     if (!sessionCookie) return null;
 
     try {
-        return JSON.parse(sessionCookie.value);
+        // Try decoding URI component first for new safe cookies, fallback for older cookies
+        const decoded = sessionCookie.value.includes('%') 
+            ? decodeURIComponent(sessionCookie.value)
+            : sessionCookie.value;
+            
+        return JSON.parse(decoded);
     } catch (e) {
         return null;
     }
