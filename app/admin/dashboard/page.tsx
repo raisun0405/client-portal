@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase, supabaseAdmin } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 import { logActivity } from '@/lib/activityLogger';
 import { Users, Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut, ArrowUp, ArrowDown, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -97,7 +97,7 @@ export default function AdminDashboard() {
     // --- Remote Fetchers ---
     const fetchClients = async () => {
         setLoading(true);
-        const { data } = await supabase.from('clients').select('*').order('created_at', { ascending: false });
+        const { data } = await supabaseAdmin.from('clients').select('*').order('created_at', { ascending: false });
         if (data) setClients(data);
         setLoading(false);
     };
@@ -106,7 +106,7 @@ export default function AdminDashboard() {
         setLoading(true);
 
         // 1. Fetch all projects for this client
-        const { data: projectsData } = await supabase
+        const { data: projectsData } = await supabaseAdmin
             .from('projects')
             .select('*')
             .eq('client_id', clientId)
@@ -115,7 +115,7 @@ export default function AdminDashboard() {
         if (projectsData && projectsData.length > 0) {
             // 2. Fetch ALL features for these projects to calculate stats
             const projectIds = projectsData.map(p => p.id);
-            const { data: featuresData } = await supabase
+            const { data: featuresData } = await supabaseAdmin
                 .from('features')
                 .select('*')
                 .in('project_id', projectIds);
@@ -153,7 +153,7 @@ export default function AdminDashboard() {
 
     const fetchFeatures = async (projectId: string) => {
         setLoading(true);
-        const { data } = await supabase.from('features').select('*').eq('project_id', projectId).order('created_at', { ascending: true });
+        const { data } = await supabaseAdmin.from('features').select('*').eq('project_id', projectId).order('created_at', { ascending: true });
         if (data) setFeatures(data);
         setLoading(false);
     };
@@ -221,7 +221,7 @@ export default function AdminDashboard() {
     const handleSaveClient = async () => {
         if (editingId) {
             // UPDATE
-            const { error } = await supabase.from('clients').update({
+            const { error } = await supabaseAdmin.from('clients').update({
                 name: formData.name,
                 access_key: formData.access_key
             }).eq('id', editingId);
@@ -232,7 +232,7 @@ export default function AdminDashboard() {
             }
         } else {
             // CREATE
-            const { data, error } = await supabase.from('clients').insert([{
+            const { data, error } = await supabaseAdmin.from('clients').insert([{
                 name: formData.name,
                 access_key: formData.access_key
             }]).select();
@@ -250,7 +250,7 @@ export default function AdminDashboard() {
     const handleSaveProject = async () => {
         if (editingId) {
             // UPDATE
-            const { error } = await supabase.from('projects').update({
+            const { error } = await supabaseAdmin.from('projects').update({
                 category: formData.category,
                 description: formData.description,
                 status: formData.status
@@ -279,7 +279,7 @@ export default function AdminDashboard() {
                 status: formData.status || 'In Progress',
                 links: []
             };
-            const { data, error } = await supabase.from('projects').insert([payload]).select();
+            const { data, error } = await supabaseAdmin.from('projects').insert([payload]).select();
             if (!error && data && selectedClient) {
                 const newProject: ProjectWithStats = {
                     ...data[0],
@@ -309,7 +309,7 @@ export default function AdminDashboard() {
         const newLink = { title: formData.link_title, url: formData.link_url };
         const updatedLinks = [...(selectedProject.links || []), newLink];
 
-        const { error } = await supabase
+        const { error } = await supabaseAdmin
             .from('projects')
             .update({ links: updatedLinks })
             .eq('id', selectedProject.id);
@@ -347,7 +347,7 @@ export default function AdminDashboard() {
         const updatedLinks = [...(selectedProject.links || [])];
         updatedLinks.splice(index, 1);
 
-        const { error } = await supabase
+        const { error } = await supabaseAdmin
             .from('projects')
             .update({ links: updatedLinks })
             .eq('id', selectedProject.id);
@@ -387,7 +387,7 @@ export default function AdminDashboard() {
             const oldStatus = oldFeature?.status || '';
 
             // UPDATE
-            const { error } = await supabase.from('features').update(payload).eq('id', editingId);
+            const { error } = await supabaseAdmin.from('features').update(payload).eq('id', editingId);
             if (!error && selectedProject) {
                 fetchFeatures(selectedProject.id);
                 if (selectedClient) fetchProjects(selectedClient.id); // Refresh stats
@@ -456,7 +456,7 @@ export default function AdminDashboard() {
         } else {
             // CREATE
             const insertPayload = { ...payload, project_id: selectedProject?.id };
-            const { data, error } = await supabase.from('features').insert([insertPayload]).select();
+            const { data, error } = await supabaseAdmin.from('features').insert([insertPayload]).select();
             if (!error && data) {
                 setFeatures([...features, data[0]]);
                 if (selectedClient) {
@@ -493,7 +493,7 @@ export default function AdminDashboard() {
             deletedItemDesc = project?.description || 'Unknown project';
         }
 
-        await supabase.from(table).delete().eq('id', id);
+        await supabaseAdmin.from(table).delete().eq('id', id);
 
         if (table === 'clients') fetchClients();
         if (table === 'projects' && selectedClient) {
