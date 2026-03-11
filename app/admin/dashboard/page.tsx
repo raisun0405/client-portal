@@ -36,6 +36,7 @@ type Feature = {
     status: string;
     payment_status: string;
     is_new_request: boolean;
+    payment_confirmed: boolean;
     created_at: string;
 };
 
@@ -123,8 +124,10 @@ export default function AdminDashboard() {
             // 3. Calculate stats for each project
             const enhancedProjects: ProjectWithStats[] = projectsData.map(project => {
                 const projectFeatures = featuresData?.filter(f => f.project_id === project.id) || [];
-                const total = projectFeatures.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
-                const paid = projectFeatures.reduce((sum, f) => sum + (Number(f.paid_amount) || 0), 0);
+                // Only include confirmed features in financial calculations
+                const confirmedFeatures = projectFeatures.filter(f => f.payment_confirmed !== false);
+                const total = confirmedFeatures.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+                const paid = confirmedFeatures.reduce((sum, f) => sum + (Number(f.paid_amount) || 0), 0);
 
                 // Progress Calculation
                 const totalFeatures = projectFeatures.length;
@@ -211,7 +214,8 @@ export default function AdminDashboard() {
             paid_amount: feature.paid_amount,
             status: feature.status,
             payment_status: feature.payment_status,
-            is_new_request: feature.is_new_request ? 'true' : 'false'
+            is_new_request: feature.is_new_request ? 'true' : 'false',
+            payment_confirmed: feature.payment_confirmed !== false
         });
         setEditingId(feature.id);
         setShowModal(true);
@@ -361,11 +365,13 @@ export default function AdminDashboard() {
     };
 
     const handleSaveFeature = async () => {
-        const amount = Number(formData.amount) || 0;
-        const paidAmount = Number(formData.paid_amount) || 0;
+        const isPaymentConfirmed = formData.payment_confirmed !== false;
+        const amount = isPaymentConfirmed ? (Number(formData.amount) || 0) : 0;
+        const paidAmount = isPaymentConfirmed ? (Number(formData.paid_amount) || 0) : 0;
 
         let paymentStatus = 'Pending';
-        if (amount === 0) paymentStatus = 'Paid';
+        if (!isPaymentConfirmed) paymentStatus = 'Pending';
+        else if (amount === 0) paymentStatus = 'Paid';
         else if (paidAmount >= amount) paymentStatus = 'Paid';
         else if (paidAmount > 0) paymentStatus = 'Partial';
 
@@ -376,7 +382,8 @@ export default function AdminDashboard() {
             paid_amount: paidAmount,
             status: formData.status || 'Requested',
             payment_status: paymentStatus,
-            is_new_request: formData.is_new_request === 'true'
+            is_new_request: formData.is_new_request === 'true',
+            payment_confirmed: isPaymentConfirmed
         };
 
         if (editingId) {
@@ -820,7 +827,16 @@ export default function AdminDashboard() {
                                                 {feature.created_at ? new Date(feature.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '-'}
                                             </td>
                                             <td className="px-6 py-4 text-slate-600">{feature.estimation || '-'}</td>
-                                            <td className="px-6 py-4 text-slate-900 font-semibold">₹{feature.amount || 0}</td>
+                                            <td className="px-6 py-4">
+                                                {feature.payment_confirmed === false ? (
+                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-orange-50 text-orange-600 border border-orange-200">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
+                                                        Rate Pending
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-slate-900 font-semibold">₹{feature.amount || 0}</span>
+                                                )}
+                                            </td>
                                             <td className="px-6 py-4">
                                                 {feature.is_new_request ? (
                                                     <span className="inline-flex px-2 py-1 rounded text-xs font-medium bg-purple-50 text-purple-700">Extra</span>
@@ -835,17 +851,21 @@ export default function AdminDashboard() {
                                                     }`}>{feature.status}</span>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <div className="flex flex-col gap-1 items-start">
-                                                    <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${feature.payment_status === 'Paid' ? 'bg-green-50 text-green-700' :
-                                                        feature.payment_status === 'Partial' ? 'bg-blue-50 text-blue-700' :
-                                                            'bg-red-50 text-red-700'
-                                                        }`}>{feature.payment_status}</span>
-                                                    {(feature.paid_amount || 0) > 0 && (
-                                                        <span className="text-xs text-slate-500 font-mono">
-                                                            ₹{feature.paid_amount} / ₹{feature.amount}
-                                                        </span>
-                                                    )}
-                                                </div>
+                                                {feature.payment_confirmed === false ? (
+                                                    <span className="text-xs text-slate-400 italic">—</span>
+                                                ) : (
+                                                    <div className="flex flex-col gap-1 items-start">
+                                                        <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${feature.payment_status === 'Paid' ? 'bg-green-50 text-green-700' :
+                                                            feature.payment_status === 'Partial' ? 'bg-blue-50 text-blue-700' :
+                                                                'bg-red-50 text-red-700'
+                                                            }`}>{feature.payment_status}</span>
+                                                        {(feature.paid_amount || 0) > 0 && (
+                                                            <span className="text-xs text-slate-500 font-mono">
+                                                                ₹{feature.paid_amount} / ₹{feature.amount}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-2">
@@ -899,11 +919,22 @@ export default function AdminDashboard() {
                                     <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100">
                                         <div>
                                             <p className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">Amount</p>
-                                            <p className="text-sm font-bold text-slate-900 mt-0.5">₹{feature.amount || 0}</p>
+                                            {feature.payment_confirmed === false ? (
+                                                <span className="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-50 text-orange-600 border border-orange-200">
+                                                    <span className="w-1 h-1 rounded-full bg-orange-400 animate-pulse" />
+                                                    Pending
+                                                </span>
+                                            ) : (
+                                                <p className="text-sm font-bold text-slate-900 mt-0.5">₹{feature.amount || 0}</p>
+                                            )}
                                         </div>
                                         <div>
                                             <p className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">Paid</p>
-                                            <p className="text-sm font-bold text-green-600 mt-0.5">₹{feature.paid_amount || 0}</p>
+                                            {feature.payment_confirmed === false ? (
+                                                <span className="text-xs text-slate-300 mt-0.5">—</span>
+                                            ) : (
+                                                <p className="text-sm font-bold text-green-600 mt-0.5">₹{feature.paid_amount || 0}</p>
+                                            )}
                                         </div>
                                         <div>
                                             <p className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">Date</p>
@@ -996,10 +1027,6 @@ export default function AdminDashboard() {
                                             <input value={formData.estimation || ''} placeholder="e.g. 2 days" className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, estimation: e.target.value })} />
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">Amount (₹)</label>
-                                            <input value={formData.amount ?? ''} type="number" placeholder="e.g. 5000" className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, amount: e.target.value })} />
-                                        </div>
-                                        <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-1">Is this an Extra Request?</label>
                                             <select value={formData.is_new_request || 'false'} className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, is_new_request: e.target.value })}>
                                                 <option value="false">No (Core Feature)</option>
@@ -1021,10 +1048,46 @@ export default function AdminDashboard() {
                                             </select>
                                         </div>
 
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">Paid Amount (₹)</label>
-                                            <input value={formData.paid_amount ?? ''} type="number" placeholder="e.g. 2500" className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, paid_amount: e.target.value })} />
+                                        {/* Payment Confirmed Toggle */}
+                                        <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <label className="block text-sm font-medium text-slate-700">Payment Confirmed</label>
+                                                    <p className="text-xs text-slate-400 mt-0.5">
+                                                        {formData.payment_confirmed !== false
+                                                            ? 'Rate is confirmed — amount fields visible'
+                                                            : 'Rate is pending — "Rate Pending" shown to client'}
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setFormData({ ...formData, payment_confirmed: !formData.payment_confirmed })}
+                                                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                                                        formData.payment_confirmed !== false ? 'bg-blue-600' : 'bg-slate-300'
+                                                    }`}
+                                                >
+                                                    <span
+                                                        className={`inline-block h-5 w-5 rounded-full bg-white shadow-md transform transition-transform duration-300 ${
+                                                            formData.payment_confirmed !== false ? 'translate-x-6' : 'translate-x-1'
+                                                        }`}
+                                                    />
+                                                </button>
+                                            </div>
                                         </div>
+
+                                        {/* Amount fields - only show when payment is confirmed */}
+                                        {formData.payment_confirmed !== false && (
+                                            <>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-slate-700 mb-1">Amount (₹)</label>
+                                                    <input value={formData.amount ?? ''} type="number" placeholder="e.g. 5000" className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, amount: e.target.value })} />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-slate-700 mb-1">Paid Amount (₹)</label>
+                                                    <input value={formData.paid_amount ?? ''} type="number" placeholder="e.g. 2500" className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, paid_amount: e.target.value })} />
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 )}
 

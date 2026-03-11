@@ -29,6 +29,7 @@ type Feature = {
     status: string;
     payment_status: string;
     is_new_request: boolean;
+    payment_confirmed: boolean;
     created_at: string;
 };
 
@@ -110,8 +111,10 @@ export default function DashboardPage() {
                 // 3. Calculate stats for each project
                 const enhancedProjects: ProjectWithStats[] = projectsData.map(project => {
                     const projectFeatures = featuresData?.filter(f => f.project_id === project.id) || [];
-                    const total = projectFeatures.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
-                    const paid = projectFeatures.reduce((sum, f) => sum + (Number(f.paid_amount) || 0), 0);
+                    // Only include confirmed features in financial calculations
+                    const confirmedFeatures = projectFeatures.filter(f => f.payment_confirmed !== false);
+                    const total = confirmedFeatures.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+                    const paid = confirmedFeatures.reduce((sum, f) => sum + (Number(f.paid_amount) || 0), 0);
 
                     // Progress Calculation
                     const totalFeatures = projectFeatures.length;
@@ -951,22 +954,35 @@ export default function DashboardPage() {
                                                                     {feature.status}
                                                                 </span>
                                                             </td>
-                                                            <td className="px-6 py-4 text-slate-900 font-bold font-mono">₹{(feature.amount || 0).toLocaleString()}</td>
-                                                            <td className="px-6 py-4 text-right">
-                                                                <div className="flex flex-col items-end gap-1">
-                                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${feature.payment_status === 'Paid' ? 'bg-emerald-100 text-emerald-700' :
-                                                                        feature.payment_status === 'Partial' ? 'bg-blue-100 text-blue-700' :
-                                                                            'bg-rose-100 text-rose-700'
-                                                                        }`}>
-                                                                        {feature.payment_status}
+                                                            <td className="px-6 py-4">
+                                                                {feature.payment_confirmed === false ? (
+                                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-orange-50 text-orange-600 border border-orange-200">
+                                                                        <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
+                                                                        Rate Pending
                                                                     </span>
-                                                                    {(feature.paid_amount || 0) > 0 && feature.payment_status !== 'Paid' && (
-                                                                        <span className="text-[10px] text-slate-400 flex items-center gap-1 font-mono">
-                                                                            <span>Paid:</span>
-                                                                            <span className="text-slate-700">₹{feature.paid_amount.toLocaleString()}</span>
+                                                                ) : (
+                                                                    <span className="text-slate-900 font-bold font-mono">₹{(feature.amount || 0).toLocaleString()}</span>
+                                                                )}
+                                                            </td>
+                                                            <td className="px-6 py-4 text-right">
+                                                                {feature.payment_confirmed === false ? (
+                                                                    <span className="text-xs text-slate-400 italic">—</span>
+                                                                ) : (
+                                                                    <div className="flex flex-col items-end gap-1">
+                                                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${feature.payment_status === 'Paid' ? 'bg-emerald-100 text-emerald-700' :
+                                                                            feature.payment_status === 'Partial' ? 'bg-blue-100 text-blue-700' :
+                                                                                'bg-rose-100 text-rose-700'
+                                                                            }`}>
+                                                                            {feature.payment_status}
                                                                         </span>
-                                                                    )}
-                                                                </div>
+                                                                        {(feature.paid_amount || 0) > 0 && feature.payment_status !== 'Paid' && (
+                                                                            <span className="text-[10px] text-slate-400 flex items-center gap-1 font-mono">
+                                                                                <span>Paid:</span>
+                                                                                <span className="text-slate-700">₹{feature.paid_amount.toLocaleString()}</span>
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                )}
                                                             </td>
                                                         </tr>
                                                     ))}
@@ -999,7 +1015,14 @@ export default function DashboardPage() {
                                                                 {feature.status}
                                                             </span>
                                                         </div>
-                                                        <span className="text-slate-900 font-bold font-mono">₹{(feature.amount || 0).toLocaleString()}</span>
+                                                        {feature.payment_confirmed === false ? (
+                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-orange-50 text-orange-600 border border-orange-200">
+                                                                <span className="w-1 h-1 rounded-full bg-orange-400 animate-pulse" />
+                                                                Rate Pending
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-slate-900 font-bold font-mono">₹{(feature.amount || 0).toLocaleString()}</span>
+                                                        )}
                                                     </div>
 
                                                     <h4 className="text-slate-900 font-semibold mb-2">{feature.description}</h4>
@@ -1014,14 +1037,20 @@ export default function DashboardPage() {
                                                             )}
                                                         </div>
                                                         <div className="text-right">
-                                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider mb-1 ${feature.payment_status === 'Paid' ? 'bg-emerald-100 text-emerald-700' :
-                                                                feature.payment_status === 'Partial' ? 'bg-blue-100 text-blue-700' :
-                                                                    'bg-rose-100 text-rose-700'
-                                                                }`}>
-                                                                {feature.payment_status}
-                                                            </span>
-                                                            {(feature.paid_amount || 0) > 0 && feature.payment_status !== 'Paid' && (
-                                                                <p className="text-[10px] text-slate-400 font-mono">Pd: ₹{feature.paid_amount}</p>
+                                                            {feature.payment_confirmed === false ? (
+                                                                <span className="text-xs text-slate-400 italic">—</span>
+                                                            ) : (
+                                                                <>
+                                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider mb-1 ${feature.payment_status === 'Paid' ? 'bg-emerald-100 text-emerald-700' :
+                                                                        feature.payment_status === 'Partial' ? 'bg-blue-100 text-blue-700' :
+                                                                            'bg-rose-100 text-rose-700'
+                                                                        }`}>
+                                                                        {feature.payment_status}
+                                                                    </span>
+                                                                    {(feature.paid_amount || 0) > 0 && feature.payment_status !== 'Paid' && (
+                                                                        <p className="text-[10px] text-slate-400 font-mono">Pd: ₹{feature.paid_amount}</p>
+                                                                    )}
+                                                                </>
                                                             )}
                                                         </div>
                                                     </div>
