@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { fetchActivityLogs, type ActivityLog } from '@/lib/activityLogger';
-import { getClientSession, logoutClient, markLogsAsRead } from '../actions'; // Import server actions
+import { getClientSession, logoutClient } from '../actions'; // Import server actions
 import { LayoutGrid, LogOut, FolderOpen, Loader2, X, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Calendar, ArrowRight, TrendingUp, Wallet, CheckCircle2, Clock, FileText, Zap, CreditCard, Link2, Trash2, RefreshCw, PackagePlus, Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
@@ -189,12 +189,6 @@ export default function DashboardPage() {
         const logs = await fetchActivityLogs(clientId, 25);
         setActivityLogs(logs);
         setLoadingLogs(false);
-
-        // Mark unread logs as read
-        const unreadIds = logs.filter(l => !l.read_at).map(l => l.id);
-        if (unreadIds.length > 0) {
-            await markLogsAsRead(unreadIds);
-        }
     };
 
     // Helper: get icon and color for activity type

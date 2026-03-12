@@ -86,19 +86,4 @@ export async function logoutClient() {
     cookieStore.delete(COOKIE_NAME);
 }
 
-export async function markLogsAsRead(logIds: string[]) {
-    try {
-        if (!logIds.length) return { success: true };
-        
-        await supabase
-            .from('activity_logs')
-            .update({ read_at: new Date().toISOString() })
-            .in('id', logIds)
-            .is('read_at', null);
-            
-        return { success: true };
-    } catch (err) {
-        console.error('Failed to mark logs read:', err);
-        return { success: false };
-    }
-}
+
