@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+/* Remove focus outline on Recharts pie chart sectors when clicked */
+.recharts-sector:focus,
+.recharts-sector:active,
+.recharts-pie-sector:focus,
+.recharts-pie-sector:active {
+  outline: none !important;
+}
+
 @theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
