@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
@@ -70,6 +70,49 @@ export default function DashboardPage() {
     // Donut chart active segment index
     const [activeDonutIndex, setActiveDonutIndex] = useState<number | null>(null);
 
+    // Mobile bottom nav active tab
+    const [activeNavTab, setActiveNavTab] = useState<'dashboard' | 'projects' | 'activity'>('dashboard');
+    const dashboardRef = useRef<HTMLDivElement>(null);
+    const projectsRef = useRef<HTMLDivElement>(null);
+    const activityRef = useRef<HTMLDivElement>(null);
+
+    const scrollToSection = (section: 'dashboard' | 'projects' | 'activity') => {
+        setActiveNavTab(section);
+        const ref = section === 'dashboard' ? dashboardRef : section === 'projects' ? projectsRef : activityRef;
+        ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+
+    // Auto-highlight mobile nav tab on scroll
+    useEffect(() => {
+        const sections = [
+            { id: 'activity' as const, ref: activityRef },
+            { id: 'projects' as const, ref: projectsRef },
+            { id: 'dashboard' as const, ref: dashboardRef },
+        ];
+        const observer = new IntersectionObserver(
+            (entries) => {
+                for (const entry of entries) {
+                    if (entry.isIntersecting) {
+                        const match = sections.find(s => s.ref.current === entry.target);
+                        if (match) setActiveNavTab(match.id);
+                    }
+                }
+            },
+            { rootMargin: '-30% 0px -60% 0px', threshold: 0 }
+        );
+        sections.forEach(s => { if (s.ref.current) observer.observe(s.ref.current); });
+        return () => observer.disconnect();
+    }, [loading]);
+
+    // Memoize fetch functions so real-time handlers can call them
+    const fetchProjectsForClient = useCallback((clientId: string) => {
+        fetchProjects(clientId);
+    }, []);
+
+    const loadActivityLogsForClient = useCallback((clientId: string) => {
+        loadActivityLogs(clientId);
+    }, []);
+
     useEffect(() => {
         const verifySession = async () => {
             try {
@@ -88,6 +131,35 @@ export default function DashboardPage() {
         };
         verifySession();
     }, [router]);
+
+    // Real-time subscriptions for live updates
+    useEffect(() => {
+        if (!client?.id) return;
+        const clientId = client.id;
+
+        const channel = supabase
+            .channel('dashboard-realtime')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'projects', filter: `client_id=eq.${clientId}` },
+                () => { fetchProjectsForClient(clientId); }
+            )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'features' },
+                () => { fetchProjectsForClient(clientId); }
+            )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'activity_logs', filter: `client_id=eq.${clientId}` },
+                () => { loadActivityLogsForClient(clientId); }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [client?.id, fetchProjectsForClient, loadActivityLogsForClient]);
 
     const fetchProjects = async (clientId: string) => {
         setLoading(true);
@@ -478,8 +550,8 @@ export default function DashboardPage() {
                 </div>
             </header>
 
-            <main className="max-w-7xl mx-auto p-6 md:p-10">
-                <div className="mb-6 sm:mb-8">
+            <main className="max-w-7xl mx-auto p-6 md:p-10 pb-24 sm:pb-10">
+                <div ref={dashboardRef} className="mb-6 sm:mb-8 scroll-mt-20">
                     <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Dashboard</h2>
                     <p className="text-sm text-slate-500 mt-1">Overview of all your projects & financials.</p>
                 </div>
@@ -507,7 +579,17 @@ export default function DashboardPage() {
                                 <div className="skeleton h-3 w-32 rounded-md mb-2" />
                                 <div className="skeleton h-2.5 w-48 rounded-md mb-6" />
                                 <div className="flex items-center justify-center py-4">
-                                    <div className="skeleton w-[160px] h-[160px] rounded-full" style={{ background: 'linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 37%, #f1f5f9 63%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s ease-in-out infinite' }} />
+                                    <div className="relative w-[160px] h-[160px]">
+                                        {/* Outer ring */}
+                                        <div className="absolute inset-0 rounded-full skeleton" />
+                                        {/* Inner cutout to make donut */}
+                                        <div className="absolute inset-[25px] rounded-full bg-white" />
+                                        {/* Center text placeholder */}
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                            <div className="skeleton h-6 w-14 rounded-md mb-1" />
+                                            <div className="skeleton h-2.5 w-8 rounded-md" />
+                                        </div>
+                                    </div>
                                 </div>
                                 <div className="flex justify-center gap-6 mt-4">
                                     <div className="flex items-center gap-2">
@@ -733,7 +815,7 @@ export default function DashboardPage() {
                                         </div>
 
                                         {/* Activity Log Timeline */}
-                                        <div className="lg:col-span-3 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm">
+                                        <div ref={activityRef} className="lg:col-span-3 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm scroll-mt-20">
                                             <div className="flex items-center justify-between mb-4">
                                                 <div>
                                                     <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Activity Log</h3>
@@ -756,9 +838,20 @@ export default function DashboardPage() {
 
                                             <div className="overflow-y-auto max-h-[260px] custom-scrollbar pr-1">
                                                 {loadingLogs ? (
-                                                    <div className="flex flex-col items-center justify-center py-10">
-                                                        <Loader2 className="animate-spin text-slate-300 mb-2" size={24} />
-                                                        <p className="text-xs text-slate-400">Loading activity...</p>
+                                                    <div className="space-y-4">
+                                                        {[...Array(4)].map((_, i) => (
+                                                            <div key={i} className="flex items-start gap-3">
+                                                                <div className="skeleton w-[30px] h-[30px] rounded-full shrink-0" />
+                                                                <div className="flex-1 space-y-1.5">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="skeleton h-3 w-16 rounded-md" />
+                                                                        <div className="skeleton h-2.5 w-10 rounded-md" />
+                                                                    </div>
+                                                                    <div className="skeleton h-3 w-3/4 rounded-md" />
+                                                                    <div className="skeleton h-2.5 w-1/2 rounded-md" />
+                                                                </div>
+                                                            </div>
+                                                        ))}
                                                     </div>
                                                 ) : activityLogs.length === 0 ? (
                                                     <div className="flex flex-col items-center justify-center py-10 text-center">
@@ -903,7 +996,7 @@ export default function DashboardPage() {
                         })()}
 
                         {/* ========== PROJECTS HEADING ========== */}
-                        <div className="mb-6">
+                        <div ref={projectsRef} className="mb-6 scroll-mt-20">
                             <h3 className="text-lg font-bold text-slate-900 tracking-tight">Your Projects</h3>
                             <p className="text-sm text-slate-500 mt-0.5">Select a project to view detailed status and feature requests.</p>
                         </div>
@@ -1324,6 +1417,36 @@ export default function DashboardPage() {
                     </motion.div>
                 </div>
             )}
+
+            {/* Mobile Bottom Navigation */}
+            <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/90 backdrop-blur-lg border-t border-slate-200 sm:hidden">
+                <div className="flex items-center justify-around h-16 px-2">
+                    <button
+                        onClick={() => scrollToSection('dashboard')}
+                        className={`flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-colors ${activeNavTab === 'dashboard' ? 'text-blue-600' : 'text-slate-400'}`}
+                    >
+                        <LayoutGrid size={20} strokeWidth={activeNavTab === 'dashboard' ? 2.5 : 1.5} />
+                        <span className={`text-[10px] font-semibold ${activeNavTab === 'dashboard' ? 'text-blue-600' : 'text-slate-400'}`}>Dashboard</span>
+                        {activeNavTab === 'dashboard' && <div className="w-1 h-1 rounded-full bg-blue-600 mt-0.5" />}
+                    </button>
+                    <button
+                        onClick={() => scrollToSection('projects')}
+                        className={`flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-colors ${activeNavTab === 'projects' ? 'text-blue-600' : 'text-slate-400'}`}
+                    >
+                        <FolderOpen size={20} strokeWidth={activeNavTab === 'projects' ? 2.5 : 1.5} />
+                        <span className={`text-[10px] font-semibold ${activeNavTab === 'projects' ? 'text-blue-600' : 'text-slate-400'}`}>Projects</span>
+                        {activeNavTab === 'projects' && <div className="w-1 h-1 rounded-full bg-blue-600 mt-0.5" />}
+                    </button>
+                    <button
+                        onClick={() => scrollToSection('activity')}
+                        className={`flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-xl transition-colors ${activeNavTab === 'activity' ? 'text-blue-600' : 'text-slate-400'}`}
+                    >
+                        <Activity size={20} strokeWidth={activeNavTab === 'activity' ? 2.5 : 1.5} />
+                        <span className={`text-[10px] font-semibold ${activeNavTab === 'activity' ? 'text-blue-600' : 'text-slate-400'}`}>Activity</span>
+                        {activeNavTab === 'activity' && <div className="w-1 h-1 rounded-full bg-blue-600 mt-0.5" />}
+                    </button>
+                </div>
+            </nav>
         </div>
     );
 }
