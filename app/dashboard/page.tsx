@@ -539,7 +539,7 @@ export default function DashboardPage() {
                                                 ) : (
                                                     <div className="relative">
                                                         {/* Timeline line */}
-                                                        <div className="absolute left-[15px] top-2 bottom-2 w-px bg-gradient-to-b from-slate-200 via-slate-200 to-transparent" />
+                                                        <div className="absolute left-[19px] top-[25px] bottom-[25px] w-px bg-gradient-to-b from-slate-200 via-slate-200 to-transparent" />
 
                                                         <div className="space-y-0.5">
                                                             {activityLogs.map((log, idx) => {
