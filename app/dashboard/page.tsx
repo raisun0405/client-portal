@@ -8,7 +8,7 @@ import { fetchActivityLogs, type ActivityLog } from '@/lib/activityLogger';
 import { getClientSession, logoutClient } from '../actions'; // Import server actions
 import { LayoutGrid, LogOut, FolderOpen, Loader2, X, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Calendar, ArrowRight, TrendingUp, Wallet, CheckCircle2, Clock, FileText, Zap, CreditCard, Link2, Trash2, RefreshCw, PackagePlus, Activity, Download } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -66,6 +66,9 @@ export default function DashboardPage() {
     // Activity logs state
     const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
     const [loadingLogs, setLoadingLogs] = useState(false);
+
+    // Donut chart active segment index
+    const [activeDonutIndex, setActiveDonutIndex] = useState<number | null>(null);
 
     useEffect(() => {
         const verifySession = async () => {
@@ -644,7 +647,7 @@ export default function DashboardPage() {
                                             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Payment Overview</h3>
                                             <p className="text-[11px] text-slate-400 mb-4">{paymentPercent}% of total value has been paid</p>
                                             <div className="relative" style={{ overflow: 'visible' }}>
-                                                <ResponsiveContainer width="100%" height={200} style={{ overflow: 'visible' }}>
+                                                <ResponsiveContainer width="100%" height={220} style={{ overflow: 'visible' }}>
                                                     <PieChart style={{ overflow: 'visible' }}>
                                                         <Pie
                                                             data={paymentDonutData.filter(d => d.value > 0)}
@@ -657,26 +660,57 @@ export default function DashboardPage() {
                                                             stroke="none"
                                                             startAngle={90}
                                                             endAngle={-270}
+                                                            {...{ activeIndex: activeDonutIndex !== null ? activeDonutIndex : undefined } as any}
+                                                            activeShape={(props: any) => {
+                                                                const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload, value } = props;
+                                                                const RADIAN = Math.PI / 180;
+                                                                const midAngle = (startAngle + endAngle) / 2;
+                                                                const sin = Math.sin(-RADIAN * midAngle);
+                                                                const cos = Math.cos(-RADIAN * midAngle);
+                                                                const mx = cx + (outerRadius + 16) * cos;
+                                                                const my = cy + (outerRadius + 16) * sin;
+                                                                const ex = cx + (outerRadius + 32) * cos;
+                                                                const ey = cy + (outerRadius + 32) * sin;
+                                                                const textAnchor = cos >= 0 ? 'start' : 'end';
+
+                                                                return (
+                                                                    <g>
+                                                                        <Sector
+                                                                            cx={cx} cy={cy}
+                                                                            innerRadius={innerRadius - 3}
+                                                                            outerRadius={outerRadius + 6}
+                                                                            startAngle={startAngle}
+                                                                            endAngle={endAngle}
+                                                                            fill={fill}
+                                                                            opacity={0.95}
+                                                                        />
+                                                                        <Sector
+                                                                            cx={cx} cy={cy}
+                                                                            innerRadius={outerRadius + 8}
+                                                                            outerRadius={outerRadius + 11}
+                                                                            startAngle={startAngle}
+                                                                            endAngle={endAngle}
+                                                                            fill={fill}
+                                                                            opacity={0.3}
+                                                                        />
+                                                                        <line x1={mx} y1={my} x2={ex} y2={ey} stroke={fill} strokeWidth={1.5} />
+                                                                        <circle cx={ex} cy={ey} r={2.5} fill={fill} />
+                                                                        <text x={ex + (cos >= 0 ? 6 : -6)} y={ey - 7} textAnchor={textAnchor} fill="#334155" fontSize={11} fontWeight={700}>
+                                                                            {payload.name}
+                                                                        </text>
+                                                                        <text x={ex + (cos >= 0 ? 6 : -6)} y={ey + 7} textAnchor={textAnchor} fill="#64748b" fontSize={10} fontWeight={600}>
+                                                                            {`Rs.${Number(value).toLocaleString()}`}
+                                                                        </text>
+                                                                    </g>
+                                                                );
+                                                            }}
+                                                            onMouseEnter={(_, index) => setActiveDonutIndex(index)}
+                                                            onMouseLeave={() => setActiveDonutIndex(null)}
                                                         >
                                                             {paymentDonutData.map((entry, index) => (
                                                                 entry.value > 0 ? <Cell key={`cell-${index}`} fill={DONUT_COLORS[index]} /> : null
                                                             ))}
                                                         </Pie>
-                                                        <Tooltip
-                                                            formatter={(value: any, name: any) => [`₹${Number(value).toLocaleString()}`, name]}
-                                                            wrapperStyle={{ zIndex: 50, pointerEvents: 'none' }}
-                                                            contentStyle={{
-                                                                backgroundColor: 'rgba(255,255,255,0.97)',
-                                                                backdropFilter: 'blur(8px)',
-                                                                borderRadius: '12px',
-                                                                border: '1px solid #e2e8f0',
-                                                                boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
-                                                                fontSize: '12px',
-                                                                fontWeight: 600,
-                                                                padding: '8px 12px',
-                                                            }}
-                                                            allowEscapeViewBox={{ x: true, y: true }}
-                                                        />
                                                     </PieChart>
                                                 </ResponsiveContainer>
                                                 {/* Center label */}
