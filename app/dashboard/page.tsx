@@ -6,9 +6,11 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { fetchActivityLogs, type ActivityLog } from '@/lib/activityLogger';
 import { getClientSession, logoutClient } from '../actions'; // Import server actions
-import { LayoutGrid, LogOut, FolderOpen, Loader2, X, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Calendar, ArrowRight, TrendingUp, Wallet, CheckCircle2, Clock, FileText, Zap, CreditCard, Link2, Trash2, RefreshCw, PackagePlus, Activity } from 'lucide-react';
+import { LayoutGrid, LogOut, FolderOpen, Loader2, X, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Calendar, ArrowRight, TrendingUp, Wallet, CheckCircle2, Clock, FileText, Zap, CreditCard, Link2, Trash2, RefreshCw, PackagePlus, Activity, Download } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 // Types
 type Project = {
@@ -223,6 +225,173 @@ export default function DashboardPage() {
             default:
                 return { icon: <Activity size={16} />, color: 'bg-slate-400', bgLight: 'bg-slate-50', textColor: 'text-slate-500', label: 'Activity' };
         }
+    };
+
+    // Helper: get plain-text label for activity type (for PDF)
+    const getActivityLabel = (actionType: string): string => {
+        const labels: Record<string, string> = {
+            project_created: 'New Project',
+            project_updated: 'Updated',
+            project_completed: 'Completed',
+            feature_added: 'Feature Added',
+            feature_updated: 'Feature Updated',
+            feature_completed: 'Feature Done',
+            feature_deleted: 'Removed',
+            payment_received: 'Payment',
+            link_added: 'Link Added',
+            link_removed: 'Link Removed',
+            status_changed: 'Status Changed',
+            rate_confirmed: 'Rate Confirmed',
+            rate_pending: 'Rate Pending',
+        };
+        return labels[actionType] || 'Activity';
+    };
+
+    // Helper: get hex color for activity type (for PDF)
+    const getActivityColor = (actionType: string): string => {
+        const colors: Record<string, string> = {
+            project_created: '#3b82f6',
+            project_updated: '#64748b',
+            project_completed: '#10b981',
+            feature_added: '#8b5cf6',
+            feature_updated: '#0ea5e9',
+            feature_completed: '#10b981',
+            feature_deleted: '#ef4444',
+            payment_received: '#f59e0b',
+            link_added: '#6366f1',
+            link_removed: '#f43f5e',
+            status_changed: '#14b8a6',
+            rate_confirmed: '#22c55e',
+            rate_pending: '#f97316',
+        };
+        return colors[actionType] || '#94a3b8';
+    };
+
+    // Download activity log as PDF
+    const downloadActivityPDF = () => {
+        if (activityLogs.length === 0) return;
+
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+
+        // — Header band —
+        doc.setFillColor(15, 23, 42); // slate-900
+        doc.rect(0, 0, pageWidth, 38, 'F');
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Activity Log', 14, 18);
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(148, 163, 184); // slate-400
+        doc.text(client?.name || 'Client Portal', 14, 28);
+
+        const today = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+        doc.text(`Generated: ${today}`, pageWidth - 14, 28, { align: 'right' });
+
+        // — Summary line —
+        doc.setTextColor(100, 116, 139); // slate-500
+        doc.setFontSize(9);
+        doc.text(`${activityLogs.length} log entries`, 14, 48);
+
+        // — Build table rows —
+        const rows = activityLogs.map((log) => {
+            const date = new Date(log.created_at);
+            const dateStr = date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+            const timeStr = date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+            const label = getActivityLabel(log.action_type);
+            const title = log.title || '';
+            let details = log.description || '';
+
+            // Append amount info
+            if (log.action_type === 'payment_received' && log.metadata?.paidAmount) {
+                const payment = Number(log.metadata.paidAmount - (log.metadata.oldPaidAmount || 0));
+                details += `${details ? '\n' : ''}Payment: \u20B9${payment.toLocaleString()}`;
+                if (log.metadata?.amount) {
+                    details += ` of \u20B9${Number(log.metadata.amount).toLocaleString()}`;
+                }
+            } else if (log.action_type === 'feature_added' && log.metadata?.amount > 0) {
+                details += `${details ? '\n' : ''}Amount: \u20B9${Number(log.metadata.amount).toLocaleString()}`;
+            } else if (log.action_type === 'feature_updated' && log.metadata?.oldAmount !== undefined && log.metadata?.amount !== log.metadata?.oldAmount) {
+                details += `${details ? '\n' : ''}\u20B9${Number(log.metadata.oldAmount).toLocaleString()} \u2192 \u20B9${Number(log.metadata.amount).toLocaleString()}`;
+            } else if (log.action_type === 'rate_confirmed' && log.metadata?.amount > 0) {
+                details += `${details ? '\n' : ''}Amount: \u20B9${Number(log.metadata.amount).toLocaleString()}`;
+            }
+
+            // Append change diffs
+            if (log.metadata?.changes && Object.keys(log.metadata.changes).length > 0) {
+                const diffs = Object.entries(log.metadata.changes)
+                    .map(([key, diff]: [string, any]) => `${key}: ${diff.old || 'none'} \u2192 ${diff.new}`)
+                    .join('\n');
+                details += `${details ? '\n' : ''}${diffs}`;
+            }
+
+            return [dateStr + '\n' + timeStr, label, title, details];
+        });
+
+        // — Render table —
+        autoTable(doc, {
+            startY: 54,
+            head: [['Date & Time', 'Type', 'Title', 'Details']],
+            body: rows,
+            theme: 'grid',
+            styles: {
+                fontSize: 8.5,
+                cellPadding: { top: 4, right: 5, bottom: 4, left: 5 },
+                lineColor: [226, 232, 240], // slate-200
+                lineWidth: 0.3,
+                textColor: [30, 41, 59], // slate-800
+                overflow: 'linebreak',
+            },
+            headStyles: {
+                fillColor: [241, 245, 249], // slate-100
+                textColor: [71, 85, 105], // slate-600
+                fontStyle: 'bold',
+                fontSize: 8,
+                halign: 'left',
+            },
+            columnStyles: {
+                0: { cellWidth: 32, textColor: [100, 116, 139], fontSize: 7.5 }, // Date
+                1: { cellWidth: 28, fontStyle: 'bold', fontSize: 8 }, // Type
+                2: { cellWidth: 55 }, // Title
+                3: { cellWidth: 'auto', textColor: [100, 116, 139], fontSize: 7.5 }, // Details
+            },
+            didParseCell: (data: any) => {
+                // Color-code the "Type" column
+                if (data.section === 'body' && data.column.index === 1) {
+                    const log = activityLogs[data.row.index];
+                    if (log) {
+                        const hex = getActivityColor(log.action_type);
+                        const r = parseInt(hex.slice(1, 3), 16);
+                        const g = parseInt(hex.slice(3, 5), 16);
+                        const b = parseInt(hex.slice(5, 7), 16);
+                        data.cell.styles.textColor = [r, g, b];
+                    }
+                }
+            },
+            alternateRowStyles: {
+                fillColor: [248, 250, 252], // slate-50
+            },
+            margin: { left: 14, right: 14 },
+        });
+
+        // — Footer on every page —
+        const pageCount = doc.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            const pageHeight = doc.internal.pageSize.getHeight();
+            doc.setFontSize(7);
+            doc.setTextColor(148, 163, 184);
+            doc.text('Client Portal — Activity Log', 14, pageHeight - 8);
+            doc.text(`Page ${i} of ${pageCount}`, pageWidth - 14, pageHeight - 8, { align: 'right' });
+        }
+
+        // — Save —
+        const filename = `activity-log-${(client?.name || 'client').toLowerCase().replace(/\s+/g, '-')}-${new Date().toISOString().slice(0, 10)}.pdf`;
+        doc.save(filename);
     };
 
     // Helper: format relative time
@@ -517,8 +686,18 @@ export default function DashboardPage() {
                                                     <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Activity Log</h3>
                                                     <p className="text-[11px] text-slate-400">Recent changes and updates across your projects</p>
                                                 </div>
-                                                <div className="p-1.5 bg-violet-50 rounded-lg">
-                                                    <Activity size={14} className="text-violet-500" />
+                                                <div className="flex items-center gap-1.5">
+                                                    <button
+                                                        onClick={downloadActivityPDF}
+                                                        disabled={activityLogs.length === 0 || loadingLogs}
+                                                        className="p-1.5 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed group/dl"
+                                                        title="Download activity log as PDF"
+                                                    >
+                                                        <Download size={13} className="text-slate-400 group-hover/dl:text-slate-600 transition-colors" />
+                                                    </button>
+                                                    <div className="p-1.5 bg-violet-50 rounded-lg">
+                                                        <Activity size={14} className="text-violet-500" />
+                                                    </div>
                                                 </div>
                                             </div>
 
