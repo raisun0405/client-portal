@@ -267,6 +267,21 @@ export default function DashboardPage() {
         return colors[actionType] || '#94a3b8';
     };
 
+    // Sanitize text for jsPDF (default fonts only support Windows-1252)
+    const sanitize = (text: string): string => {
+        if (!text) return '';
+        return text
+            .replace(/[\u2018\u2019\u201A]/g, "'")    // curly single quotes
+            .replace(/[\u201C\u201D\u201E]/g, '"')     // curly double quotes
+            .replace(/\u2026/g, '...')                  // ellipsis
+            .replace(/\u2013/g, '-')                    // en dash
+            .replace(/\u2014/g, '--')                   // em dash
+            .replace(/\u20B9/g, 'Rs.')                  // ₹ rupee sign
+            .replace(/\u2192/g, '->')                   // → arrow
+            .replace(/\u2190/g, '<-')                   // ← arrow
+            .replace(/[^\x00-\xFF]/g, '');              // strip anything outside Latin-1
+    };
+
     // Download activity log as PDF
     const downloadActivityPDF = () => {
         if (activityLogs.length === 0) return;
@@ -274,7 +289,7 @@ export default function DashboardPage() {
         const doc = new jsPDF();
         const pageWidth = doc.internal.pageSize.getWidth();
 
-        // — Header band —
+        // -- Header band --
         doc.setFillColor(15, 23, 42); // slate-900
         doc.rect(0, 0, pageWidth, 38, 'F');
 
@@ -286,53 +301,53 @@ export default function DashboardPage() {
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(148, 163, 184); // slate-400
-        doc.text(client?.name || 'Client Portal', 14, 28);
+        doc.text(sanitize(client?.name || 'Client Portal'), 14, 28);
 
         const today = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
-        doc.text(`Generated: ${today}`, pageWidth - 14, 28, { align: 'right' });
+        doc.text('Generated: ' + today, pageWidth - 14, 28, { align: 'right' });
 
-        // — Summary line —
+        // -- Summary line --
         doc.setTextColor(100, 116, 139); // slate-500
         doc.setFontSize(9);
-        doc.text(`${activityLogs.length} log entries`, 14, 48);
+        doc.text(activityLogs.length + ' log entries', 14, 48);
 
-        // — Build table rows —
+        // -- Build table rows --
         const rows = activityLogs.map((log) => {
             const date = new Date(log.created_at);
             const dateStr = date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
             const timeStr = date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
 
             const label = getActivityLabel(log.action_type);
-            const title = log.title || '';
-            let details = log.description || '';
+            const title = sanitize(log.title || '');
+            let details = sanitize(log.description || '');
 
             // Append amount info
             if (log.action_type === 'payment_received' && log.metadata?.paidAmount) {
                 const payment = Number(log.metadata.paidAmount - (log.metadata.oldPaidAmount || 0));
-                details += `${details ? '\n' : ''}Payment: \u20B9${payment.toLocaleString()}`;
+                details += (details ? '\n' : '') + 'Payment: Rs.' + payment.toLocaleString();
                 if (log.metadata?.amount) {
-                    details += ` of \u20B9${Number(log.metadata.amount).toLocaleString()}`;
+                    details += ' of Rs.' + Number(log.metadata.amount).toLocaleString();
                 }
             } else if (log.action_type === 'feature_added' && log.metadata?.amount > 0) {
-                details += `${details ? '\n' : ''}Amount: \u20B9${Number(log.metadata.amount).toLocaleString()}`;
+                details += (details ? '\n' : '') + 'Amount: Rs.' + Number(log.metadata.amount).toLocaleString();
             } else if (log.action_type === 'feature_updated' && log.metadata?.oldAmount !== undefined && log.metadata?.amount !== log.metadata?.oldAmount) {
-                details += `${details ? '\n' : ''}\u20B9${Number(log.metadata.oldAmount).toLocaleString()} \u2192 \u20B9${Number(log.metadata.amount).toLocaleString()}`;
+                details += (details ? '\n' : '') + 'Rs.' + Number(log.metadata.oldAmount).toLocaleString() + ' -> Rs.' + Number(log.metadata.amount).toLocaleString();
             } else if (log.action_type === 'rate_confirmed' && log.metadata?.amount > 0) {
-                details += `${details ? '\n' : ''}Amount: \u20B9${Number(log.metadata.amount).toLocaleString()}`;
+                details += (details ? '\n' : '') + 'Amount: Rs.' + Number(log.metadata.amount).toLocaleString();
             }
 
             // Append change diffs
             if (log.metadata?.changes && Object.keys(log.metadata.changes).length > 0) {
                 const diffs = Object.entries(log.metadata.changes)
-                    .map(([key, diff]: [string, any]) => `${key}: ${diff.old || 'none'} \u2192 ${diff.new}`)
+                    .map(([key, diff]: [string, any]) => sanitize(key) + ': ' + sanitize(String(diff.old || 'none')) + ' -> ' + sanitize(String(diff.new)))
                     .join('\n');
-                details += `${details ? '\n' : ''}${diffs}`;
+                details += (details ? '\n' : '') + diffs;
             }
 
             return [dateStr + '\n' + timeStr, label, title, details];
         });
 
-        // — Render table —
+        // -- Render table --
         autoTable(doc, {
             startY: 54,
             head: [['Date & Time', 'Type', 'Title', 'Details']],
@@ -378,19 +393,20 @@ export default function DashboardPage() {
             margin: { left: 14, right: 14 },
         });
 
-        // — Footer on every page —
+        // -- Footer on every page --
         const pageCount = doc.getNumberOfPages();
         for (let i = 1; i <= pageCount; i++) {
             doc.setPage(i);
             const pageHeight = doc.internal.pageSize.getHeight();
             doc.setFontSize(7);
             doc.setTextColor(148, 163, 184);
-            doc.text('Client Portal — Activity Log', 14, pageHeight - 8);
-            doc.text(`Page ${i} of ${pageCount}`, pageWidth - 14, pageHeight - 8, { align: 'right' });
+            doc.text('Client Portal - Activity Log', 14, pageHeight - 8);
+            doc.text('Page ' + i + ' of ' + pageCount, pageWidth - 14, pageHeight - 8, { align: 'right' });
         }
 
-        // — Save —
-        const filename = `activity-log-${(client?.name || 'client').toLowerCase().replace(/\s+/g, '-')}-${new Date().toISOString().slice(0, 10)}.pdf`;
+        // -- Save --
+        const safeName = sanitize(client?.name || 'client').toLowerCase().replace(/\s+/g, '-');
+        const filename = 'activity-log-' + safeName + '-' + new Date().toISOString().slice(0, 10) + '.pdf';
         doc.save(filename);
     };
 
