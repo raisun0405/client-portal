@@ -643,9 +643,9 @@ export default function DashboardPage() {
                                         <div className="lg:col-span-2 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm">
                                             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Payment Overview</h3>
                                             <p className="text-[11px] text-slate-400 mb-4">{paymentPercent}% of total value has been paid</p>
-                                            <div className="relative">
-                                                <ResponsiveContainer width="100%" height={200}>
-                                                    <PieChart>
+                                            <div className="relative" style={{ overflow: 'visible' }}>
+                                                <ResponsiveContainer width="100%" height={200} style={{ overflow: 'visible' }}>
+                                                    <PieChart style={{ overflow: 'visible' }}>
                                                         <Pie
                                                             data={paymentDonutData.filter(d => d.value > 0)}
                                                             cx="50%"
@@ -663,21 +663,24 @@ export default function DashboardPage() {
                                                             ))}
                                                         </Pie>
                                                         <Tooltip
-                                                            formatter={(value: any) => [`₹${Number(value).toLocaleString()}`, '']}
+                                                            formatter={(value: any, name: any) => [`₹${Number(value).toLocaleString()}`, name]}
+                                                            wrapperStyle={{ zIndex: 50, pointerEvents: 'none' }}
                                                             contentStyle={{
-                                                                backgroundColor: 'rgba(255,255,255,0.95)',
+                                                                backgroundColor: 'rgba(255,255,255,0.97)',
                                                                 backdropFilter: 'blur(8px)',
                                                                 borderRadius: '12px',
                                                                 border: '1px solid #e2e8f0',
-                                                                boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                                                                boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
                                                                 fontSize: '12px',
                                                                 fontWeight: 600,
+                                                                padding: '8px 12px',
                                                             }}
+                                                            allowEscapeViewBox={{ x: true, y: true }}
                                                         />
                                                     </PieChart>
                                                 </ResponsiveContainer>
                                                 {/* Center label */}
-                                                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ zIndex: 1 }}>
                                                     <span className="text-2xl font-black text-slate-900">{paymentPercent}%</span>
                                                     <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Paid</span>
                                                 </div>
