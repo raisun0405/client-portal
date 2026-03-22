@@ -266,6 +266,7 @@ export default function AdminDashboard() {
     const handleSaveProject = async () => {
         if (editingId) {
             // UPDATE
+            const oldProject = projects.find(p => p.id === editingId);
             const { error } = await supabaseAdmin.from('projects').update({
                 category: formData.category,
                 description: formData.description,
@@ -274,15 +275,56 @@ export default function AdminDashboard() {
             if (!error && selectedClient) {
                 fetchProjects(selectedClient.id);
                 // Log activity
-                const isCompleted = formData.status === 'Completed';
-                await logActivity({
-                    clientId: selectedClient.id,
-                    projectId: editingId,
-                    actionType: isCompleted ? 'project_completed' : 'project_updated',
-                    title: isCompleted ? 'Project Completed' : 'Project Updated',
-                    description: `"${formData.description}" was ${isCompleted ? 'marked as completed' : 'updated'}`,
-                    metadata: { category: formData.category, status: formData.status },
-                });
+                if (oldProject) {
+                    const statusChanged = oldProject.status !== formData.status;
+                    const nameChanged = oldProject.description !== formData.description;
+                    const categoryChanged = oldProject.category !== formData.category;
+                    const isCompleted = formData.status === 'Completed' && oldProject.status !== 'Completed';
+                    
+                    const changes: string[] = [];
+                    const structuredChanges: Record<string, { old: any; new: any }> = {};
+                    
+                    if (nameChanged) {
+                        changes.push(`Name: "${oldProject.description}" → "${formData.description}"`);
+                        structuredChanges['Project Name'] = { old: oldProject.description, new: formData.description };
+                    }
+                    if (categoryChanged) {
+                        changes.push(`Category: ${oldProject.category} → ${formData.category}`);
+                        structuredChanges['Category'] = { old: oldProject.category, new: formData.category };
+                    }
+                    if (statusChanged) {
+                        changes.push(`Status: ${oldProject.status} → ${formData.status}`);
+                        structuredChanges['Status'] = { old: oldProject.status, new: formData.status };
+                    }
+                    
+                    let actionType: any = 'project_updated';
+                    let title = 'Project Updated';
+                    let desc = `"${formData.description}" was updated`;
+                    
+                    if (isCompleted) {
+                        actionType = 'project_completed';
+                        title = 'Project Completed';
+                        desc = `"${formData.description}" was marked as completed`;
+                    } else if (nameChanged && !statusChanged && !categoryChanged) {
+                        title = 'Project Renamed';
+                        desc = `Project renamed from "${oldProject.description}" to "${formData.description}"`;
+                    } else if (changes.length > 0) {
+                        desc = `"${formData.description}" — ${changes.join(', ')}`;
+                    }
+
+                    await logActivity({
+                        clientId: selectedClient.id,
+                        projectId: editingId,
+                        actionType,
+                        title,
+                        description: desc,
+                        metadata: { 
+                            category: formData.category, 
+                            status: formData.status,
+                            changes: structuredChanges
+                        },
+                    });
+                }
             } else {
                 alert('Error: ' + error?.message);
             }
@@ -361,6 +403,7 @@ export default function AdminDashboard() {
     const handleDeleteLink = async (index: number) => {
         if (!selectedProject || !confirm("Delete this link?")) return;
         const updatedLinks = [...(selectedProject.links || [])];
+        const deletedLink = updatedLinks[index];
         updatedLinks.splice(index, 1);
 
         const { error } = await supabaseAdmin
@@ -373,6 +416,17 @@ export default function AdminDashboard() {
             setSelectedProject(updatedProject);
             setLinks(updatedLinks);
             setProjects(projects.map(p => p.id === selectedProject.id ? updatedProject : p));
+
+            if (selectedClient && deletedLink) {
+                await logActivity({
+                    clientId: selectedClient.id,
+                    projectId: selectedProject.id,
+                    actionType: 'link_removed',
+                    title: 'Link Removed',
+                    description: `"${deletedLink.title}" link was removed from "${selectedProject.description}"`,
+                    metadata: { link_title: deletedLink.title, link_url: deletedLink.url },
+                });
+            }
         }
     };
 
