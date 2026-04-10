@@ -26,6 +26,7 @@ export type ActivityLog = {
     metadata: Record<string, any>;
     created_at: string;
     notified_at?: string | null;
+    is_hidden?: boolean;
 };
 
 /**
@@ -74,6 +75,7 @@ export async function fetchActivityLogs(clientId: string, limit = 20): Promise<A
         .from('activity_logs')
         .select('*')
         .eq('client_id', clientId)
+        .or('is_hidden.is.null,is_hidden.eq.false')
         .order('created_at', { ascending: false })
         .limit(limit);
 

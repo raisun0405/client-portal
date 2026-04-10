@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logActivity, type ActivityLog } from '@/lib/activityLogger';
 import { sendNotification, sendDigestNotification } from '@/lib/notifications';
-import { Users, Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut, ArrowUp, ArrowDown, Calendar, Mail, MailCheck, Send, CheckCircle2, Clock, Zap, CreditCard, FileText, Link2, Activity, RefreshCw, PackagePlus } from 'lucide-react';
+import { Users, Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut, ArrowUp, ArrowDown, Calendar, Mail, MailCheck, Send, CheckCircle2, Clock, Zap, CreditCard, FileText, Link2, Activity, RefreshCw, PackagePlus, ArrowRight, EyeOff, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 
@@ -729,6 +729,32 @@ export default function AdminDashboard() {
         setSendingDigest(false);
     };
 
+    const handleToggleHideLog = async (logId: string, hide: boolean) => {
+        const { error } = await supabaseAdmin
+            .from('activity_logs')
+            .update({ is_hidden: hide })
+            .eq('id', logId);
+        if (!error) {
+            setActivityLogs(prev => prev.map(l => l.id === logId ? { ...l, is_hidden: hide } : l));
+        } else {
+            alert('Failed to update log: ' + error.message);
+        }
+    };
+
+    const handleDeleteLog = async (logId: string) => {
+        if (!confirm('Permanently delete this log entry? This cannot be undone.')) return;
+        const { error } = await supabaseAdmin
+            .from('activity_logs')
+            .delete()
+            .eq('id', logId);
+        if (!error) {
+            setActivityLogs(prev => prev.filter(l => l.id !== logId));
+            setSelectedLogIds(prev => { const n = new Set(prev); n.delete(logId); return n; });
+        } else {
+            alert('Failed to delete log: ' + error.message);
+        }
+    };
+
     const toggleLogSelection = (logId: string) => {
         setSelectedLogIds(prev => {
             const n = new Set(prev);
@@ -1284,9 +1310,10 @@ export default function AdminDashboard() {
                                         const isSent = !!log.notified_at;
                                         const isSending = sendingIds.has(log.id);
                                         const isSelected = selectedLogIds.has(log.id);
+                                        const isHidden = !!log.is_hidden;
 
                                         return (
-                                            <div key={log.id} className={`flex items-start gap-3 px-5 py-4 hover:bg-slate-50/50 transition-colors ${isSelected ? 'bg-blue-50/30' : ''}`}>
+                                            <div key={log.id} className={`flex items-start gap-3 px-5 py-4 hover:bg-slate-50/50 transition-colors ${isSelected ? 'bg-blue-50/30' : ''} ${isHidden ? 'opacity-50' : ''}`}>
                                                 {/* Checkbox */}
                                                 <div className="pt-1 shrink-0">
                                                     <input
@@ -1308,20 +1335,73 @@ export default function AdminDashboard() {
                                                         <span className={`text-[10px] font-bold uppercase tracking-wider ${meta.textColor} ${meta.bgLight} px-1.5 py-0.5 rounded`}>
                                                             {meta.label}
                                                         </span>
-                                                        {log.metadata?.amount && log.metadata.amount > 0 && (
-                                                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                                                        {isHidden && (
+                                                            <span className="text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                                                                <EyeOff size={9} />
+                                                                Hidden
+                                                            </span>
+                                                        )}
+
+                                                        {/* Amount badges per action type */}
+                                                        {log.action_type === 'payment_received' && log.metadata?.paidAmount && (
+                                                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                                                                ₹{Number(log.metadata.paidAmount - (log.metadata.oldPaidAmount || 0)).toLocaleString()}
+                                                            </span>
+                                                        )}
+                                                        {log.action_type === 'feature_added' && log.metadata?.amount > 0 && (
+                                                            <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
                                                                 ₹{Number(log.metadata.amount).toLocaleString()}
                                                             </span>
                                                         )}
+                                                        {log.action_type === 'feature_updated' && log.metadata?.oldAmount !== undefined && log.metadata?.amount !== log.metadata?.oldAmount && (
+                                                            <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                                                                ₹{Number(log.metadata.oldAmount).toLocaleString()} → ₹{Number(log.metadata.amount).toLocaleString()}
+                                                            </span>
+                                                        )}
+                                                        {log.action_type === 'rate_confirmed' && log.metadata?.amount > 0 && (
+                                                            <span className="text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">
+                                                                ₹{Number(log.metadata.amount).toLocaleString()}
+                                                            </span>
+                                                        )}
+
                                                         <span className="text-[10px] text-slate-400 font-medium">{getRelativeTime(log.created_at)}</span>
                                                     </div>
                                                     <p className="text-sm font-semibold text-slate-900 leading-snug">{log.title}</p>
                                                     {log.description && (
                                                         <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{log.description}</p>
                                                     )}
+
+                                                    {/* Visual Diff for object changes */}
+                                                    {log.metadata?.changes && Object.keys(log.metadata.changes).length > 0 && (
+                                                        <div className="mt-1.5 space-y-1 bg-slate-50 border border-slate-100 rounded-lg p-2">
+                                                            {Object.entries(log.metadata.changes).map(([key, diff]: [string, any], i) => (
+                                                                <div key={i} className="flex items-center gap-1.5 text-[10px] font-mono">
+                                                                    <span className="text-slate-500 font-semibold">{key}:</span>
+                                                                    <span className="text-slate-400 line-through decoration-red-300/60">{diff.old || 'none'}</span>
+                                                                    <ArrowRight size={10} className="text-slate-300" />
+                                                                    <span className="text-emerald-600 font-bold bg-emerald-50 px-1 rounded">{diff.new}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Payment progress mini bar */}
+                                                    {log.action_type === 'payment_received' && log.metadata?.amount > 0 && (
+                                                        <div className="mt-1.5 flex items-center gap-2">
+                                                            <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden max-w-[120px]">
+                                                                <div
+                                                                    className="h-full bg-emerald-400 rounded-full transition-all"
+                                                                    style={{ width: `${Math.min((Number(log.metadata.paidAmount) / Number(log.metadata.amount)) * 100, 100)}%` }}
+                                                                />
+                                                            </div>
+                                                            <span className="text-[9px] text-slate-400 font-mono">
+                                                                ₹{Number(log.metadata.paidAmount).toLocaleString()}/{Number(log.metadata.amount).toLocaleString()}
+                                                            </span>
+                                                        </div>
+                                                    )}
                                                 </div>
 
-                                                {/* Send / Sent button */}
+                                                {/* Actions: Send / Hide / Delete */}
                                                 <div className="shrink-0 pt-0.5 flex flex-col items-end gap-1.5">
                                                     {isSent && (
                                                         <div className="flex flex-col items-end gap-0.5 mb-1">
@@ -1349,6 +1429,28 @@ export default function AdminDashboard() {
                                                         {isSending ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
                                                         {isSent ? 'Resend' : 'Send'}
                                                     </button>
+                                                    <div className="flex items-center gap-1 mt-0.5">
+                                                        <button
+                                                            onClick={() => handleToggleHideLog(log.id, !isHidden)}
+                                                            className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold transition-all border ${
+                                                                isHidden
+                                                                    ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'
+                                                                    : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
+                                                            }`}
+                                                            title={isHidden ? 'Unhide — make visible to client' : 'Hide from client view'}
+                                                        >
+                                                            {isHidden ? <Eye size={10} /> : <EyeOff size={10} />}
+                                                            {isHidden ? 'Unhide' : 'Hide'}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteLog(log.id)}
+                                                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold transition-all border bg-red-50 text-red-500 border-red-200 hover:bg-red-100"
+                                                            title="Permanently delete this log"
+                                                        >
+                                                            <Trash2 size={10} />
+                                                            Delete
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
                                         );
