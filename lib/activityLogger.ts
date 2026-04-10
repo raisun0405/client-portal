@@ -12,6 +12,7 @@ export type ActivityAction =
     | 'rate_confirmed'
     | 'rate_pending'
     | 'link_added'
+    | 'link_updated'
     | 'link_removed'
     | 'status_changed';
 

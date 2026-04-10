@@ -79,6 +79,7 @@ export default function AdminDashboard() {
     const [showModal, setShowModal] = useState(false);
     const [formData, setFormData] = useState<any>({});
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [editingLinkIndex, setEditingLinkIndex] = useState<number | null>(null);
 
     // Sorting state for features
     const [sortField, setSortField] = useState<SortField>('created_at');
@@ -364,39 +365,80 @@ export default function AdminDashboard() {
 
     const handleAddLink = async () => {
         if (!selectedProject) return;
-        const newLink = { title: formData.link_title, url: formData.link_url };
-        const updatedLinks = [...(selectedProject.links || []), newLink];
 
-        const { error } = await supabaseAdmin
-            .from('projects')
-            .update({ links: updatedLinks })
-            .eq('id', selectedProject.id);
+        const isEditing = editingLinkIndex !== null;
+        const updatedLinks = [...(selectedProject.links || [])];
 
-        if (!error) {
-            // Update local state
-            const updatedProject = { ...selectedProject, links: updatedLinks };
-            setSelectedProject(updatedProject);
-            setLinks(updatedLinks);
+        if (isEditing) {
+            // Edit existing link
+            const oldLink = updatedLinks[editingLinkIndex];
+            updatedLinks[editingLinkIndex] = { title: formData.link_title, url: formData.link_url };
 
-            // Update in projects list
-            setProjects(projects.map(p => p.id === selectedProject.id ? updatedProject : p));
+            const { error } = await supabaseAdmin
+                .from('projects')
+                .update({ links: updatedLinks })
+                .eq('id', selectedProject.id);
 
-            // Log activity
-            if (selectedClient) {
-                await logActivity({
-                    clientId: selectedClient.id,
-                    projectId: selectedProject.id,
-                    actionType: 'link_added',
-                    title: 'Link Added',
-                    description: `"${formData.link_title}" link was added to "${selectedProject.description}"`,
-                    metadata: { link_title: formData.link_title, link_url: formData.link_url },
-                });
+            if (!error) {
+                const updatedProject = { ...selectedProject, links: updatedLinks };
+                setSelectedProject(updatedProject);
+                setLinks(updatedLinks);
+                setProjects(projects.map(p => p.id === selectedProject.id ? updatedProject : p));
+
+                if (selectedClient) {
+                    await logActivity({
+                        clientId: selectedClient.id,
+                        projectId: selectedProject.id,
+                        actionType: 'link_updated',
+                        title: 'Link Updated',
+                        description: `"${oldLink.title}" link was updated in "${selectedProject.description}"`,
+                        metadata: {
+                            changes: {
+                                ...(oldLink.title !== formData.link_title ? { title: { old: oldLink.title, new: formData.link_title } } : {}),
+                                ...(oldLink.url !== formData.link_url ? { url: { old: oldLink.url, new: formData.link_url } } : {}),
+                            },
+                        },
+                    });
+                }
+
+                setShowModal(false);
+                setFormData({});
+                setEditingLinkIndex(null);
+            } else {
+                alert('Error updating link: ' + error.message);
             }
-
-            setShowModal(false);
-            setFormData({});
         } else {
-            alert('Error adding link: ' + error.message);
+            // Add new link
+            const newLink = { title: formData.link_title, url: formData.link_url };
+            updatedLinks.push(newLink);
+
+            const { error } = await supabaseAdmin
+                .from('projects')
+                .update({ links: updatedLinks })
+                .eq('id', selectedProject.id);
+
+            if (!error) {
+                const updatedProject = { ...selectedProject, links: updatedLinks };
+                setSelectedProject(updatedProject);
+                setLinks(updatedLinks);
+                setProjects(projects.map(p => p.id === selectedProject.id ? updatedProject : p));
+
+                if (selectedClient) {
+                    await logActivity({
+                        clientId: selectedClient.id,
+                        projectId: selectedProject.id,
+                        actionType: 'link_added',
+                        title: 'Link Added',
+                        description: `"${formData.link_title}" link was added to "${selectedProject.description}"`,
+                        metadata: { link_title: formData.link_title, link_url: formData.link_url },
+                    });
+                }
+
+                setShowModal(false);
+                setFormData({});
+            } else {
+                alert('Error adding link: ' + error.message);
+            }
         }
     };
 
@@ -702,6 +744,7 @@ export default function AdminDashboard() {
             case 'rate_confirmed': return { icon: <CheckCircle2 size={14} />, color: 'bg-green-500', bgLight: 'bg-green-50', textColor: 'text-green-600', label: 'Rate Confirmed' };
             case 'rate_pending': return { icon: <Clock size={14} />, color: 'bg-orange-500', bgLight: 'bg-orange-50', textColor: 'text-orange-600', label: 'Rate Pending' };
             case 'link_added': return { icon: <Link2 size={14} />, color: 'bg-indigo-500', bgLight: 'bg-indigo-50', textColor: 'text-indigo-600', label: 'Link Added' };
+            case 'link_updated': return { icon: <Pencil size={14} />, color: 'bg-indigo-500', bgLight: 'bg-indigo-50', textColor: 'text-indigo-600', label: 'Link Updated' };
             case 'link_removed': return { icon: <Trash2 size={14} />, color: 'bg-rose-500', bgLight: 'bg-rose-50', textColor: 'text-rose-600', label: 'Link Removed' };
             case 'status_changed': return { icon: <RefreshCw size={14} />, color: 'bg-teal-500', bgLight: 'bg-teal-50', textColor: 'text-teal-600', label: 'Status Changed' };
             default: return { icon: <Activity size={14} />, color: 'bg-slate-400', bgLight: 'bg-slate-50', textColor: 'text-slate-500', label: 'Activity' };
@@ -744,7 +787,7 @@ export default function AdminDashboard() {
                     <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
                         {view !== 'activity' && (
                             <button
-                                onClick={() => { setFormData({}); setEditingId(null); setShowModal(true); }}
+                                onClick={() => { setFormData({}); setEditingId(null); setEditingLinkIndex(null); setShowModal(true); }}
                                 className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 transition-colors"
                             >
                                 <Plus size={14} className="sm:w-4 sm:h-4" />
@@ -956,9 +999,14 @@ export default function AdminDashboard() {
                                         {link.url}
                                     </a>
                                 </div>
-                                <button onClick={() => handleDeleteLink(index)} className="p-2 text-slate-300 hover:text-red-500 transition-colors shrink-0 rounded-md hover:bg-red-50">
-                                    <Trash2 size={16} />
-                                </button>
+                                <div className="flex items-center gap-1 shrink-0">
+                                    <button onClick={() => { setEditingLinkIndex(index); setFormData({ link_title: link.title, link_url: link.url }); setShowModal(true); }} className="p-2 text-slate-300 hover:text-blue-500 transition-colors rounded-md hover:bg-blue-50">
+                                        <Pencil size={16} />
+                                    </button>
+                                    <button onClick={() => handleDeleteLink(index)} className="p-2 text-slate-300 hover:text-red-500 transition-colors rounded-md hover:bg-red-50">
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
                             </div>
                         ))}
                         {links.length === 0 && <div className="col-span-full text-center py-10 text-slate-400 bg-white rounded-xl border border-dashed border-slate-300">No links added. Click "Add Link" to add one.</div>}
@@ -1318,8 +1366,8 @@ export default function AdminDashboard() {
                             className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden max-h-[90vh] sm:max-h-[85vh] flex flex-col"
                         >
                             <div className="px-5 sm:px-6 py-3.5 sm:py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
-                                <h3 className="font-semibold text-sm sm:text-base">{editingId ? 'Edit' : 'Add New'} {view === 'clients' ? 'Client' : view === 'projects' ? 'Project' : view === 'links' ? 'Link' : 'Feature'}</h3>
-                                <button onClick={() => { setShowModal(false); setEditingId(null); }} className="p-1 rounded-md hover:bg-slate-200 transition-colors"><X size={20} className="text-slate-400" /></button>
+                                <h3 className="font-semibold text-sm sm:text-base">{(editingId || editingLinkIndex !== null) ? 'Edit' : 'Add New'} {view === 'clients' ? 'Client' : view === 'projects' ? 'Project' : view === 'links' ? 'Link' : 'Feature'}</h3>
+                                <button onClick={() => { setShowModal(false); setEditingId(null); setEditingLinkIndex(null); }} className="p-1 rounded-md hover:bg-slate-200 transition-colors"><X size={20} className="text-slate-400" /></button>
                             </div>
 
                             <div className="p-5 sm:p-6 space-y-4 overflow-y-auto">
@@ -1365,11 +1413,11 @@ export default function AdminDashboard() {
                                     <div className="space-y-3">
                                         <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-1">Title</label>
-                                            <input placeholder="e.g. Figma Design" className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, link_title: e.target.value })} />
+                                            <input value={formData.link_title || ''} placeholder="e.g. Figma Design" className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, link_title: e.target.value })} />
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-1">URL</label>
-                                            <input placeholder="https://..." className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, link_url: e.target.value })} />
+                                            <input value={formData.link_url || ''} placeholder="https://..." className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, link_url: e.target.value })} />
                                         </div>
                                     </div>
                                 )}
@@ -1454,7 +1502,7 @@ export default function AdminDashboard() {
                                     onClick={view === 'clients' ? handleSaveClient : view === 'projects' ? handleSaveProject : view === 'links' ? handleAddLink : handleSaveFeature}
                                     className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-medium mt-4"
                                 >
-                                    {editingId ? 'Update Record' : 'Save Record'}
+                                    {(editingId || editingLinkIndex !== null) ? 'Update Record' : 'Save Record'}
                                 </button>
                             </div>
                         </motion.div>

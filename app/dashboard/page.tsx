@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { fetchActivityLogs, type ActivityLog } from '@/lib/activityLogger';
 import { getClientSession, logoutClient } from '../actions'; // Import server actions
-import { LayoutGrid, LogOut, FolderOpen, Loader2, X, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Calendar, ArrowRight, TrendingUp, Wallet, CheckCircle2, Clock, FileText, Zap, CreditCard, Link2, Trash2, RefreshCw, PackagePlus, Activity, Download } from 'lucide-react';
+import { LayoutGrid, LogOut, FolderOpen, Loader2, X, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Calendar, ArrowRight, TrendingUp, Wallet, CheckCircle2, Clock, FileText, Zap, CreditCard, Link2, Trash2, RefreshCw, PackagePlus, Activity, Download, Pencil } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts';
 import jsPDF from 'jspdf';
@@ -289,6 +289,8 @@ export default function DashboardPage() {
                 return { icon: <CreditCard size={16} />, color: 'bg-amber-500', bgLight: 'bg-amber-50', textColor: 'text-amber-600', label: 'Payment' };
             case 'link_added':
                 return { icon: <Link2 size={16} />, color: 'bg-indigo-500', bgLight: 'bg-indigo-50', textColor: 'text-indigo-600', label: 'Link Added' };
+            case 'link_updated':
+                return { icon: <Pencil size={16} />, color: 'bg-indigo-500', bgLight: 'bg-indigo-50', textColor: 'text-indigo-600', label: 'Link Updated' };
             case 'link_removed':
                 return { icon: <Trash2 size={16} />, color: 'bg-rose-500', bgLight: 'bg-rose-50', textColor: 'text-rose-600', label: 'Link Removed' };
             case 'status_changed':
@@ -314,6 +316,7 @@ export default function DashboardPage() {
             feature_deleted: 'Removed',
             payment_received: 'Payment',
             link_added: 'Link Added',
+            link_updated: 'Link Updated',
             link_removed: 'Link Removed',
             status_changed: 'Status Changed',
             rate_confirmed: 'Rate Confirmed',
@@ -334,6 +337,7 @@ export default function DashboardPage() {
             feature_deleted: '#ef4444',
             payment_received: '#f59e0b',
             link_added: '#6366f1',
+            link_updated: '#6366f1',
             link_removed: '#f43f5e',
             status_changed: '#14b8a6',
             rate_confirmed: '#22c55e',
