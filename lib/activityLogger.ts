@@ -75,7 +75,6 @@ export async function fetchActivityLogs(clientId: string, limit = 20): Promise<A
         .from('activity_logs')
         .select('*')
         .eq('client_id', clientId)
-        .or('is_hidden.is.null,is_hidden.eq.false')
         .order('created_at', { ascending: false })
         .limit(limit);
 
@@ -84,5 +83,6 @@ export async function fetchActivityLogs(clientId: string, limit = 20): Promise<A
         return [];
     }
 
-    return data || [];
+    // Filter out hidden logs client-side (safe whether or not is_hidden column exists)
+    return (data || []).filter(log => !log.is_hidden);
 }
