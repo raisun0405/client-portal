@@ -1401,38 +1401,34 @@ export default function AdminDashboard() {
                                                     )}
                                                 </div>
 
-                                                {/* Actions: Send / Hide / Delete */}
-                                                <div className="shrink-0 pt-0.5 flex flex-col items-end gap-1.5">
+                                                {/* Actions */}
+                                                <div className="shrink-0 flex flex-col items-end gap-2">
                                                     {isSent && (
-                                                        <div className="flex flex-col items-end gap-0.5 mb-1">
-                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-green-50 text-green-600 text-[10px] font-bold border border-green-200">
-                                                                <MailCheck size={10} />
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="text-[9px] text-slate-400">{getRelativeTime(log.notified_at!)}</span>
+                                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-green-50 text-green-600 text-[10px] font-bold border border-green-200">
+                                                                <MailCheck size={9} />
                                                                 Sent
-                                                            </span>
-                                                            <span className="text-[9px] text-slate-400">
-                                                                {getRelativeTime(log.notified_at!)}
                                                             </span>
                                                         </div>
                                                     )}
-                                                    <button
-                                                        onClick={() => handleSendSingle(log.id)}
-                                                        disabled={isSending || !selectedClient?.email}
-                                                        className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                                                            !selectedClient?.email
-                                                                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                                                                : isSent
-                                                                    ? 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200 hover:shadow-sm'
-                                                                    : 'bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 hover:shadow-sm'
-                                                        } disabled:opacity-50`}
-                                                        title={!selectedClient?.email ? 'Add client email first' : isSent ? 'Resend this update via email' : 'Send this update via email'}
-                                                    >
-                                                        {isSending ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
-                                                        {isSent ? 'Resend' : 'Send'}
-                                                    </button>
-                                                    <div className="flex items-center gap-1 mt-0.5">
+                                                    <div className="flex items-center gap-1">
+                                                        <button
+                                                            onClick={() => handleSendSingle(log.id)}
+                                                            disabled={isSending || !selectedClient?.email}
+                                                            className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all border ${
+                                                                !selectedClient?.email
+                                                                    ? 'bg-slate-50 text-slate-300 border-slate-200 cursor-not-allowed'
+                                                                    : 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100'
+                                                            } disabled:opacity-50`}
+                                                            title={!selectedClient?.email ? 'Add client email first' : isSent ? 'Resend this update via email' : 'Send this update via email'}
+                                                        >
+                                                            {isSending ? <Loader2 size={10} className="animate-spin" /> : <Send size={10} />}
+                                                            {isSent ? 'Resend' : 'Send'}
+                                                        </button>
                                                         <button
                                                             onClick={() => handleToggleHideLog(log.id, !isHidden)}
-                                                            className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold transition-all border ${
+                                                            className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all border ${
                                                                 isHidden
                                                                     ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'
                                                                     : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
@@ -1444,11 +1440,10 @@ export default function AdminDashboard() {
                                                         </button>
                                                         <button
                                                             onClick={() => handleDeleteLog(log.id)}
-                                                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold transition-all border bg-red-50 text-red-500 border-red-200 hover:bg-red-100"
+                                                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all border bg-red-50 text-red-500 border-red-200 hover:bg-red-100"
                                                             title="Permanently delete this log"
                                                         >
                                                             <Trash2 size={10} />
-                                                            Delete
                                                         </button>
                                                     </div>
                                                 </div>
