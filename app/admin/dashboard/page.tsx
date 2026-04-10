@@ -80,6 +80,7 @@ export default function AdminDashboard() {
     const [formData, setFormData] = useState<any>({});
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editingLinkIndex, setEditingLinkIndex] = useState<number | null>(null);
+    const [saving, setSaving] = useState(false);
 
     // Sorting state for features
     const [sortField, setSortField] = useState<SortField>('created_at');
@@ -364,8 +365,10 @@ export default function AdminDashboard() {
     };
 
     const handleAddLink = async () => {
-        if (!selectedProject) return;
+        if (!selectedProject || saving) return;
+        setSaving(true);
 
+        try {
         const isEditing = editingLinkIndex !== null;
         const updatedLinks = [...(selectedProject.links || [])];
 
@@ -439,6 +442,9 @@ export default function AdminDashboard() {
             } else {
                 alert('Error adding link: ' + error.message);
             }
+        }
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -1500,9 +1506,10 @@ export default function AdminDashboard() {
 
                                 <button
                                     onClick={view === 'clients' ? handleSaveClient : view === 'projects' ? handleSaveProject : view === 'links' ? handleAddLink : handleSaveFeature}
-                                    className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-medium mt-4"
+                                    disabled={saving}
+                                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white py-2 rounded-lg font-medium mt-4"
                                 >
-                                    {(editingId || editingLinkIndex !== null) ? 'Update Record' : 'Save Record'}
+                                    {saving ? 'Saving...' : (editingId || editingLinkIndex !== null) ? 'Update Record' : 'Save Record'}
                                 </button>
                             </div>
                         </motion.div>
