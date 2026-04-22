@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logActivity, type ActivityLog } from '@/lib/activityLogger';
 import { sendNotification, sendDigestNotification } from '@/lib/notifications';
-import { Users, Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut, ArrowUp, ArrowDown, Calendar, Mail, MailCheck, Send, CheckCircle2, Clock, Zap, CreditCard, FileText, Link2, Activity, RefreshCw, PackagePlus, ArrowRight, EyeOff, Eye } from 'lucide-react';
+import { Users, Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut, ArrowUp, ArrowDown, Calendar, Mail, MailCheck, Send, CheckCircle2, Clock, Zap, CreditCard, FileText, Link2, Activity, RefreshCw, PackagePlus, ArrowRight, EyeOff, Eye, Search, Copy, Check, Briefcase, TrendingUp, Hash, UserPlus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 
@@ -17,6 +17,19 @@ type Client = {
     access_key: string;
     created_at: string;
 };
+
+type ClientStats = {
+    projectCount: number;
+    completedProjects: number;
+    totalValue: number;
+    paidValue: number;
+    pendingValue: number;
+    progress: number;
+};
+
+type ClientWithStats = Client & { stats: ClientStats };
+
+type ClientSortField = 'recent' | 'name' | 'projects' | 'value';
 
 type Project = {
     id: string;
@@ -63,7 +76,10 @@ export default function AdminDashboard() {
     const [view, setView] = useState<'clients' | 'projects' | 'features' | 'links' | 'activity'>('clients');
 
     // Data State
-    const [clients, setClients] = useState<Client[]>([]);
+    const [clients, setClients] = useState<ClientWithStats[]>([]);
+    const [clientSearch, setClientSearch] = useState('');
+    const [clientSort, setClientSort] = useState<ClientSortField>('recent');
+    const [copiedKey, setCopiedKey] = useState<string | null>(null);
     const [projects, setProjects] = useState<ProjectWithStats[]>([]);
     const [features, setFeatures] = useState<Feature[]>([]);
     const [links, setLinks] = useState<{ title: string; url: string }[]>([]);
@@ -109,9 +125,69 @@ export default function AdminDashboard() {
     // --- Remote Fetchers ---
     const fetchClients = async () => {
         setLoading(true);
-        const { data } = await supabaseAdmin.from('clients').select('*').order('created_at', { ascending: false });
-        if (data) setClients(data);
+        const { data: clientsData } = await supabaseAdmin.from('clients').select('*').order('created_at', { ascending: false });
+        if (!clientsData) { setClients([]); setLoading(false); return; }
+
+        // Fetch all projects and features in parallel for aggregate stats
+        const [{ data: projectsData }, { data: featuresData }] = await Promise.all([
+            supabaseAdmin.from('projects').select('id, client_id, status'),
+            supabaseAdmin.from('features').select('project_id, amount, paid_amount, status, payment_confirmed'),
+        ]);
+
+        const projectsByClient = new Map<string, { id: string; status: string }[]>();
+        (projectsData || []).forEach((p: any) => {
+            if (!projectsByClient.has(p.client_id)) projectsByClient.set(p.client_id, []);
+            projectsByClient.get(p.client_id)!.push({ id: p.id, status: p.status });
+        });
+
+        const featuresByProject = new Map<string, any[]>();
+        (featuresData || []).forEach((f: any) => {
+            if (!featuresByProject.has(f.project_id)) featuresByProject.set(f.project_id, []);
+            featuresByProject.get(f.project_id)!.push(f);
+        });
+
+        const withStats: ClientWithStats[] = clientsData.map((c: Client) => {
+            const clientProjects = projectsByClient.get(c.id) || [];
+            let totalValue = 0, paidValue = 0, totalFeatures = 0, completedFeatures = 0;
+            clientProjects.forEach(p => {
+                const feats = featuresByProject.get(p.id) || [];
+                feats.forEach((f: any) => {
+                    const isConfirmed = f.payment_confirmed !== false;
+                    if (isConfirmed) {
+                        totalValue += Number(f.amount) || 0;
+                        paidValue += Number(f.paid_amount) || 0;
+                    }
+                    totalFeatures += 1;
+                    if (f.status === 'Completed') completedFeatures += 1;
+                });
+            });
+            const completedProjects = clientProjects.filter(p => p.status === 'Completed').length;
+            const progress = totalFeatures > 0 ? Math.round((completedFeatures / totalFeatures) * 100) : 0;
+            return {
+                ...c,
+                stats: {
+                    projectCount: clientProjects.length,
+                    completedProjects,
+                    totalValue,
+                    paidValue,
+                    pendingValue: Math.max(totalValue - paidValue, 0),
+                    progress,
+                },
+            };
+        });
+
+        setClients(withStats);
         setLoading(false);
+    };
+
+    const copyAccessKey = async (key: string) => {
+        try {
+            await navigator.clipboard.writeText(key);
+            setCopiedKey(key);
+            setTimeout(() => setCopiedKey(null), 1500);
+        } catch {
+            // silent fail
+        }
     };
 
     const fetchProjects = async (clientId: string) => {
@@ -255,7 +331,11 @@ export default function AdminDashboard() {
                 access_key: formData.access_key
             }]).select();
             if (!error && data) {
-                setClients([data[0], ...clients]);
+                const newClient: ClientWithStats = {
+                    ...(data[0] as Client),
+                    stats: { projectCount: 0, completedProjects: 0, totalValue: 0, paidValue: 0, pendingValue: 0, progress: 0 },
+                };
+                setClients([newClient, ...clients]);
             } else {
                 alert('Error: ' + error?.message);
             }
@@ -838,7 +918,7 @@ export default function AdminDashboard() {
                 </div>
             </header>
 
-            <main className="max-w-5xl mx-auto p-4 sm:p-6">
+            <main className={`${view === 'clients' ? 'max-w-7xl' : 'max-w-5xl'} mx-auto p-4 sm:p-6`}>
                 {loading && (
                     <div className="flex flex-col items-center justify-center py-20">
                         <div className="flex items-center gap-2 mb-4">
@@ -851,54 +931,249 @@ export default function AdminDashboard() {
                 )}
 
                 {/* ========== CLIENTS VIEW ========== */}
-                {view === 'clients' && !loading && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {clients.map(client => (
-                            <motion.div layout key={client.id} className="bg-white p-4 sm:p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
-                                <div>
-                                    <div className="flex justify-between items-start mb-2">
-                                        <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
-                                            <Users size={20} />
-                                        </div>
-                                        <div className="flex gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button onClick={() => handleEditClient(client)} className="text-slate-400 hover:text-blue-600 p-1.5 rounded-md hover:bg-blue-50">
-                                                <Pencil size={14} />
-                                            </button>
-                                            <button onClick={() => handleDelete(client.id, 'clients')} className="text-slate-300 hover:text-red-500 p-1.5 rounded-md hover:bg-red-50">
-                                                <Trash2 size={14} />
-                                            </button>
-                                        </div>
+                {view === 'clients' && !loading && (() => {
+                    // Overall portfolio stats
+                    const totalClients = clients.length;
+                    const totalProjects = clients.reduce((a, c) => a + c.stats.projectCount, 0);
+                    const totalValue = clients.reduce((a, c) => a + c.stats.totalValue, 0);
+                    const totalPaid = clients.reduce((a, c) => a + c.stats.paidValue, 0);
+                    const totalPending = Math.max(totalValue - totalPaid, 0);
+                    const clientsWithEmail = clients.filter(c => !!c.email).length;
+
+                    // Filter + sort
+                    const q = clientSearch.trim().toLowerCase();
+                    let filtered = q
+                        ? clients.filter(c =>
+                            c.name.toLowerCase().includes(q) ||
+                            (c.email || '').toLowerCase().includes(q) ||
+                            c.access_key.toLowerCase().includes(q)
+                        )
+                        : [...clients];
+                    filtered.sort((a, b) => {
+                        if (clientSort === 'name') return a.name.localeCompare(b.name);
+                        if (clientSort === 'projects') return b.stats.projectCount - a.stats.projectCount;
+                        if (clientSort === 'value') return b.stats.totalValue - a.stats.totalValue;
+                        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+                    });
+
+                    return (
+                        <div className="space-y-5">
+                            {/* ===== PORTFOLIO STATS ===== */}
+                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                                <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <div className="p-1.5 bg-purple-50 text-purple-600 rounded-lg"><Users size={14} /></div>
+                                        <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider">Clients</p>
                                     </div>
-                                    <h3 className="font-semibold text-base sm:text-lg">{client.name}</h3>
-                                    {client.email && (
-                                        <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
-                                            <Mail size={11} />
-                                            {client.email}
-                                        </p>
+                                    <p className="text-xl sm:text-2xl font-black text-slate-900">{totalClients}</p>
+                                    <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5">{clientsWithEmail} with email</p>
+                                </div>
+                                <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <div className="p-1.5 bg-blue-50 text-blue-600 rounded-lg"><Briefcase size={14} /></div>
+                                        <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider">Projects</p>
+                                    </div>
+                                    <p className="text-xl sm:text-2xl font-black text-slate-900">{totalProjects}</p>
+                                    <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5">across all clients</p>
+                                </div>
+                                <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg"><TrendingUp size={14} /></div>
+                                        <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider">Collected</p>
+                                    </div>
+                                    <p className="text-xl sm:text-2xl font-black text-emerald-600">₹{totalPaid.toLocaleString('en-IN')}</p>
+                                    <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5">of ₹{totalValue.toLocaleString('en-IN')}</p>
+                                </div>
+                                <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <div className="p-1.5 bg-amber-50 text-amber-600 rounded-lg"><Clock size={14} /></div>
+                                        <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pending</p>
+                                    </div>
+                                    <p className="text-xl sm:text-2xl font-black text-amber-600">₹{totalPending.toLocaleString('en-IN')}</p>
+                                    <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5">awaiting payment</p>
+                                </div>
+                            </div>
+
+                            {/* ===== SEARCH + SORT BAR ===== */}
+                            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 flex flex-col sm:flex-row gap-2 sm:gap-3 sm:items-center">
+                                <div className="relative flex-1">
+                                    <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                    <input
+                                        value={clientSearch}
+                                        onChange={e => setClientSearch(e.target.value)}
+                                        placeholder="Search by name, email or access key..."
+                                        className="w-full pl-9 pr-8 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all"
+                                    />
+                                    {clientSearch && (
+                                        <button
+                                            onClick={() => setClientSearch('')}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded"
+                                            title="Clear"
+                                        >
+                                            <X size={13} />
+                                        </button>
                                     )}
-                                    <code className="text-[11px] sm:text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded mt-2 block w-fit break-all">{client.access_key}</code>
                                 </div>
-                                <div className="flex gap-2 mt-4 sm:mt-6">
-                                    <button
-                                        onClick={() => handleClientSelect(client)}
-                                        className="flex-1 py-2.5 sm:py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 font-medium rounded-lg text-sm transition-colors active:bg-slate-200"
+                                <div className="flex items-center gap-2">
+                                    <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider hidden sm:block">Sort</label>
+                                    <select
+                                        value={clientSort}
+                                        onChange={e => setClientSort(e.target.value as ClientSortField)}
+                                        className="text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none cursor-pointer flex-1 sm:flex-none"
                                     >
-                                        View Projects
-                                    </button>
-                                    <button
-                                        onClick={() => handleViewActivity(client)}
-                                        className="py-2.5 sm:py-2 px-3 bg-violet-50 hover:bg-violet-100 text-violet-600 font-medium rounded-lg text-sm transition-colors active:bg-violet-200 flex items-center gap-1.5"
-                                        title="Activity & Notifications"
-                                    >
-                                        <Mail size={14} />
-                                        <span className="hidden sm:inline">Notify</span>
-                                    </button>
+                                        <option value="recent">Recently Added</option>
+                                        <option value="name">Name (A–Z)</option>
+                                        <option value="projects">Most Projects</option>
+                                        <option value="value">Highest Value</option>
+                                    </select>
                                 </div>
-                            </motion.div>
-                        ))}
-                        {clients.length === 0 && <div className="col-span-full text-center py-10 text-slate-400">No clients yet. Click "Add Client" to create one.</div>}
-                    </div>
-                )}
+                            </div>
+
+                            {/* ===== CLIENT GRID ===== */}
+                            {filtered.length === 0 ? (
+                                <div className="bg-white rounded-2xl border border-dashed border-slate-300 py-16 text-center">
+                                    <div className="inline-flex p-4 bg-slate-50 rounded-full mb-3">
+                                        {clients.length === 0 ? <UserPlus size={28} className="text-slate-300" /> : <Search size={28} className="text-slate-300" />}
+                                    </div>
+                                    <p className="text-sm font-semibold text-slate-600">
+                                        {clients.length === 0 ? 'No clients yet' : 'No matches found'}
+                                    </p>
+                                    <p className="text-xs text-slate-400 mt-1 px-4">
+                                        {clients.length === 0
+                                            ? 'Click "Add Client" in the top right to create your first client.'
+                                            : `No clients match "${clientSearch}". Try a different search term.`}
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+                                    {filtered.map(client => {
+                                        const isCopied = copiedKey === client.access_key;
+                                        const hasProjects = client.stats.projectCount > 0;
+                                        return (
+                                            <motion.div
+                                                layout
+                                                key={client.id}
+                                                initial={{ opacity: 0, y: 8 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all flex flex-col group overflow-hidden"
+                                            >
+                                                {/* Header */}
+                                                <div className="p-4 sm:p-5 pb-3 sm:pb-4">
+                                                    <div className="flex justify-between items-start mb-3">
+                                                        <div className="flex items-center gap-3 min-w-0">
+                                                            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 text-white flex items-center justify-center font-bold text-sm shadow-sm shrink-0">
+                                                                {client.name.charAt(0).toUpperCase()}
+                                                            </div>
+                                                            <div className="min-w-0 flex-1">
+                                                                <h3 className="font-bold text-slate-900 text-sm sm:text-base truncate">{client.name}</h3>
+                                                                <p className="text-[10px] text-slate-400 font-medium flex items-center gap-1 mt-0.5">
+                                                                    <Calendar size={9} />
+                                                                    {new Date(client.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex gap-0.5 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                                                            <button onClick={() => handleEditClient(client)} className="text-slate-400 hover:text-blue-600 p-1.5 rounded-md hover:bg-blue-50 transition-colors" title="Edit client">
+                                                                <Pencil size={13} />
+                                                            </button>
+                                                            <button onClick={() => handleDelete(client.id, 'clients')} className="text-slate-400 hover:text-red-500 p-1.5 rounded-md hover:bg-red-50 transition-colors" title="Delete client">
+                                                                <Trash2 size={13} />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Email + access key */}
+                                                    <div className="space-y-1.5">
+                                                        {client.email ? (
+                                                            <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                                                                <Mail size={11} className="shrink-0 text-slate-400" />
+                                                                <span className="truncate">{client.email}</span>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex items-center gap-1.5 text-[11px] text-amber-600">
+                                                                <Mail size={11} className="shrink-0" />
+                                                                <span className="italic">No email set</span>
+                                                            </div>
+                                                        )}
+                                                        <div className="flex items-center gap-1.5 text-[11px]">
+                                                            <Hash size={11} className="shrink-0 text-slate-400" />
+                                                            <code className="font-mono text-slate-500 truncate flex-1">{client.access_key}</code>
+                                                            <button
+                                                                onClick={() => copyAccessKey(client.access_key)}
+                                                                className="shrink-0 p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+                                                                title={isCopied ? 'Copied!' : 'Copy access key'}
+                                                            >
+                                                                {isCopied ? <Check size={11} className="text-emerald-500" /> : <Copy size={11} />}
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Stats row */}
+                                                <div className="grid grid-cols-3 divide-x divide-slate-100 border-t border-slate-100 bg-slate-50/50">
+                                                    <div className="p-2.5 text-center">
+                                                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Projects</p>
+                                                        <p className="text-sm font-bold text-slate-900 mt-0.5">
+                                                            {client.stats.projectCount}
+                                                            {hasProjects && <span className="text-[10px] text-slate-400 font-normal ml-0.5">/{client.stats.completedProjects}✓</span>}
+                                                        </p>
+                                                    </div>
+                                                    <div className="p-2.5 text-center">
+                                                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Value</p>
+                                                        <p className="text-sm font-bold text-slate-900 mt-0.5">
+                                                            {client.stats.totalValue > 0 ? `₹${(client.stats.totalValue / 1000).toFixed(client.stats.totalValue >= 100000 ? 0 : 1)}k` : '—'}
+                                                        </p>
+                                                    </div>
+                                                    <div className="p-2.5 text-center">
+                                                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Paid</p>
+                                                        <p className={`text-sm font-bold mt-0.5 ${client.stats.totalValue > 0 && client.stats.paidValue === client.stats.totalValue ? 'text-emerald-600' : 'text-slate-900'}`}>
+                                                            {client.stats.totalValue > 0 ? `${Math.round((client.stats.paidValue / client.stats.totalValue) * 100)}%` : '—'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                {/* Progress bar */}
+                                                {hasProjects && (
+                                                    <div className="px-4 sm:px-5 py-2.5 bg-white border-t border-slate-100">
+                                                        <div className="flex items-center justify-between text-[10px] mb-1">
+                                                            <span className="font-bold text-slate-400 uppercase tracking-wider">Progress</span>
+                                                            <span className="font-bold text-slate-600">{client.stats.progress}%</span>
+                                                        </div>
+                                                        <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                                                            <div
+                                                                className={`h-full rounded-full transition-all duration-700 ${client.stats.progress === 100 ? 'bg-emerald-500' : 'bg-gradient-to-r from-blue-500 to-purple-500'}`}
+                                                                style={{ width: `${client.stats.progress}%` }}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Actions */}
+                                                <div className="flex gap-2 p-3 sm:p-4 pt-2 sm:pt-3 border-t border-slate-100 bg-white">
+                                                    <button
+                                                        onClick={() => handleClientSelect(client)}
+                                                        className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg text-xs sm:text-sm transition-colors active:bg-blue-800 flex items-center justify-center gap-1.5"
+                                                    >
+                                                        <FolderPlus size={13} />
+                                                        View Projects
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleViewActivity(client)}
+                                                        className="py-2 px-3 bg-violet-50 hover:bg-violet-100 text-violet-600 font-semibold rounded-lg text-xs sm:text-sm transition-colors active:bg-violet-200 flex items-center gap-1.5 border border-violet-100"
+                                                        title="Activity log & notifications"
+                                                    >
+                                                        <Activity size={13} />
+                                                        <span className="hidden sm:inline">Activity</span>
+                                                    </button>
+                                                </div>
+                                            </motion.div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })()}
 
                 {/* ========== PROJECTS VIEW ========== */}
                 {view === 'projects' && !loading && (
