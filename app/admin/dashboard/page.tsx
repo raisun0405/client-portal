@@ -900,20 +900,13 @@ export default function AdminDashboard() {
 
     return (
         <div className={`min-h-screen font-inter antialiased selection:bg-indigo-500/30 ${view === 'clients' ? 'bg-[#09090b] text-zinc-100' : 'bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-900 font-sans'}`}>
-            {/* Premium Google Fonts:
-                - Space Grotesk  → display / labels / secondary numbers (distinctive, great numerics)
-                - Instrument Serif → hero numbers (editorial luxury feel)
-                - JetBrains Mono → tabular data / access keys
-                - Inter → body copy
-            */}
+            {/* Premium Google Fonts — Instrument Serif for hero numbers, Outfit for headings, Inter for body */}
             <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap');
-                .font-display { font-family: 'Space Grotesk', system-ui, sans-serif; font-feature-settings: 'ss01', 'ss02'; }
-                .font-serif-num { font-family: 'Instrument Serif', 'Times New Roman', serif; font-feature-settings: 'lnum'; letter-spacing: -0.02em; }
-                .font-mono-num { font-family: 'JetBrains Mono', ui-monospace, monospace; font-feature-settings: 'tnum', 'zero'; }
+                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;600&display=swap');
+                .font-outfit { font-family: 'Outfit', system-ui, sans-serif; }
                 .font-inter { font-family: 'Inter', system-ui, sans-serif; }
-                /* Legacy alias so any lingering font-outfit usage still maps to display font */
-                .font-outfit { font-family: 'Space Grotesk', system-ui, sans-serif; }
+                .font-display { font-family: 'Instrument Serif', 'Times New Roman', serif; }
+                .font-grotesk { font-family: 'Space Grotesk', system-ui, sans-serif; }
             `}</style>
             {view !== 'clients' && (
                 <header className="bg-white/80 backdrop-blur-xl border-b border-slate-200/70 px-4 sm:px-6 py-3 sm:py-4 sticky top-0 z-20">
@@ -1025,7 +1018,7 @@ export default function AdminDashboard() {
                             {/* ===== HEADER ===== */}
                             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-zinc-800/60">
                                 <div>
-                                    <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-white mb-1 font-display">
+                                    <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-white mb-1 font-outfit">
                                         Admin Overview
                                     </h1>
                                     <p className="text-zinc-400 text-sm">
@@ -1053,72 +1046,72 @@ export default function AdminDashboard() {
                             {/* ===== STATS ROW ===== */}
                             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
                                 {/* Total Collected — spans 2 columns */}
-                                <div className="lg:col-span-2 bg-zinc-900/70 border border-zinc-800/80 rounded-2xl p-5 sm:p-6 hover:border-zinc-700/80 transition-colors">
+                                <div className="lg:col-span-2 bg-zinc-900/60 border border-zinc-800/60 rounded-2xl p-6 sm:p-7 hover:border-zinc-700/60 transition-colors">
                                     <div className="flex items-start justify-between gap-4 h-full">
                                         {/* Left: label + main value */}
-                                        <div className="flex flex-col justify-between gap-4 sm:gap-6 flex-1 min-w-0">
+                                        <div className="flex flex-col justify-between gap-5 sm:gap-7 flex-1 min-w-0">
                                             <div className="flex items-center justify-between gap-2">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
-                                                    <h2 className="text-zinc-400 font-semibold text-[11px] tracking-[0.15em] uppercase">Total Collected</h2>
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/90 shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
+                                                    <h2 className="text-zinc-500 font-medium text-[10.5px] tracking-[0.2em] uppercase">Total Collected</h2>
                                                 </div>
-                                                <span className="inline-flex items-center gap-0.5 bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded text-[11px] font-semibold border border-emerald-500/20 tabular-nums">
-                                                    <ArrowUpRight size={12} strokeWidth={2.5} />{paidPct}%
+                                                <span className="inline-flex items-center gap-0.5 text-emerald-400/90 text-[11px] font-medium tabular-nums bg-emerald-500/[0.06] px-1.5 py-0.5 rounded-md font-grotesk">
+                                                    <ArrowUpRight size={11} strokeWidth={2.25} />{paidPct}%
                                                 </span>
                                             </div>
                                             <div className="min-w-0">
-                                                <div className="text-5xl sm:text-6xl text-white tracking-tight font-serif-num tabular-nums leading-none">
+                                                <div className="text-5xl sm:text-[64px] text-zinc-50 tracking-[-0.02em] font-display italic tabular-nums leading-[0.95]">
                                                     ₹{totalPaid.toLocaleString('en-IN')}
                                                 </div>
-                                                <div className="text-xs text-zinc-500 mt-3 font-mono-num">of ₹{totalValue.toLocaleString('en-IN')}</div>
+                                                <div className="text-[11px] text-zinc-500/90 mt-3 tabular-nums tracking-wide font-grotesk">of ₹{totalValue.toLocaleString('en-IN')}</div>
                                             </div>
                                         </div>
 
                                         {/* Right: vertical divider + Pending Dues */}
-                                        <div className="hidden sm:flex flex-col items-end justify-center pl-4 sm:pl-6 border-l border-zinc-800/80 shrink-0 self-stretch">
+                                        <div className="hidden sm:flex flex-col items-end justify-center pl-5 sm:pl-7 border-l border-zinc-800/60 shrink-0 self-stretch">
                                             <div className="text-right">
-                                                <div className="text-zinc-500 text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5">Pending Dues</div>
-                                                <div className="text-2xl sm:text-3xl text-amber-400 font-serif-num tracking-tight tabular-nums leading-none">
+                                                <div className="text-zinc-500 text-[10px] font-medium uppercase tracking-[0.2em] mb-3">Pending Dues</div>
+                                                <div className="text-3xl sm:text-[36px] text-amber-400/90 font-display italic tracking-[-0.02em] tabular-nums leading-[0.95]">
                                                     ₹{totalPending.toLocaleString('en-IN')}
                                                 </div>
-                                                <div className="text-[10px] text-zinc-500 mt-1.5">awaiting payment</div>
+                                                <div className="text-[10px] text-zinc-500/80 mt-2.5 tracking-wide font-grotesk">awaiting payment</div>
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* Pending Dues — stacked below on mobile */}
-                                    <div className="sm:hidden mt-4 pt-4 border-t border-zinc-800/80 flex items-end justify-between">
+                                    <div className="sm:hidden mt-5 pt-5 border-t border-zinc-800/60 flex items-end justify-between">
                                         <div>
-                                            <div className="text-zinc-500 text-[10px] font-bold uppercase tracking-[0.15em] mb-1">Pending Dues</div>
-                                            <div className="text-2xl text-amber-400 font-serif-num tracking-tight tabular-nums leading-none">
+                                            <div className="text-zinc-500 text-[10px] font-medium uppercase tracking-[0.2em] mb-2">Pending Dues</div>
+                                            <div className="text-3xl text-amber-400/90 font-display italic tracking-[-0.02em] tabular-nums leading-[0.95]">
                                                 ₹{totalPending.toLocaleString('en-IN')}
                                             </div>
                                         </div>
-                                        <div className="text-[10px] text-zinc-500">awaiting payment</div>
+                                        <div className="text-[10px] text-zinc-500/80 tracking-wide font-grotesk">awaiting payment</div>
                                     </div>
                                 </div>
 
                                 {/* Clients */}
-                                <div className="bg-zinc-900/70 border border-zinc-800/80 rounded-2xl p-5 sm:p-6 hover:border-zinc-700/80 transition-colors flex flex-col justify-between gap-4 sm:gap-6">
+                                <div className="bg-zinc-900/60 border border-zinc-800/60 rounded-2xl p-6 sm:p-7 hover:border-zinc-700/60 transition-colors flex flex-col justify-between gap-5 sm:gap-7">
                                     <div className="flex items-center gap-2">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.6)]" />
-                                        <h2 className="text-zinc-400 font-semibold text-[11px] tracking-[0.15em] uppercase">Clients</h2>
+                                        <span className="w-1.5 h-1.5 rounded-full bg-blue-400/90 shadow-[0_0_8px_rgba(96,165,250,0.5)]" />
+                                        <h2 className="text-zinc-500 font-medium text-[10.5px] tracking-[0.2em] uppercase">Clients</h2>
                                     </div>
                                     <div>
-                                        <div className="text-5xl sm:text-6xl text-white font-serif-num tracking-tight tabular-nums leading-none">{totalClients}</div>
-                                        <div className="text-xs text-zinc-500 mt-2">{clientsWithEmail} with email on file</div>
+                                        <div className="text-5xl sm:text-[64px] text-zinc-50 font-display italic tracking-[-0.02em] tabular-nums leading-[0.95]">{totalClients}</div>
+                                        <div className="text-[11px] text-zinc-500/90 mt-3 tracking-wide font-grotesk">{clientsWithEmail} with email on file</div>
                                     </div>
                                 </div>
 
                                 {/* Projects */}
-                                <div className="bg-zinc-900/70 border border-zinc-800/80 rounded-2xl p-5 sm:p-6 hover:border-zinc-700/80 transition-colors flex flex-col justify-between gap-4 sm:gap-6">
+                                <div className="bg-zinc-900/60 border border-zinc-800/60 rounded-2xl p-6 sm:p-7 hover:border-zinc-700/60 transition-colors flex flex-col justify-between gap-5 sm:gap-7">
                                     <div className="flex items-center gap-2">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-pink-400 shadow-[0_0_8px_rgba(244,114,182,0.6)]" />
-                                        <h2 className="text-zinc-400 font-semibold text-[11px] tracking-[0.15em] uppercase">Projects</h2>
+                                        <span className="w-1.5 h-1.5 rounded-full bg-pink-400/90 shadow-[0_0_8px_rgba(244,114,182,0.5)]" />
+                                        <h2 className="text-zinc-500 font-medium text-[10.5px] tracking-[0.2em] uppercase">Projects</h2>
                                     </div>
                                     <div>
-                                        <div className="text-5xl sm:text-6xl text-white font-serif-num tracking-tight tabular-nums leading-none">{totalProjects}</div>
-                                        <div className="text-xs text-zinc-500 mt-2">{activeProjects} in progress · across {totalClients} {totalClients === 1 ? 'client' : 'clients'}</div>
+                                        <div className="text-5xl sm:text-[64px] text-zinc-50 font-display italic tracking-[-0.02em] tabular-nums leading-[0.95]">{totalProjects}</div>
+                                        <div className="text-[11px] text-zinc-500/90 mt-3 tracking-wide font-grotesk">{activeProjects} in progress · across {totalClients} {totalClients === 1 ? 'client' : 'clients'}</div>
                                     </div>
                                 </div>
                             </div>
@@ -1188,7 +1181,7 @@ export default function AdminDashboard() {
                                     <div className="inline-flex p-5 bg-zinc-900 border border-zinc-800 rounded-2xl mb-4">
                                         {clients.length === 0 ? <UserPlus size={32} className="text-zinc-500" /> : <Search size={32} className="text-zinc-500" />}
                                     </div>
-                                    <p className="text-base font-bold text-zinc-200 font-display">
+                                    <p className="text-base font-bold text-zinc-200 font-outfit">
                                         {clients.length === 0 ? 'No clients yet' : 'No matches found'}
                                     </p>
                                     <p className="text-sm text-zinc-500 mt-1 px-4 max-w-sm mx-auto">
@@ -1230,12 +1223,12 @@ export default function AdminDashboard() {
                                                 >
                                                     {/* 1. Profile */}
                                                     <div className="col-span-1 lg:col-span-3 flex items-center gap-4 min-w-0">
-                                                        <div className={`shrink-0 w-12 h-12 rounded-full bg-gradient-to-br ${palette.gradient} flex items-center justify-center text-white font-bold shadow-lg font-display text-lg`}>
+                                                        <div className={`shrink-0 w-12 h-12 rounded-full bg-gradient-to-br ${palette.gradient} flex items-center justify-center text-white font-bold shadow-lg font-outfit text-lg`}>
                                                             {client.name.charAt(0).toUpperCase()}
                                                         </div>
                                                         <div className="min-w-0 flex-1">
                                                             <div className="flex items-center gap-2 flex-wrap">
-                                                                <h3 className="text-zinc-100 font-medium truncate font-display text-[1.05rem]">{client.name}</h3>
+                                                                <h3 className="text-zinc-100 font-medium truncate font-outfit text-[1.05rem]">{client.name}</h3>
                                                                 <span className="text-[10px] text-zinc-500 font-medium shrink-0">
                                                                     {new Date(client.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                                                                 </span>
@@ -1284,7 +1277,7 @@ export default function AdminDashboard() {
                                                         <span className="lg:hidden text-zinc-500 text-xs">Financials:</span>
                                                         {client.stats.totalValue > 0 ? (
                                                             <div className="flex flex-col">
-                                                                <span className="text-zinc-200 font-medium text-sm font-display tracking-wide tabular-nums">{formatK(client.stats.totalValue)}</span>
+                                                                <span className="text-zinc-200 font-medium text-sm font-outfit tracking-wide tabular-nums">{formatK(client.stats.totalValue)}</span>
                                                                 <span className="text-zinc-500 text-xs tabular-nums">{paidPctClient}% paid</span>
                                                             </div>
                                                         ) : (
