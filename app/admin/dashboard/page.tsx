@@ -876,19 +876,24 @@ export default function AdminDashboard() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
-            <header className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 sm:py-4 sticky top-0 z-10">
-                <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-900 font-sans">
+            <header className="bg-white/80 backdrop-blur-xl border-b border-slate-200/70 px-4 sm:px-6 py-3 sm:py-4 sticky top-0 z-20">
+                <div className="flex items-center justify-between gap-2 max-w-7xl mx-auto">
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                         {view !== 'clients' && (
                             <button onClick={handleBack} className="p-1.5 sm:p-2 hover:bg-slate-100 rounded-full transition-colors shrink-0">
                                 <ArrowLeft size={18} className="sm:w-5 sm:h-5" />
                             </button>
                         )}
+                        {view === 'clients' && (
+                            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-500 flex items-center justify-center text-white shadow-md shadow-violet-200/60 shrink-0">
+                                <Users size={18} />
+                            </div>
+                        )}
                         <div className="min-w-0">
-                            <h1 className="font-bold text-base sm:text-lg">Admin Dashboard</h1>
+                            <h1 className="font-black text-base sm:text-lg tracking-tight">Admin Dashboard</h1>
                             <p className="text-[11px] sm:text-xs text-slate-500 truncate max-w-[200px] sm:max-w-none">
-                                {view === 'clients' ? 'Manage Clients' :
+                                {view === 'clients' ? 'Manage all clients and portfolio' :
                                     view === 'projects' ? `Projects for ${selectedClient?.name}` :
                                         view === 'links' ? `Links for ${selectedProject?.description}` :
                                             view === 'activity' ? `Activity Log for ${selectedClient?.name}` :
@@ -896,20 +901,20 @@ export default function AdminDashboard() {
                             </p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+                    <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                         {view !== 'activity' && (
                             <button
                                 onClick={() => { setFormData({}); setEditingId(null); setEditingLinkIndex(null); setShowModal(true); }}
-                                className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 transition-colors"
+                                className="bg-slate-900 hover:bg-slate-800 text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1.5 sm:gap-2 transition-all active:scale-[0.97] shadow-sm"
                             >
-                                <Plus size={14} className="sm:w-4 sm:h-4" />
+                                <Plus size={14} className="sm:w-4 sm:h-4" strokeWidth={2.5} />
                                 <span className="hidden sm:inline">{view === 'clients' ? 'Add Client' : view === 'projects' ? 'Add Project' : view === 'links' ? 'Add Link' : 'Add Feature'}</span>
                                 <span className="sm:hidden">Add</span>
                             </button>
                         )}
                         <button
                             onClick={async () => { await supabaseAdmin.auth.signOut(); router.push('/admin'); }}
-                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            className="p-2 sm:p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
                             title="Logout"
                         >
                             <LogOut size={18} className="sm:w-5 sm:h-5" />
@@ -939,6 +944,7 @@ export default function AdminDashboard() {
                     const totalPaid = clients.reduce((a, c) => a + c.stats.paidValue, 0);
                     const totalPending = Math.max(totalValue - totalPaid, 0);
                     const clientsWithEmail = clients.filter(c => !!c.email).length;
+                    const paidPct = totalValue > 0 ? Math.round((totalPaid / totalValue) * 100) : 0;
 
                     // Filter + sort
                     const q = clientSearch.trim().toLowerCase();
@@ -956,70 +962,137 @@ export default function AdminDashboard() {
                         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
                     });
 
+                    // Per-client gradient palette (consistent by name hash)
+                    const gradients = [
+                        'from-violet-500 via-purple-500 to-fuchsia-500',
+                        'from-blue-500 via-cyan-500 to-teal-500',
+                        'from-rose-500 via-pink-500 to-purple-500',
+                        'from-amber-500 via-orange-500 to-red-500',
+                        'from-emerald-500 via-teal-500 to-cyan-500',
+                        'from-indigo-500 via-blue-500 to-sky-500',
+                        'from-fuchsia-500 via-pink-500 to-rose-500',
+                        'from-lime-500 via-green-500 to-emerald-500',
+                    ];
+                    const gradientFor = (name: string) => {
+                        let hash = 0;
+                        for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+                        return gradients[hash % gradients.length];
+                    };
+
                     return (
-                        <div className="space-y-5">
+                        <div className="space-y-6">
                             {/* ===== PORTFOLIO STATS ===== */}
                             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                                <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <div className="p-1.5 bg-purple-50 text-purple-600 rounded-lg"><Users size={14} /></div>
-                                        <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider">Clients</p>
+                                {/* Clients */}
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0 }}
+                                    className="relative overflow-hidden bg-white rounded-2xl border border-slate-200/70 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 p-5 group"
+                                >
+                                    <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-gradient-to-br from-violet-100 to-purple-50 opacity-60 group-hover:scale-125 transition-transform duration-500" />
+                                    <div className="relative">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <div className="p-2 bg-gradient-to-br from-violet-500 to-purple-600 text-white rounded-xl shadow-md shadow-violet-200">
+                                                <Users size={16} />
+                                            </div>
+                                            <span className="text-[9px] font-bold text-violet-600 bg-violet-50 border border-violet-100 px-1.5 py-0.5 rounded-full uppercase tracking-wider">Active</span>
+                                        </div>
+                                        <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-widest">Clients</p>
+                                        <p className="text-2xl sm:text-3xl font-black text-slate-900 mt-1 tabular-nums">{totalClients}</p>
+                                        <p className="text-[11px] text-slate-500 mt-1">
+                                            <span className="font-semibold text-slate-700">{clientsWithEmail}</span> with email on file
+                                        </p>
                                     </div>
-                                    <p className="text-xl sm:text-2xl font-black text-slate-900">{totalClients}</p>
-                                    <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5">{clientsWithEmail} with email</p>
-                                </div>
-                                <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <div className="p-1.5 bg-blue-50 text-blue-600 rounded-lg"><Briefcase size={14} /></div>
-                                        <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider">Projects</p>
+                                </motion.div>
+
+                                {/* Projects */}
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
+                                    className="relative overflow-hidden bg-white rounded-2xl border border-slate-200/70 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 p-5 group"
+                                >
+                                    <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-gradient-to-br from-blue-100 to-cyan-50 opacity-60 group-hover:scale-125 transition-transform duration-500" />
+                                    <div className="relative">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-600 text-white rounded-xl shadow-md shadow-blue-200">
+                                                <Briefcase size={16} />
+                                            </div>
+                                            <span className="text-[9px] font-bold text-blue-600 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-full uppercase tracking-wider">Total</span>
+                                        </div>
+                                        <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-widest">Projects</p>
+                                        <p className="text-2xl sm:text-3xl font-black text-slate-900 mt-1 tabular-nums">{totalProjects}</p>
+                                        <p className="text-[11px] text-slate-500 mt-1">
+                                            across <span className="font-semibold text-slate-700">{totalClients}</span> {totalClients === 1 ? 'client' : 'clients'}
+                                        </p>
                                     </div>
-                                    <p className="text-xl sm:text-2xl font-black text-slate-900">{totalProjects}</p>
-                                    <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5">across all clients</p>
-                                </div>
-                                <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg"><TrendingUp size={14} /></div>
-                                        <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider">Collected</p>
+                                </motion.div>
+
+                                {/* Collected */}
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+                                    className="relative overflow-hidden bg-white rounded-2xl border border-slate-200/70 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 p-5 group"
+                                >
+                                    <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-gradient-to-br from-emerald-100 to-teal-50 opacity-60 group-hover:scale-125 transition-transform duration-500" />
+                                    <div className="relative">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <div className="p-2 bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-xl shadow-md shadow-emerald-200">
+                                                <TrendingUp size={16} />
+                                            </div>
+                                            <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-full uppercase tracking-wider tabular-nums">{paidPct}%</span>
+                                        </div>
+                                        <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-widest">Collected</p>
+                                        <p className="text-2xl sm:text-3xl font-black text-emerald-600 mt-1 tabular-nums">₹{totalPaid.toLocaleString('en-IN')}</p>
+                                        <p className="text-[11px] text-slate-500 mt-1 tabular-nums">
+                                            of ₹{totalValue.toLocaleString('en-IN')}
+                                        </p>
                                     </div>
-                                    <p className="text-xl sm:text-2xl font-black text-emerald-600">₹{totalPaid.toLocaleString('en-IN')}</p>
-                                    <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5">of ₹{totalValue.toLocaleString('en-IN')}</p>
-                                </div>
-                                <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <div className="p-1.5 bg-amber-50 text-amber-600 rounded-lg"><Clock size={14} /></div>
-                                        <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pending</p>
+                                </motion.div>
+
+                                {/* Pending */}
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+                                    className="relative overflow-hidden bg-white rounded-2xl border border-slate-200/70 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 p-5 group"
+                                >
+                                    <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-gradient-to-br from-amber-100 to-orange-50 opacity-60 group-hover:scale-125 transition-transform duration-500" />
+                                    <div className="relative">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <div className="p-2 bg-gradient-to-br from-amber-500 to-orange-600 text-white rounded-xl shadow-md shadow-amber-200">
+                                                <Clock size={16} />
+                                            </div>
+                                            <span className="text-[9px] font-bold text-amber-600 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-full uppercase tracking-wider">Due</span>
+                                        </div>
+                                        <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-widest">Pending</p>
+                                        <p className="text-2xl sm:text-3xl font-black text-amber-600 mt-1 tabular-nums">₹{totalPending.toLocaleString('en-IN')}</p>
+                                        <p className="text-[11px] text-slate-500 mt-1">awaiting payment</p>
                                     </div>
-                                    <p className="text-xl sm:text-2xl font-black text-amber-600">₹{totalPending.toLocaleString('en-IN')}</p>
-                                    <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5">awaiting payment</p>
-                                </div>
+                                </motion.div>
                             </div>
 
                             {/* ===== SEARCH + SORT BAR ===== */}
-                            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 flex flex-col sm:flex-row gap-2 sm:gap-3 sm:items-center">
+                            <div className="bg-white rounded-2xl border border-slate-200/70 shadow-sm p-2 flex flex-col sm:flex-row gap-2 sm:gap-2 sm:items-center">
                                 <div className="relative flex-1">
-                                    <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                    <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                                     <input
                                         value={clientSearch}
                                         onChange={e => setClientSearch(e.target.value)}
-                                        placeholder="Search by name, email or access key..."
-                                        className="w-full pl-9 pr-8 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none transition-all"
+                                        placeholder="Search by name, email, or access key…"
+                                        className="w-full pl-10 pr-10 py-2.5 text-sm bg-slate-50 border border-transparent rounded-xl placeholder:text-slate-400 focus:ring-2 focus:ring-violet-500/30 focus:border-violet-300 focus:bg-white outline-none transition-all"
                                     />
                                     {clientSearch && (
                                         <button
+                                            type="button"
                                             onClick={() => setClientSearch('')}
-                                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded"
-                                            title="Clear"
+                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full bg-slate-200 text-slate-500 hover:bg-slate-300 hover:text-slate-700 transition-colors"
+                                            aria-label="Clear search"
                                         >
-                                            <X size={13} />
+                                            <X size={12} strokeWidth={3} />
                                         </button>
                                     )}
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider hidden sm:block">Sort</label>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest hidden sm:block pl-1">Sort</span>
                                     <select
                                         value={clientSort}
                                         onChange={e => setClientSort(e.target.value as ClientSortField)}
-                                        className="text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:bg-white outline-none cursor-pointer flex-1 sm:flex-none"
+                                        className="text-sm font-medium bg-slate-50 border border-transparent rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-violet-500/30 focus:border-violet-300 focus:bg-white outline-none cursor-pointer flex-1 sm:flex-none"
                                     >
                                         <option value="recent">Recently Added</option>
                                         <option value="name">Name (A–Z)</option>
@@ -1027,143 +1100,186 @@ export default function AdminDashboard() {
                                         <option value="value">Highest Value</option>
                                     </select>
                                 </div>
+                                {q && (
+                                    <span className="text-[11px] text-slate-400 font-medium px-2 shrink-0">
+                                        {filtered.length} {filtered.length === 1 ? 'result' : 'results'}
+                                    </span>
+                                )}
                             </div>
 
                             {/* ===== CLIENT GRID ===== */}
                             {filtered.length === 0 ? (
-                                <div className="bg-white rounded-2xl border border-dashed border-slate-300 py-16 text-center">
-                                    <div className="inline-flex p-4 bg-slate-50 rounded-full mb-3">
-                                        {clients.length === 0 ? <UserPlus size={28} className="text-slate-300" /> : <Search size={28} className="text-slate-300" />}
+                                <div className="bg-white rounded-2xl border border-dashed border-slate-300 py-20 text-center">
+                                    <div className="inline-flex p-5 bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl mb-4">
+                                        {clients.length === 0 ? <UserPlus size={32} className="text-slate-400" /> : <Search size={32} className="text-slate-400" />}
                                     </div>
-                                    <p className="text-sm font-semibold text-slate-600">
+                                    <p className="text-base font-bold text-slate-700">
                                         {clients.length === 0 ? 'No clients yet' : 'No matches found'}
                                     </p>
-                                    <p className="text-xs text-slate-400 mt-1 px-4">
+                                    <p className="text-sm text-slate-400 mt-1 px-4 max-w-sm mx-auto">
                                         {clients.length === 0
                                             ? 'Click "Add Client" in the top right to create your first client.'
-                                            : `No clients match "${clientSearch}". Try a different search term.`}
+                                            : `Nothing matches "${clientSearch}". Try a different search term.`}
                                     </p>
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-                                    {filtered.map(client => {
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
+                                    {filtered.map((client, idx) => {
                                         const isCopied = copiedKey === client.access_key;
                                         const hasProjects = client.stats.projectCount > 0;
+                                        const gradient = gradientFor(client.name);
+                                        const paidPctClient = client.stats.totalValue > 0
+                                            ? Math.round((client.stats.paidValue / client.stats.totalValue) * 100)
+                                            : 0;
+                                        const isFullyPaid = client.stats.totalValue > 0 && client.stats.paidValue >= client.stats.totalValue;
                                         return (
                                             <motion.div
                                                 layout
                                                 key={client.id}
-                                                initial={{ opacity: 0, y: 8 }}
+                                                initial={{ opacity: 0, y: 12 }}
                                                 animate={{ opacity: 1, y: 0 }}
-                                                className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all flex flex-col group overflow-hidden"
+                                                transition={{ delay: idx * 0.04, duration: 0.3, ease: 'easeOut' }}
+                                                className="relative bg-white rounded-2xl border border-slate-200/70 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-slate-300 transition-all duration-300 flex flex-col group overflow-hidden"
                                             >
-                                                {/* Header */}
-                                                <div className="p-4 sm:p-5 pb-3 sm:pb-4">
-                                                    <div className="flex justify-between items-start mb-3">
-                                                        <div className="flex items-center gap-3 min-w-0">
-                                                            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 text-white flex items-center justify-center font-bold text-sm shadow-sm shrink-0">
-                                                                {client.name.charAt(0).toUpperCase()}
+                                                {/* Gradient accent stripe */}
+                                                <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${gradient}`} />
+
+                                                {/* HERO */}
+                                                <div className="relative p-5 pb-4">
+                                                    {/* Soft gradient glow bg */}
+                                                    <div className={`absolute -right-8 -top-8 w-32 h-32 rounded-full bg-gradient-to-br ${gradient} opacity-[0.08] blur-2xl group-hover:opacity-[0.14] transition-opacity duration-500`} />
+
+                                                    <div className="relative flex items-start justify-between gap-3">
+                                                        <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                                                            <div className={`relative w-12 h-12 rounded-2xl bg-gradient-to-br ${gradient} text-white flex items-center justify-center font-black text-lg shadow-lg shadow-slate-200/60 shrink-0 ring-1 ring-white/30`}>
+                                                                <span className="drop-shadow-sm">{client.name.charAt(0).toUpperCase()}</span>
                                                             </div>
                                                             <div className="min-w-0 flex-1">
-                                                                <h3 className="font-bold text-slate-900 text-sm sm:text-base truncate">{client.name}</h3>
-                                                                <p className="text-[10px] text-slate-400 font-medium flex items-center gap-1 mt-0.5">
-                                                                    <Calendar size={9} />
-                                                                    {new Date(client.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                                                </p>
+                                                                <h3 className="font-bold text-slate-900 text-base leading-tight truncate">{client.name}</h3>
+                                                                <div className="flex items-center gap-1.5 mt-1">
+                                                                    <Calendar size={10} className="text-slate-400 shrink-0" />
+                                                                    <span className="text-[11px] text-slate-500 font-medium truncate">
+                                                                        {new Date(client.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                                    </span>
+                                                                    {isFullyPaid && (
+                                                                        <span className="ml-1 inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">
+                                                                            <CheckCircle2 size={8} />PAID
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                         </div>
                                                         <div className="flex gap-0.5 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                                                            <button onClick={() => handleEditClient(client)} className="text-slate-400 hover:text-blue-600 p-1.5 rounded-md hover:bg-blue-50 transition-colors" title="Edit client">
+                                                            <button onClick={() => handleEditClient(client)} className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors" title="Edit client">
                                                                 <Pencil size={13} />
                                                             </button>
-                                                            <button onClick={() => handleDelete(client.id, 'clients')} className="text-slate-400 hover:text-red-500 p-1.5 rounded-md hover:bg-red-50 transition-colors" title="Delete client">
+                                                            <button onClick={() => handleDelete(client.id, 'clients')} className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors" title="Delete client">
                                                                 <Trash2 size={13} />
                                                             </button>
                                                         </div>
                                                     </div>
 
-                                                    {/* Email + access key */}
-                                                    <div className="space-y-1.5">
+                                                    {/* Contact block */}
+                                                    <div className="relative mt-4 space-y-2">
                                                         {client.email ? (
-                                                            <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                                                            <div className="flex items-center gap-2 text-[11.5px] text-slate-600 bg-slate-50/70 border border-slate-100 rounded-lg px-2.5 py-1.5">
                                                                 <Mail size={11} className="shrink-0 text-slate-400" />
-                                                                <span className="truncate">{client.email}</span>
+                                                                <span className="truncate font-medium">{client.email}</span>
                                                             </div>
                                                         ) : (
-                                                            <div className="flex items-center gap-1.5 text-[11px] text-amber-600">
+                                                            <div className="flex items-center gap-2 text-[11.5px] text-amber-700 bg-amber-50/70 border border-amber-100 rounded-lg px-2.5 py-1.5">
                                                                 <Mail size={11} className="shrink-0" />
-                                                                <span className="italic">No email set</span>
+                                                                <span className="italic font-medium">No email on file</span>
                                                             </div>
                                                         )}
-                                                        <div className="flex items-center gap-1.5 text-[11px]">
+                                                        <div className="flex items-center gap-2 text-[11px] bg-slate-50/70 border border-slate-100 rounded-lg px-2.5 py-1.5">
                                                             <Hash size={11} className="shrink-0 text-slate-400" />
-                                                            <code className="font-mono text-slate-500 truncate flex-1">{client.access_key}</code>
+                                                            <code className="font-mono text-slate-600 truncate flex-1 text-[10.5px]">{client.access_key}</code>
                                                             <button
                                                                 onClick={() => copyAccessKey(client.access_key)}
-                                                                className="shrink-0 p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+                                                                className={`shrink-0 w-6 h-6 flex items-center justify-center rounded-md transition-all ${
+                                                                    isCopied
+                                                                        ? 'bg-emerald-100 text-emerald-600'
+                                                                        : 'bg-white border border-slate-200 text-slate-400 hover:text-slate-700 hover:border-slate-300'
+                                                                }`}
                                                                 title={isCopied ? 'Copied!' : 'Copy access key'}
                                                             >
-                                                                {isCopied ? <Check size={11} className="text-emerald-500" /> : <Copy size={11} />}
+                                                                {isCopied ? <Check size={11} strokeWidth={3} /> : <Copy size={11} />}
                                                             </button>
                                                         </div>
                                                     </div>
                                                 </div>
 
-                                                {/* Stats row */}
-                                                <div className="grid grid-cols-3 divide-x divide-slate-100 border-t border-slate-100 bg-slate-50/50">
-                                                    <div className="p-2.5 text-center">
-                                                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Projects</p>
-                                                        <p className="text-sm font-bold text-slate-900 mt-0.5">
-                                                            {client.stats.projectCount}
-                                                            {hasProjects && <span className="text-[10px] text-slate-400 font-normal ml-0.5">/{client.stats.completedProjects}✓</span>}
-                                                        </p>
+                                                {/* STATS CHIPS */}
+                                                <div className="px-5 pb-4 flex items-center gap-2 flex-wrap">
+                                                    <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 border border-blue-100 px-2 py-1 rounded-lg">
+                                                        <Briefcase size={11} />
+                                                        <span className="text-[11px] font-bold tabular-nums">{client.stats.projectCount}</span>
+                                                        <span className="text-[10px] text-blue-500/70 font-medium">
+                                                            {hasProjects ? `· ${client.stats.completedProjects} done` : 'projects'}
+                                                        </span>
                                                     </div>
-                                                    <div className="p-2.5 text-center">
-                                                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Value</p>
-                                                        <p className="text-sm font-bold text-slate-900 mt-0.5">
-                                                            {client.stats.totalValue > 0 ? `₹${(client.stats.totalValue / 1000).toFixed(client.stats.totalValue >= 100000 ? 0 : 1)}k` : '—'}
-                                                        </p>
-                                                    </div>
-                                                    <div className="p-2.5 text-center">
-                                                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Paid</p>
-                                                        <p className={`text-sm font-bold mt-0.5 ${client.stats.totalValue > 0 && client.stats.paidValue === client.stats.totalValue ? 'text-emerald-600' : 'text-slate-900'}`}>
-                                                            {client.stats.totalValue > 0 ? `${Math.round((client.stats.paidValue / client.stats.totalValue) * 100)}%` : '—'}
-                                                        </p>
-                                                    </div>
+                                                    {client.stats.totalValue > 0 && (
+                                                        <div className="flex items-center gap-1.5 bg-slate-50 text-slate-700 border border-slate-200 px-2 py-1 rounded-lg">
+                                                            <CreditCard size={11} className="text-slate-500" />
+                                                            <span className="text-[11px] font-bold tabular-nums">
+                                                                ₹{(client.stats.totalValue / 1000).toFixed(client.stats.totalValue >= 100000 ? 0 : 1)}k
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                    {client.stats.totalValue > 0 && (
+                                                        <div className={`flex items-center gap-1.5 border px-2 py-1 rounded-lg ${
+                                                            isFullyPaid
+                                                                ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                                                : paidPctClient >= 50
+                                                                    ? 'bg-sky-50 text-sky-700 border-sky-100'
+                                                                    : 'bg-amber-50 text-amber-700 border-amber-100'
+                                                        }`}>
+                                                            <TrendingUp size={11} />
+                                                            <span className="text-[11px] font-bold tabular-nums">{paidPctClient}%</span>
+                                                            <span className="text-[10px] opacity-70 font-medium">paid</span>
+                                                        </div>
+                                                    )}
                                                 </div>
 
-                                                {/* Progress bar */}
+                                                {/* PROGRESS */}
                                                 {hasProjects && (
-                                                    <div className="px-4 sm:px-5 py-2.5 bg-white border-t border-slate-100">
-                                                        <div className="flex items-center justify-between text-[10px] mb-1">
-                                                            <span className="font-bold text-slate-400 uppercase tracking-wider">Progress</span>
-                                                            <span className="font-bold text-slate-600">{client.stats.progress}%</span>
+                                                    <div className="px-5 pb-4">
+                                                        <div className="flex items-center justify-between text-[10px] mb-1.5">
+                                                            <span className="font-bold text-slate-400 uppercase tracking-widest">Progress</span>
+                                                            <span className="font-black text-slate-700 tabular-nums text-xs">{client.stats.progress}%</span>
                                                         </div>
-                                                        <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                                                            <div
-                                                                className={`h-full rounded-full transition-all duration-700 ${client.stats.progress === 100 ? 'bg-emerald-500' : 'bg-gradient-to-r from-blue-500 to-purple-500'}`}
-                                                                style={{ width: `${client.stats.progress}%` }}
+                                                        <div className="relative h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                                                            <motion.div
+                                                                initial={{ width: 0 }}
+                                                                animate={{ width: `${client.stats.progress}%` }}
+                                                                transition={{ duration: 0.8, ease: 'easeOut', delay: 0.1 + idx * 0.03 }}
+                                                                className={`absolute inset-y-0 left-0 rounded-full ${
+                                                                    client.stats.progress === 100
+                                                                        ? 'bg-gradient-to-r from-emerald-400 to-emerald-500'
+                                                                        : `bg-gradient-to-r ${gradient}`
+                                                                }`}
                                                             />
                                                         </div>
                                                     </div>
                                                 )}
 
-                                                {/* Actions */}
-                                                <div className="flex gap-2 p-3 sm:p-4 pt-2 sm:pt-3 border-t border-slate-100 bg-white">
+                                                {/* ACTIONS */}
+                                                <div className="mt-auto flex gap-2 px-4 pb-4">
                                                     <button
                                                         onClick={() => handleClientSelect(client)}
-                                                        className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg text-xs sm:text-sm transition-colors active:bg-blue-800 flex items-center justify-center gap-1.5"
+                                                        className="flex-1 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl text-[13px] transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-sm"
                                                     >
-                                                        <FolderPlus size={13} />
+                                                        <FolderPlus size={14} />
                                                         View Projects
+                                                        <ArrowRight size={13} className="opacity-60 group-hover:translate-x-0.5 transition-transform" />
                                                     </button>
                                                     <button
                                                         onClick={() => handleViewActivity(client)}
-                                                        className="py-2 px-3 bg-violet-50 hover:bg-violet-100 text-violet-600 font-semibold rounded-lg text-xs sm:text-sm transition-colors active:bg-violet-200 flex items-center gap-1.5 border border-violet-100"
+                                                        className="py-2.5 px-3 bg-white hover:bg-violet-50 text-violet-600 font-semibold rounded-xl text-[13px] transition-colors flex items-center gap-1.5 border border-slate-200 hover:border-violet-200"
                                                         title="Activity log & notifications"
                                                     >
-                                                        <Activity size={13} />
-                                                        <span className="hidden sm:inline">Activity</span>
+                                                        <Activity size={14} />
                                                     </button>
                                                 </div>
                                             </motion.div>
