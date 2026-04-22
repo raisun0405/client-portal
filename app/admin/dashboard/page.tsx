@@ -1934,7 +1934,7 @@ export default function AdminDashboard() {
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: 50, scale: 0.98 }}
                             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                            className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden max-h-[90vh] sm:max-h-[85vh] flex flex-col"
+                            className="bg-white text-slate-900 font-sans w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden max-h-[90vh] sm:max-h-[85vh] flex flex-col"
                         >
                             <div className="px-5 sm:px-6 py-3.5 sm:py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
                                 <h3 className="font-semibold text-sm sm:text-base">{(editingId || editingLinkIndex !== null) ? 'Edit' : 'Add New'} {view === 'clients' ? 'Client' : view === 'projects' ? 'Project' : view === 'links' ? 'Link' : 'Feature'}</h3>
@@ -1947,15 +1947,15 @@ export default function AdminDashboard() {
                                     <div className="space-y-3">
                                         <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-1">Client Name</label>
-                                            <input value={formData.name || ''} placeholder="Enter client name" className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, name: e.target.value })} />
+                                            <input value={formData.name || ''} autoComplete="off" data-form-type="other" placeholder="Enter client name" className="w-full p-2 border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, name: e.target.value })} />
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-1">Access Key (Unique ID)</label>
-                                            <input value={formData.access_key || ''} placeholder="Enter unique access key" className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, access_key: e.target.value })} />
+                                            <input value={formData.access_key || ''} autoComplete="off" data-form-type="other" placeholder="Enter unique access key" className="w-full p-2 border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, access_key: e.target.value })} />
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-1">Client Email (Optional)</label>
-                                            <input value={formData.email || ''} type="email" placeholder="e.g. client@example.com" className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, email: e.target.value })} />
+                                            <input value={formData.email || ''} type="email" autoComplete="off" data-form-type="other" placeholder="e.g. client@example.com" className="w-full p-2 border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, email: e.target.value })} />
                                             <p className="text-[11px] text-slate-400 mt-1">Required for sending email notifications</p>
                                         </div>
                                     </div>
