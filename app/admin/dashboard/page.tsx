@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logActivity, type ActivityLog } from '@/lib/activityLogger';
 import { sendNotification, sendDigestNotification } from '@/lib/notifications';
-import { Users, Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut, ArrowUp, ArrowDown, Calendar, Mail, MailCheck, Send, CheckCircle2, Clock, Zap, CreditCard, FileText, Link2, Activity, RefreshCw, PackagePlus, ArrowRight, EyeOff, Eye, Search, Copy, Check, Briefcase, TrendingUp, Hash, UserPlus } from 'lucide-react';
+import { Users, Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut, ArrowUp, ArrowDown, Calendar, Mail, MailCheck, Send, CheckCircle2, Clock, Zap, CreditCard, FileText, Link2, Activity, RefreshCw, PackagePlus, ArrowRight, EyeOff, Eye, Search, Copy, Check, Briefcase, TrendingUp, Hash, UserPlus, SlidersHorizontal, MoreHorizontal, ArrowUpRight, CircleDashed, Wallet } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 
@@ -80,6 +80,8 @@ export default function AdminDashboard() {
     const [clientSearch, setClientSearch] = useState('');
     const [clientSort, setClientSort] = useState<ClientSortField>('recent');
     const [copiedKey, setCopiedKey] = useState<string | null>(null);
+    const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+    const [sortOpen, setSortOpen] = useState(false);
     const [projects, setProjects] = useState<ProjectWithStats[]>([]);
     const [features, setFeatures] = useState<Feature[]>([]);
     const [links, setLinks] = useState<{ title: string; url: string }[]>([]);
@@ -121,6 +123,27 @@ export default function AdminDashboard() {
         };
         checkAuth();
     }, [router]);
+
+    // Close dropdown menus on outside click / escape
+    useEffect(() => {
+        if (!openMenuId && !sortOpen) return;
+        const handleClick = (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            if (!target.closest('[data-menu-root]')) {
+                setOpenMenuId(null);
+                setSortOpen(false);
+            }
+        };
+        const handleEsc = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') { setOpenMenuId(null); setSortOpen(false); }
+        };
+        document.addEventListener('mousedown', handleClick);
+        document.addEventListener('keydown', handleEsc);
+        return () => {
+            document.removeEventListener('mousedown', handleClick);
+            document.removeEventListener('keydown', handleEsc);
+        };
+    }, [openMenuId, sortOpen]);
 
     // --- Remote Fetchers ---
     const fetchClients = async () => {
@@ -876,54 +899,54 @@ export default function AdminDashboard() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-900 font-sans">
-            <header className="bg-white/80 backdrop-blur-xl border-b border-slate-200/70 px-4 sm:px-6 py-3 sm:py-4 sticky top-0 z-20">
-                <div className="flex items-center justify-between gap-2 max-w-7xl mx-auto">
-                    <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                        {view !== 'clients' && (
+        <div className={`min-h-screen font-inter antialiased selection:bg-indigo-500/30 ${view === 'clients' ? 'bg-[#09090b] text-zinc-100' : 'bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-900 font-sans'}`}>
+            {/* Premium Google Fonts (Outfit for headings, Inter for body) */}
+            <style>{`
+                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@400;500;600;700&display=swap');
+                .font-outfit { font-family: 'Outfit', system-ui, sans-serif; }
+                .font-inter { font-family: 'Inter', system-ui, sans-serif; }
+            `}</style>
+            {view !== 'clients' && (
+                <header className="bg-white/80 backdrop-blur-xl border-b border-slate-200/70 px-4 sm:px-6 py-3 sm:py-4 sticky top-0 z-20">
+                    <div className="flex items-center justify-between gap-2 max-w-7xl mx-auto">
+                        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                             <button onClick={handleBack} className="p-1.5 sm:p-2 hover:bg-slate-100 rounded-full transition-colors shrink-0">
                                 <ArrowLeft size={18} className="sm:w-5 sm:h-5" />
                             </button>
-                        )}
-                        {view === 'clients' && (
-                            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-500 flex items-center justify-center text-white shadow-md shadow-violet-200/60 shrink-0">
-                                <Users size={18} />
-                            </div>
-                        )}
-                        <div className="min-w-0">
-                            <h1 className="font-black text-base sm:text-lg tracking-tight">Admin Dashboard</h1>
-                            <p className="text-[11px] sm:text-xs text-slate-500 truncate max-w-[200px] sm:max-w-none">
-                                {view === 'clients' ? 'Manage all clients and portfolio' :
-                                    view === 'projects' ? `Projects for ${selectedClient?.name}` :
+                            <div className="min-w-0">
+                                <h1 className="font-black text-base sm:text-lg tracking-tight">Admin Dashboard</h1>
+                                <p className="text-[11px] sm:text-xs text-slate-500 truncate max-w-[200px] sm:max-w-none">
+                                    {view === 'projects' ? `Projects for ${selectedClient?.name}` :
                                         view === 'links' ? `Links for ${selectedProject?.description}` :
                                             view === 'activity' ? `Activity Log for ${selectedClient?.name}` :
                                                 `Features for ${selectedProject?.description?.substring(0, 20)}...`}
-                            </p>
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                            {view !== 'activity' && (
+                                <button
+                                    onClick={() => { setFormData({}); setEditingId(null); setEditingLinkIndex(null); setShowModal(true); }}
+                                    className="bg-slate-900 hover:bg-slate-800 text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1.5 sm:gap-2 transition-all active:scale-[0.97] shadow-sm"
+                                >
+                                    <Plus size={14} className="sm:w-4 sm:h-4" strokeWidth={2.5} />
+                                    <span className="hidden sm:inline">{view === 'projects' ? 'Add Project' : view === 'links' ? 'Add Link' : 'Add Feature'}</span>
+                                    <span className="sm:hidden">Add</span>
+                                </button>
+                            )}
+                            <button
+                                onClick={async () => { await supabaseAdmin.auth.signOut(); router.push('/admin'); }}
+                                className="p-2 sm:p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                                title="Logout"
+                            >
+                                <LogOut size={18} className="sm:w-5 sm:h-5" />
+                            </button>
                         </div>
                     </div>
-                    <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                        {view !== 'activity' && (
-                            <button
-                                onClick={() => { setFormData({}); setEditingId(null); setEditingLinkIndex(null); setShowModal(true); }}
-                                className="bg-slate-900 hover:bg-slate-800 text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1.5 sm:gap-2 transition-all active:scale-[0.97] shadow-sm"
-                            >
-                                <Plus size={14} className="sm:w-4 sm:h-4" strokeWidth={2.5} />
-                                <span className="hidden sm:inline">{view === 'clients' ? 'Add Client' : view === 'projects' ? 'Add Project' : view === 'links' ? 'Add Link' : 'Add Feature'}</span>
-                                <span className="sm:hidden">Add</span>
-                            </button>
-                        )}
-                        <button
-                            onClick={async () => { await supabaseAdmin.auth.signOut(); router.push('/admin'); }}
-                            className="p-2 sm:p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
-                            title="Logout"
-                        >
-                            <LogOut size={18} className="sm:w-5 sm:h-5" />
-                        </button>
-                    </div>
-                </div>
-            </header>
+                </header>
+            )}
 
-            <main className={`${view === 'clients' ? 'max-w-7xl' : 'max-w-5xl'} mx-auto p-4 sm:p-6`}>
+            <main className={`${view === 'clients' ? 'max-w-7xl p-4 md:p-8' : 'max-w-5xl p-4 sm:p-6'} mx-auto`}>
                 {loading && (
                     <div className="flex flex-col items-center justify-center py-20">
                         <div className="flex items-center gap-2 mb-4">
@@ -940,6 +963,7 @@ export default function AdminDashboard() {
                     // Overall portfolio stats
                     const totalClients = clients.length;
                     const totalProjects = clients.reduce((a, c) => a + c.stats.projectCount, 0);
+                    const activeProjects = clients.reduce((a, c) => a + (c.stats.projectCount - c.stats.completedProjects), 0);
                     const totalValue = clients.reduce((a, c) => a + c.stats.totalValue, 0);
                     const totalPaid = clients.reduce((a, c) => a + c.stats.paidValue, 0);
                     const totalPending = Math.max(totalValue - totalPaid, 0);
@@ -962,329 +986,363 @@ export default function AdminDashboard() {
                         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
                     });
 
-                    // Per-client gradient palette (consistent by name hash)
-                    const gradients = [
-                        'from-violet-500 via-purple-500 to-fuchsia-500',
-                        'from-blue-500 via-cyan-500 to-teal-500',
-                        'from-rose-500 via-pink-500 to-purple-500',
-                        'from-amber-500 via-orange-500 to-red-500',
-                        'from-emerald-500 via-teal-500 to-cyan-500',
-                        'from-indigo-500 via-blue-500 to-sky-500',
-                        'from-fuchsia-500 via-pink-500 to-rose-500',
-                        'from-lime-500 via-green-500 to-emerald-500',
+                    // Per-client gradient palette + matching text color for progress
+                    const palettes = [
+                        { gradient: 'from-orange-500 to-amber-500', text: 'text-orange-400' },
+                        { gradient: 'from-pink-500 to-rose-500', text: 'text-pink-400' },
+                        { gradient: 'from-blue-500 to-indigo-500', text: 'text-blue-400' },
+                        { gradient: 'from-emerald-400 to-teal-500', text: 'text-emerald-400' },
+                        { gradient: 'from-violet-500 to-purple-500', text: 'text-violet-400' },
+                        { gradient: 'from-cyan-500 to-sky-500', text: 'text-cyan-400' },
+                        { gradient: 'from-fuchsia-500 to-pink-500', text: 'text-fuchsia-400' },
+                        { gradient: 'from-yellow-500 to-orange-500', text: 'text-yellow-400' },
                     ];
-                    const gradientFor = (name: string) => {
+                    const paletteFor = (name: string) => {
                         let hash = 0;
                         for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
-                        return gradients[hash % gradients.length];
+                        return palettes[hash % palettes.length];
                     };
 
+                    const sortLabels: Record<ClientSortField, string> = {
+                        recent: 'Recently Added',
+                        name: 'Name (A–Z)',
+                        projects: 'Most Projects',
+                        value: 'Highest Value',
+                    };
+                    const formatK = (n: number) => n >= 100000 ? `₹${(n / 1000).toFixed(0)}k` : n >= 1000 ? `₹${(n / 1000).toFixed(1)}k` : `₹${n}`;
+
                     return (
-                        <div className="space-y-6">
-                            {/* ===== PORTFOLIO STATS ===== */}
-                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                                {/* Clients */}
-                                <motion.div
-                                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0 }}
-                                    className="relative overflow-hidden bg-white rounded-2xl border border-slate-200/70 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 p-5 group"
-                                >
-                                    <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-gradient-to-br from-violet-100 to-purple-50 opacity-60 group-hover:scale-125 transition-transform duration-500" />
-                                    <div className="relative">
-                                        <div className="flex items-center justify-between mb-3">
-                                            <div className="p-2 bg-gradient-to-br from-violet-500 to-purple-600 text-white rounded-xl shadow-md shadow-violet-200">
-                                                <Users size={16} />
-                                            </div>
-                                            <span className="text-[9px] font-bold text-violet-600 bg-violet-50 border border-violet-100 px-1.5 py-0.5 rounded-full uppercase tracking-wider">Active</span>
-                                        </div>
-                                        <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-widest">Clients</p>
-                                        <p className="text-2xl sm:text-3xl font-black text-slate-900 mt-1 tabular-nums">{totalClients}</p>
-                                        <p className="text-[11px] text-slate-500 mt-1">
-                                            <span className="font-semibold text-slate-700">{clientsWithEmail}</span> with email on file
-                                        </p>
-                                    </div>
-                                </motion.div>
+                        <div className="space-y-8">
+                            {/* ===== HEADER ===== */}
+                            <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-zinc-800/60">
+                                <div>
+                                    <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-white mb-1 font-outfit">
+                                        Admin Overview
+                                    </h1>
+                                    <p className="text-zinc-400 text-sm">
+                                        Manage your clients, projects, and financial portfolio.
+                                    </p>
+                                </div>
+                                <div className="flex items-center gap-2 self-end md:self-auto">
+                                    <button
+                                        onClick={async () => { await supabaseAdmin.auth.signOut(); router.push('/admin'); }}
+                                        className="p-2.5 text-zinc-400 hover:text-red-400 hover:bg-zinc-900 border border-transparent hover:border-zinc-800 rounded-lg transition-colors"
+                                        title="Logout"
+                                    >
+                                        <LogOut size={18} />
+                                    </button>
+                                    <button
+                                        onClick={() => { setFormData({}); setEditingId(null); setEditingLinkIndex(null); setShowModal(true); }}
+                                        className="bg-white hover:bg-zinc-100 text-zinc-900 px-5 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all shadow-[0_0_20px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_25px_-5px_rgba(255,255,255,0.5)] active:scale-95"
+                                    >
+                                        <Plus size={16} strokeWidth={2.5} />
+                                        New Client
+                                    </button>
+                                </div>
+                            </header>
 
-                                {/* Projects */}
-                                <motion.div
-                                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
-                                    className="relative overflow-hidden bg-white rounded-2xl border border-slate-200/70 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 p-5 group"
-                                >
-                                    <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-gradient-to-br from-blue-100 to-cyan-50 opacity-60 group-hover:scale-125 transition-transform duration-500" />
-                                    <div className="relative">
-                                        <div className="flex items-center justify-between mb-3">
-                                            <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-600 text-white rounded-xl shadow-md shadow-blue-200">
-                                                <Briefcase size={16} />
-                                            </div>
-                                            <span className="text-[9px] font-bold text-blue-600 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-full uppercase tracking-wider">Total</span>
-                                        </div>
-                                        <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-widest">Projects</p>
-                                        <p className="text-2xl sm:text-3xl font-black text-slate-900 mt-1 tabular-nums">{totalProjects}</p>
-                                        <p className="text-[11px] text-slate-500 mt-1">
-                                            across <span className="font-semibold text-slate-700">{totalClients}</span> {totalClients === 1 ? 'client' : 'clients'}
-                                        </p>
-                                    </div>
-                                </motion.div>
+                            {/* ===== BENTO STATS GRID ===== */}
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                                {/* Main Financial Card (spans 2 columns on desktop) */}
+                                <div className="lg:col-span-2 bg-gradient-to-br from-zinc-900 to-[#121217] border border-zinc-800/80 rounded-2xl p-6 md:p-8 relative overflow-hidden group shadow-lg">
+                                    <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-indigo-500/10 rounded-full blur-[80px] -mr-[100px] -mt-[100px] pointer-events-none group-hover:bg-indigo-500/20 transition-colors duration-700" />
 
-                                {/* Collected */}
-                                <motion.div
-                                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-                                    className="relative overflow-hidden bg-white rounded-2xl border border-slate-200/70 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 p-5 group"
-                                >
-                                    <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-gradient-to-br from-emerald-100 to-teal-50 opacity-60 group-hover:scale-125 transition-transform duration-500" />
-                                    <div className="relative">
-                                        <div className="flex items-center justify-between mb-3">
-                                            <div className="p-2 bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-xl shadow-md shadow-emerald-200">
-                                                <TrendingUp size={16} />
-                                            </div>
-                                            <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-full uppercase tracking-wider tabular-nums">{paidPct}%</span>
+                                    <div className="flex items-center gap-3 mb-8 md:mb-12 relative z-10">
+                                        <div className="p-2.5 bg-zinc-800/80 rounded-xl border border-zinc-700/50 shadow-sm backdrop-blur-sm">
+                                            <Wallet size={20} className="text-indigo-400" />
                                         </div>
-                                        <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-widest">Collected</p>
-                                        <p className="text-2xl sm:text-3xl font-black text-emerald-600 mt-1 tabular-nums">₹{totalPaid.toLocaleString('en-IN')}</p>
-                                        <p className="text-[11px] text-slate-500 mt-1 tabular-nums">
-                                            of ₹{totalValue.toLocaleString('en-IN')}
-                                        </p>
+                                        <h2 className="text-zinc-400 font-semibold text-xs tracking-widest uppercase">Total Collected</h2>
                                     </div>
-                                </motion.div>
 
-                                {/* Pending */}
-                                <motion.div
-                                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-                                    className="relative overflow-hidden bg-white rounded-2xl border border-slate-200/70 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 p-5 group"
-                                >
-                                    <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-gradient-to-br from-amber-100 to-orange-50 opacity-60 group-hover:scale-125 transition-transform duration-500" />
-                                    <div className="relative">
-                                        <div className="flex items-center justify-between mb-3">
-                                            <div className="p-2 bg-gradient-to-br from-amber-500 to-orange-600 text-white rounded-xl shadow-md shadow-amber-200">
-                                                <Clock size={16} />
+                                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 relative z-10">
+                                        <div>
+                                            <div className="flex items-center gap-3 mb-2">
+                                                <div className="text-4xl sm:text-5xl md:text-6xl font-bold text-white tracking-tight font-outfit drop-shadow-md tabular-nums">
+                                                    ₹{totalPaid.toLocaleString('en-IN')}
+                                                </div>
                                             </div>
-                                            <span className="text-[9px] font-bold text-amber-600 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-full uppercase tracking-wider">Due</span>
+                                            <div className="flex items-center gap-2 text-sm flex-wrap">
+                                                <span className="text-zinc-400 font-medium tabular-nums">of ₹{totalValue.toLocaleString('en-IN')}</span>
+                                                <span className="inline-flex items-center gap-1 bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded text-xs font-semibold border border-emerald-500/20 backdrop-blur-md tabular-nums">
+                                                    <ArrowUpRight size={14} /> {paidPct}%
+                                                </span>
+                                            </div>
                                         </div>
-                                        <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-widest">Pending</p>
-                                        <p className="text-2xl sm:text-3xl font-black text-amber-600 mt-1 tabular-nums">₹{totalPending.toLocaleString('en-IN')}</p>
-                                        <p className="text-[11px] text-slate-500 mt-1">awaiting payment</p>
+
+                                        {/* Pending Dues Box */}
+                                        <div className="bg-zinc-950/60 backdrop-blur-md border border-zinc-800/80 rounded-2xl p-5 min-w-[200px] relative overflow-hidden w-full md:w-auto">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div className="text-zinc-500 text-xs font-bold uppercase tracking-wider">Pending Dues</div>
+                                            </div>
+                                            <div className="text-2xl font-bold text-amber-400 font-outfit tracking-tight relative z-10 tabular-nums">₹{totalPending.toLocaleString('en-IN')}</div>
+                                            <div className="text-[11px] text-zinc-500 mt-1">awaiting payment</div>
+                                        </div>
                                     </div>
-                                </motion.div>
+                                </div>
+
+                                {/* Secondary Stats */}
+                                <div className="flex flex-col gap-5">
+                                    <div className="bg-zinc-900 border border-zinc-800/80 rounded-2xl p-6 flex-1 flex flex-col justify-center relative overflow-hidden shadow-lg group hover:border-zinc-700 transition-colors">
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none group-hover:bg-blue-500/20 transition-colors duration-500" />
+                                        <div className="flex items-center justify-between mb-4 relative z-10">
+                                            <h2 className="text-zinc-400 font-medium text-sm">Total Clients</h2>
+                                            <Users size={18} className="text-blue-400" />
+                                        </div>
+                                        <div className="relative z-10">
+                                            <div className="text-4xl font-bold text-white mb-1 font-outfit tracking-tight tabular-nums">{totalClients}</div>
+                                            <div className="text-zinc-500 text-xs font-medium">{clientsWithEmail} with email on file</div>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-zinc-900 border border-zinc-800/80 rounded-2xl p-6 flex-1 flex flex-col justify-center relative overflow-hidden shadow-lg group hover:border-zinc-700 transition-colors">
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-pink-500/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none group-hover:bg-pink-500/20 transition-colors duration-500" />
+                                        <div className="flex items-center justify-between mb-4 relative z-10">
+                                            <h2 className="text-zinc-400 font-medium text-sm">Active Projects</h2>
+                                            <Briefcase size={18} className="text-pink-400" />
+                                        </div>
+                                        <div className="relative z-10">
+                                            <div className="text-4xl font-bold text-white mb-1 font-outfit tracking-tight tabular-nums">{totalProjects}</div>
+                                            <div className="text-zinc-500 text-xs font-medium">{activeProjects} in progress · across {totalClients} {totalClients === 1 ? 'client' : 'clients'}</div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
-                            {/* ===== SEARCH + SORT BAR ===== */}
-                            <div className="bg-white rounded-2xl border border-slate-200/70 shadow-sm p-2 flex flex-col sm:flex-row gap-2 sm:gap-2 sm:items-center">
-                                <div className="relative flex-1">
-                                    <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                            {/* ===== TOOLBAR ===== */}
+                            <div className="flex flex-col sm:flex-row gap-3">
+                                <div className="relative flex-1 group">
+                                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-indigo-400 transition-colors" size={18} />
                                     <input
+                                        type="text"
+                                        placeholder="Search clients by name, email, or key..."
+                                        className="w-full bg-zinc-900 border border-zinc-800 hover:border-zinc-700 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 rounded-xl pl-10 pr-10 py-2.5 text-sm text-zinc-200 outline-none transition-all placeholder:text-zinc-600 font-inter"
                                         value={clientSearch}
-                                        onChange={e => setClientSearch(e.target.value)}
-                                        placeholder="Search by name, email, or access key…"
-                                        className="w-full pl-10 pr-10 py-2.5 text-sm bg-slate-50 border border-transparent rounded-xl placeholder:text-slate-400 focus:ring-2 focus:ring-violet-500/30 focus:border-violet-300 focus:bg-white outline-none transition-all"
+                                        onChange={(e) => setClientSearch(e.target.value)}
                                     />
                                     {clientSearch && (
                                         <button
                                             type="button"
                                             onClick={() => setClientSearch('')}
-                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full bg-slate-200 text-slate-500 hover:bg-slate-300 hover:text-slate-700 transition-colors"
+                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 transition-colors"
                                             aria-label="Clear search"
                                         >
                                             <X size={12} strokeWidth={3} />
                                         </button>
                                     )}
                                 </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest hidden sm:block pl-1">Sort</span>
-                                    <select
-                                        value={clientSort}
-                                        onChange={e => setClientSort(e.target.value as ClientSortField)}
-                                        className="text-sm font-medium bg-slate-50 border border-transparent rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-violet-500/30 focus:border-violet-300 focus:bg-white outline-none cursor-pointer flex-1 sm:flex-none"
+                                {/* Sort dropdown (styled like Filters in the mockup) */}
+                                <div className="relative" data-menu-root>
+                                    <button
+                                        onClick={() => setSortOpen(o => !o)}
+                                        className="w-full sm:w-auto flex items-center justify-center gap-2 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors"
                                     >
-                                        <option value="recent">Recently Added</option>
-                                        <option value="name">Name (A–Z)</option>
-                                        <option value="projects">Most Projects</option>
-                                        <option value="value">Highest Value</option>
-                                    </select>
+                                        <SlidersHorizontal size={16} />
+                                        <span>Sort: {sortLabels[clientSort]}</span>
+                                    </button>
+                                    {sortOpen && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: -4 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            className="absolute right-0 top-full mt-2 w-52 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl shadow-black/40 z-30 overflow-hidden"
+                                        >
+                                            {(['recent', 'name', 'projects', 'value'] as ClientSortField[]).map(key => (
+                                                <button
+                                                    key={key}
+                                                    onClick={() => { setClientSort(key); setSortOpen(false); }}
+                                                    className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                                                        clientSort === key
+                                                            ? 'bg-zinc-800 text-white font-medium'
+                                                            : 'text-zinc-300 hover:bg-zinc-800/70'
+                                                    }`}
+                                                >
+                                                    {sortLabels[key]}
+                                                </button>
+                                            ))}
+                                        </motion.div>
+                                    )}
                                 </div>
-                                {q && (
-                                    <span className="text-[11px] text-slate-400 font-medium px-2 shrink-0">
-                                        {filtered.length} {filtered.length === 1 ? 'result' : 'results'}
-                                    </span>
-                                )}
                             </div>
 
-                            {/* ===== CLIENT GRID ===== */}
+                            {/* ===== CLIENTS LIST VIEW ===== */}
                             {filtered.length === 0 ? (
-                                <div className="bg-white rounded-2xl border border-dashed border-slate-300 py-20 text-center">
-                                    <div className="inline-flex p-5 bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl mb-4">
-                                        {clients.length === 0 ? <UserPlus size={32} className="text-slate-400" /> : <Search size={32} className="text-slate-400" />}
+                                <div className="bg-zinc-900/50 border border-dashed border-zinc-800 rounded-2xl py-20 text-center">
+                                    <div className="inline-flex p-5 bg-zinc-900 border border-zinc-800 rounded-2xl mb-4">
+                                        {clients.length === 0 ? <UserPlus size={32} className="text-zinc-500" /> : <Search size={32} className="text-zinc-500" />}
                                     </div>
-                                    <p className="text-base font-bold text-slate-700">
+                                    <p className="text-base font-bold text-zinc-200 font-outfit">
                                         {clients.length === 0 ? 'No clients yet' : 'No matches found'}
                                     </p>
-                                    <p className="text-sm text-slate-400 mt-1 px-4 max-w-sm mx-auto">
+                                    <p className="text-sm text-zinc-500 mt-1 px-4 max-w-sm mx-auto">
                                         {clients.length === 0
-                                            ? 'Click "Add Client" in the top right to create your first client.'
+                                            ? 'Click "New Client" in the top right to create your first client.'
                                             : `Nothing matches "${clientSearch}". Try a different search term.`}
                                     </p>
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
-                                    {filtered.map((client, idx) => {
-                                        const isCopied = copiedKey === client.access_key;
-                                        const hasProjects = client.stats.projectCount > 0;
-                                        const gradient = gradientFor(client.name);
-                                        const paidPctClient = client.stats.totalValue > 0
-                                            ? Math.round((client.stats.paidValue / client.stats.totalValue) * 100)
-                                            : 0;
-                                        const isFullyPaid = client.stats.totalValue > 0 && client.stats.paidValue >= client.stats.totalValue;
-                                        return (
-                                            <motion.div
-                                                layout
-                                                key={client.id}
-                                                initial={{ opacity: 0, y: 12 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                transition={{ delay: idx * 0.04, duration: 0.3, ease: 'easeOut' }}
-                                                className="relative bg-white rounded-2xl border border-slate-200/70 shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-slate-300 transition-all duration-300 flex flex-col group overflow-hidden"
-                                            >
-                                                {/* Gradient accent stripe */}
-                                                <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${gradient}`} />
+                                <div className="bg-zinc-900/50 border border-zinc-800/80 rounded-2xl overflow-hidden">
+                                    {/* Table Header (desktop only) */}
+                                    <div className="hidden lg:grid grid-cols-12 gap-4 px-6 py-3 bg-zinc-900 border-b border-zinc-800 text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                                        <div className="col-span-3">Client Details</div>
+                                        <div className="col-span-2">Access Key</div>
+                                        <div className="col-span-2">Projects</div>
+                                        <div className="col-span-2">Financials</div>
+                                        <div className="col-span-2">Progress</div>
+                                        <div className="col-span-1 text-right">Actions</div>
+                                    </div>
 
-                                                {/* HERO */}
-                                                <div className="relative p-5 pb-4">
-                                                    {/* Soft gradient glow bg */}
-                                                    <div className={`absolute -right-8 -top-8 w-32 h-32 rounded-full bg-gradient-to-br ${gradient} opacity-[0.08] blur-2xl group-hover:opacity-[0.14] transition-opacity duration-500`} />
+                                    {/* List Items */}
+                                    <div className="divide-y divide-zinc-800/60">
+                                        {filtered.map((client, idx) => {
+                                            const isCopied = copiedKey === client.access_key;
+                                            const palette = paletteFor(client.name);
+                                            const paidPctClient = client.stats.totalValue > 0
+                                                ? Math.round((client.stats.paidValue / client.stats.totalValue) * 100)
+                                                : 0;
+                                            const hasProjects = client.stats.projectCount > 0;
+                                            const progress = client.stats.progress;
 
-                                                    <div className="relative flex items-start justify-between gap-3">
-                                                        <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                                                            <div className={`relative w-12 h-12 rounded-2xl bg-gradient-to-br ${gradient} text-white flex items-center justify-center font-black text-lg shadow-lg shadow-slate-200/60 shrink-0 ring-1 ring-white/30`}>
-                                                                <span className="drop-shadow-sm">{client.name.charAt(0).toUpperCase()}</span>
-                                                            </div>
-                                                            <div className="min-w-0 flex-1">
-                                                                <h3 className="font-bold text-slate-900 text-base leading-tight truncate">{client.name}</h3>
-                                                                <div className="flex items-center gap-1.5 mt-1">
-                                                                    <Calendar size={10} className="text-slate-400 shrink-0" />
-                                                                    <span className="text-[11px] text-slate-500 font-medium truncate">
-                                                                        {new Date(client.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                                                    </span>
-                                                                    {isFullyPaid && (
-                                                                        <span className="ml-1 inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">
-                                                                            <CheckCircle2 size={8} />PAID
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                            </div>
+                                            return (
+                                                <motion.div
+                                                    key={client.id}
+                                                    initial={{ opacity: 0, y: 6 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    transition={{ delay: idx * 0.03, duration: 0.25 }}
+                                                    className="group grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-4 items-center p-5 lg:px-6 hover:bg-zinc-800/30 transition-colors"
+                                                >
+                                                    {/* 1. Profile */}
+                                                    <div className="col-span-1 lg:col-span-3 flex items-center gap-4 min-w-0">
+                                                        <div className={`shrink-0 w-12 h-12 rounded-full bg-gradient-to-br ${palette.gradient} flex items-center justify-center text-white font-bold shadow-lg font-outfit text-lg`}>
+                                                            {client.name.charAt(0).toUpperCase()}
                                                         </div>
-                                                        <div className="flex gap-0.5 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                                                            <button onClick={() => handleEditClient(client)} className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors" title="Edit client">
-                                                                <Pencil size={13} />
-                                                            </button>
-                                                            <button onClick={() => handleDelete(client.id, 'clients')} className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors" title="Delete client">
-                                                                <Trash2 size={13} />
-                                                            </button>
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="flex items-center gap-2 flex-wrap">
+                                                                <h3 className="text-zinc-100 font-medium truncate font-outfit text-[1.05rem]">{client.name}</h3>
+                                                                <span className="text-[10px] text-zinc-500 font-medium shrink-0">
+                                                                    {new Date(client.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-zinc-500 text-xs truncate mt-0.5">
+                                                                {client.email || <span className="italic text-amber-500/80">No email provided</span>}
+                                                            </p>
                                                         </div>
                                                     </div>
 
-                                                    {/* Contact block */}
-                                                    <div className="relative mt-4 space-y-2">
-                                                        {client.email ? (
-                                                            <div className="flex items-center gap-2 text-[11.5px] text-slate-600 bg-slate-50/70 border border-slate-100 rounded-lg px-2.5 py-1.5">
-                                                                <Mail size={11} className="shrink-0 text-slate-400" />
-                                                                <span className="truncate font-medium">{client.email}</span>
+                                                    {/* 2. Access Key */}
+                                                    <div className="col-span-1 lg:col-span-2 flex items-center justify-between lg:justify-start gap-2">
+                                                        <span className="lg:hidden text-zinc-500 text-xs">Access Key:</span>
+                                                        <button
+                                                            onClick={() => copyAccessKey(client.access_key)}
+                                                            className="flex items-center gap-2 bg-zinc-950 px-2.5 py-1.5 rounded-md border border-zinc-800/80 hover:border-zinc-700 transition-colors max-w-full"
+                                                            title={isCopied ? 'Copied!' : 'Click to copy'}
+                                                        >
+                                                            <span className="text-zinc-400 font-mono text-xs truncate max-w-[120px]">{client.access_key}</span>
+                                                            {isCopied ? (
+                                                                <Check size={12} className="text-emerald-400 shrink-0" strokeWidth={3} />
+                                                            ) : (
+                                                                <Copy size={12} className="text-zinc-600 group-hover:text-zinc-300 shrink-0 transition-colors" />
+                                                            )}
+                                                        </button>
+                                                    </div>
+
+                                                    {/* 3. Projects */}
+                                                    <div className="col-span-1 lg:col-span-2 flex items-center justify-between lg:justify-start">
+                                                        <span className="lg:hidden text-zinc-500 text-xs">Projects:</span>
+                                                        {hasProjects ? (
+                                                            <div className="flex items-center gap-1.5 text-sm">
+                                                                <span className="text-zinc-200 font-medium tabular-nums">{client.stats.projectCount}</span>
+                                                                <span className="text-zinc-600">/</span>
+                                                                <span className="text-zinc-400 text-xs tabular-nums">{client.stats.completedProjects} done</span>
                                                             </div>
                                                         ) : (
-                                                            <div className="flex items-center gap-2 text-[11.5px] text-amber-700 bg-amber-50/70 border border-amber-100 rounded-lg px-2.5 py-1.5">
-                                                                <Mail size={11} className="shrink-0" />
-                                                                <span className="italic font-medium">No email on file</span>
-                                                            </div>
-                                                        )}
-                                                        <div className="flex items-center gap-2 text-[11px] bg-slate-50/70 border border-slate-100 rounded-lg px-2.5 py-1.5">
-                                                            <Hash size={11} className="shrink-0 text-slate-400" />
-                                                            <code className="font-mono text-slate-600 truncate flex-1 text-[10.5px]">{client.access_key}</code>
-                                                            <button
-                                                                onClick={() => copyAccessKey(client.access_key)}
-                                                                className={`shrink-0 w-6 h-6 flex items-center justify-center rounded-md transition-all ${
-                                                                    isCopied
-                                                                        ? 'bg-emerald-100 text-emerald-600'
-                                                                        : 'bg-white border border-slate-200 text-slate-400 hover:text-slate-700 hover:border-slate-300'
-                                                                }`}
-                                                                title={isCopied ? 'Copied!' : 'Copy access key'}
-                                                            >
-                                                                {isCopied ? <Check size={11} strokeWidth={3} /> : <Copy size={11} />}
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                {/* STATS CHIPS */}
-                                                <div className="px-5 pb-4 flex items-center gap-2 flex-wrap">
-                                                    <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 border border-blue-100 px-2 py-1 rounded-lg">
-                                                        <Briefcase size={11} />
-                                                        <span className="text-[11px] font-bold tabular-nums">{client.stats.projectCount}</span>
-                                                        <span className="text-[10px] text-blue-500/70 font-medium">
-                                                            {hasProjects ? `· ${client.stats.completedProjects} done` : 'projects'}
-                                                        </span>
-                                                    </div>
-                                                    {client.stats.totalValue > 0 && (
-                                                        <div className="flex items-center gap-1.5 bg-slate-50 text-slate-700 border border-slate-200 px-2 py-1 rounded-lg">
-                                                            <CreditCard size={11} className="text-slate-500" />
-                                                            <span className="text-[11px] font-bold tabular-nums">
-                                                                ₹{(client.stats.totalValue / 1000).toFixed(client.stats.totalValue >= 100000 ? 0 : 1)}k
+                                                            <span className="text-zinc-600 text-sm flex items-center gap-1.5">
+                                                                <CircleDashed size={14} /> None
                                                             </span>
-                                                        </div>
-                                                    )}
-                                                    {client.stats.totalValue > 0 && (
-                                                        <div className={`flex items-center gap-1.5 border px-2 py-1 rounded-lg ${
-                                                            isFullyPaid
-                                                                ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                                                                : paidPctClient >= 50
-                                                                    ? 'bg-sky-50 text-sky-700 border-sky-100'
-                                                                    : 'bg-amber-50 text-amber-700 border-amber-100'
-                                                        }`}>
-                                                            <TrendingUp size={11} />
-                                                            <span className="text-[11px] font-bold tabular-nums">{paidPctClient}%</span>
-                                                            <span className="text-[10px] opacity-70 font-medium">paid</span>
-                                                        </div>
-                                                    )}
-                                                </div>
+                                                        )}
+                                                    </div>
 
-                                                {/* PROGRESS */}
-                                                {hasProjects && (
-                                                    <div className="px-5 pb-4">
-                                                        <div className="flex items-center justify-between text-[10px] mb-1.5">
-                                                            <span className="font-bold text-slate-400 uppercase tracking-widest">Progress</span>
-                                                            <span className="font-black text-slate-700 tabular-nums text-xs">{client.stats.progress}%</span>
-                                                        </div>
-                                                        <div className="relative h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                                                            <motion.div
-                                                                initial={{ width: 0 }}
-                                                                animate={{ width: `${client.stats.progress}%` }}
-                                                                transition={{ duration: 0.8, ease: 'easeOut', delay: 0.1 + idx * 0.03 }}
-                                                                className={`absolute inset-y-0 left-0 rounded-full ${
-                                                                    client.stats.progress === 100
-                                                                        ? 'bg-gradient-to-r from-emerald-400 to-emerald-500'
-                                                                        : `bg-gradient-to-r ${gradient}`
-                                                                }`}
-                                                            />
+                                                    {/* 4. Financials */}
+                                                    <div className="col-span-1 lg:col-span-2 flex items-center justify-between lg:justify-start">
+                                                        <span className="lg:hidden text-zinc-500 text-xs">Financials:</span>
+                                                        {client.stats.totalValue > 0 ? (
+                                                            <div className="flex flex-col">
+                                                                <span className="text-zinc-200 font-medium text-sm font-outfit tracking-wide tabular-nums">{formatK(client.stats.totalValue)}</span>
+                                                                <span className="text-zinc-500 text-xs tabular-nums">{paidPctClient}% paid</span>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-zinc-600 text-sm">—</span>
+                                                        )}
+                                                    </div>
+
+                                                    {/* 5. Progress */}
+                                                    <div className="col-span-1 lg:col-span-2 flex items-center justify-between lg:justify-start">
+                                                        <span className="lg:hidden text-zinc-500 text-xs">Progress:</span>
+                                                        <div className="w-full max-w-[160px] lg:max-w-[140px]">
+                                                            <div className="flex justify-between items-center mb-1.5">
+                                                                <span className={`text-xs font-medium tabular-nums ${palette.text}`}>{progress}%</span>
+                                                                {progress === 100 && <CheckCircle2 size={12} className="text-emerald-500" />}
+                                                            </div>
+                                                            <div className="h-1.5 w-full bg-zinc-800 rounded-full overflow-hidden">
+                                                                <motion.div
+                                                                    initial={{ width: 0 }}
+                                                                    animate={{ width: `${progress}%` }}
+                                                                    transition={{ duration: 0.8, ease: 'easeOut', delay: 0.1 + idx * 0.03 }}
+                                                                    className={`h-full rounded-full bg-gradient-to-r ${palette.gradient}`}
+                                                                />
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                )}
 
-                                                {/* ACTIONS */}
-                                                <div className="mt-auto flex gap-2 px-4 pb-4">
-                                                    <button
-                                                        onClick={() => handleClientSelect(client)}
-                                                        className="flex-1 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl text-[13px] transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-sm"
-                                                    >
-                                                        <FolderPlus size={14} />
-                                                        View Projects
-                                                        <ArrowRight size={13} className="opacity-60 group-hover:translate-x-0.5 transition-transform" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleViewActivity(client)}
-                                                        className="py-2.5 px-3 bg-white hover:bg-violet-50 text-violet-600 font-semibold rounded-xl text-[13px] transition-colors flex items-center gap-1.5 border border-slate-200 hover:border-violet-200"
-                                                        title="Activity log & notifications"
-                                                    >
-                                                        <Activity size={14} />
-                                                    </button>
-                                                </div>
-                                            </motion.div>
-                                        );
-                                    })}
+                                                    {/* 6. Actions */}
+                                                    <div className="col-span-1 lg:col-span-1 flex items-center justify-end gap-2 mt-2 lg:mt-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-zinc-800/60 relative" data-menu-root>
+                                                        <button
+                                                            onClick={() => setOpenMenuId(openMenuId === client.id ? null : client.id)}
+                                                            className="p-2 text-zinc-500 hover:text-white hover:bg-zinc-700 rounded-lg transition-colors"
+                                                            aria-label="Open actions menu"
+                                                        >
+                                                            <MoreHorizontal size={18} />
+                                                        </button>
+                                                        {openMenuId === client.id && (
+                                                            <motion.div
+                                                                initial={{ opacity: 0, y: -4 }}
+                                                                animate={{ opacity: 1, y: 0 }}
+                                                                className="absolute right-0 top-full mt-1 lg:mt-2 w-48 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl shadow-black/50 z-20 overflow-hidden"
+                                                            >
+                                                                <button
+                                                                    onClick={() => { setOpenMenuId(null); handleClientSelect(client); }}
+                                                                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800 transition-colors"
+                                                                >
+                                                                    <FolderPlus size={14} className="text-zinc-400" />
+                                                                    View Projects
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => { setOpenMenuId(null); handleViewActivity(client); }}
+                                                                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800 transition-colors"
+                                                                >
+                                                                    <Activity size={14} className="text-zinc-400" />
+                                                                    Activity Log
+                                                                </button>
+                                                                <div className="h-px bg-zinc-800" />
+                                                                <button
+                                                                    onClick={() => { setOpenMenuId(null); handleEditClient(client); }}
+                                                                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800 transition-colors"
+                                                                >
+                                                                    <Pencil size={14} className="text-zinc-400" />
+                                                                    Edit Client
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => { setOpenMenuId(null); handleDelete(client.id, 'clients'); }}
+                                                                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                    Delete Client
+                                                                </button>
+                                                            </motion.div>
+                                                        )}
+                                                    </div>
+                                                </motion.div>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             )}
                         </div>
