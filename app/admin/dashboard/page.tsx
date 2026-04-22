@@ -1041,69 +1041,75 @@ export default function AdminDashboard() {
                                 </div>
                             </header>
 
-                            {/* ===== BENTO STATS GRID ===== */}
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                                {/* Main Financial Card (spans 2 columns on desktop) */}
-                                <div className="lg:col-span-2 bg-gradient-to-br from-zinc-900 to-[#121217] border border-zinc-800/80 rounded-2xl p-6 md:p-8 relative overflow-hidden group shadow-lg">
-                                    <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-indigo-500/10 rounded-full blur-[80px] -mr-[100px] -mt-[100px] pointer-events-none group-hover:bg-indigo-500/20 transition-colors duration-700" />
-
-                                    <div className="flex items-center gap-3 mb-8 md:mb-12 relative z-10">
-                                        <div className="p-2.5 bg-zinc-800/80 rounded-xl border border-zinc-700/50 shadow-sm backdrop-blur-sm">
-                                            <Wallet size={20} className="text-indigo-400" />
-                                        </div>
-                                        <h2 className="text-zinc-400 font-semibold text-xs tracking-widest uppercase">Total Collected</h2>
-                                    </div>
-
-                                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 relative z-10">
-                                        <div>
-                                            <div className="flex items-center gap-3 mb-2">
-                                                <div className="text-4xl sm:text-5xl md:text-6xl font-bold text-white tracking-tight font-outfit drop-shadow-md tabular-nums">
-                                                    ₹{totalPaid.toLocaleString('en-IN')}
+                            {/* ===== STATS ROW ===== */}
+                            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+                                {/* Total Collected — spans 2 columns */}
+                                <div className="lg:col-span-2 bg-zinc-900/70 border border-zinc-800/80 rounded-2xl p-5 sm:p-6 hover:border-zinc-700/80 transition-colors">
+                                    <div className="flex items-start justify-between gap-4 h-full">
+                                        {/* Left: label + main value */}
+                                        <div className="flex flex-col justify-between gap-4 sm:gap-6 flex-1 min-w-0">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
+                                                    <h2 className="text-zinc-400 font-semibold text-[11px] tracking-[0.15em] uppercase">Total Collected</h2>
                                                 </div>
-                                            </div>
-                                            <div className="flex items-center gap-2 text-sm flex-wrap">
-                                                <span className="text-zinc-400 font-medium tabular-nums">of ₹{totalValue.toLocaleString('en-IN')}</span>
-                                                <span className="inline-flex items-center gap-1 bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded text-xs font-semibold border border-emerald-500/20 backdrop-blur-md tabular-nums">
-                                                    <ArrowUpRight size={14} /> {paidPct}%
+                                                <span className="inline-flex items-center gap-0.5 bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded text-[11px] font-semibold border border-emerald-500/20 tabular-nums">
+                                                    <ArrowUpRight size={12} strokeWidth={2.5} />{paidPct}%
                                                 </span>
                                             </div>
+                                            <div className="min-w-0">
+                                                <div className="text-4xl sm:text-5xl font-bold text-white tracking-tight font-outfit tabular-nums leading-none">
+                                                    ₹{totalPaid.toLocaleString('en-IN')}
+                                                </div>
+                                                <div className="text-xs text-zinc-500 mt-2 tabular-nums">of ₹{totalValue.toLocaleString('en-IN')}</div>
+                                            </div>
                                         </div>
 
-                                        {/* Pending Dues Box */}
-                                        <div className="bg-zinc-950/60 backdrop-blur-md border border-zinc-800/80 rounded-2xl p-5 min-w-[200px] relative overflow-hidden w-full md:w-auto">
-                                            <div className="flex items-center justify-between mb-2">
-                                                <div className="text-zinc-500 text-xs font-bold uppercase tracking-wider">Pending Dues</div>
+                                        {/* Right: vertical divider + Pending Dues */}
+                                        <div className="hidden sm:flex flex-col items-end justify-center pl-4 sm:pl-6 border-l border-zinc-800/80 shrink-0 self-stretch">
+                                            <div className="text-right">
+                                                <div className="text-zinc-500 text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5">Pending Dues</div>
+                                                <div className="text-xl sm:text-2xl font-bold text-amber-400 font-outfit tracking-tight tabular-nums leading-none">
+                                                    ₹{totalPending.toLocaleString('en-IN')}
+                                                </div>
+                                                <div className="text-[10px] text-zinc-500 mt-1.5">awaiting payment</div>
                                             </div>
-                                            <div className="text-2xl font-bold text-amber-400 font-outfit tracking-tight relative z-10 tabular-nums">₹{totalPending.toLocaleString('en-IN')}</div>
-                                            <div className="text-[11px] text-zinc-500 mt-1">awaiting payment</div>
                                         </div>
+                                    </div>
+
+                                    {/* Pending Dues — stacked below on mobile */}
+                                    <div className="sm:hidden mt-4 pt-4 border-t border-zinc-800/80 flex items-end justify-between">
+                                        <div>
+                                            <div className="text-zinc-500 text-[10px] font-bold uppercase tracking-[0.15em] mb-1">Pending Dues</div>
+                                            <div className="text-xl font-bold text-amber-400 font-outfit tracking-tight tabular-nums leading-none">
+                                                ₹{totalPending.toLocaleString('en-IN')}
+                                            </div>
+                                        </div>
+                                        <div className="text-[10px] text-zinc-500">awaiting payment</div>
                                     </div>
                                 </div>
 
-                                {/* Secondary Stats */}
-                                <div className="flex flex-col gap-5">
-                                    <div className="bg-zinc-900 border border-zinc-800/80 rounded-2xl p-6 flex-1 flex flex-col justify-center relative overflow-hidden shadow-lg group hover:border-zinc-700 transition-colors">
-                                        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none group-hover:bg-blue-500/20 transition-colors duration-500" />
-                                        <div className="flex items-center justify-between mb-4 relative z-10">
-                                            <h2 className="text-zinc-400 font-medium text-sm">Total Clients</h2>
-                                            <Users size={18} className="text-blue-400" />
-                                        </div>
-                                        <div className="relative z-10">
-                                            <div className="text-4xl font-bold text-white mb-1 font-outfit tracking-tight tabular-nums">{totalClients}</div>
-                                            <div className="text-zinc-500 text-xs font-medium">{clientsWithEmail} with email on file</div>
-                                        </div>
+                                {/* Clients */}
+                                <div className="bg-zinc-900/70 border border-zinc-800/80 rounded-2xl p-5 sm:p-6 hover:border-zinc-700/80 transition-colors flex flex-col justify-between gap-4 sm:gap-6">
+                                    <div className="flex items-center gap-2">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.6)]" />
+                                        <h2 className="text-zinc-400 font-semibold text-[11px] tracking-[0.15em] uppercase">Clients</h2>
                                     </div>
+                                    <div>
+                                        <div className="text-4xl sm:text-5xl font-bold text-white font-outfit tracking-tight tabular-nums leading-none">{totalClients}</div>
+                                        <div className="text-xs text-zinc-500 mt-2">{clientsWithEmail} with email on file</div>
+                                    </div>
+                                </div>
 
-                                    <div className="bg-zinc-900 border border-zinc-800/80 rounded-2xl p-6 flex-1 flex flex-col justify-center relative overflow-hidden shadow-lg group hover:border-zinc-700 transition-colors">
-                                        <div className="absolute top-0 right-0 w-32 h-32 bg-pink-500/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none group-hover:bg-pink-500/20 transition-colors duration-500" />
-                                        <div className="flex items-center justify-between mb-4 relative z-10">
-                                            <h2 className="text-zinc-400 font-medium text-sm">Active Projects</h2>
-                                            <Briefcase size={18} className="text-pink-400" />
-                                        </div>
-                                        <div className="relative z-10">
-                                            <div className="text-4xl font-bold text-white mb-1 font-outfit tracking-tight tabular-nums">{totalProjects}</div>
-                                            <div className="text-zinc-500 text-xs font-medium">{activeProjects} in progress · across {totalClients} {totalClients === 1 ? 'client' : 'clients'}</div>
-                                        </div>
+                                {/* Projects */}
+                                <div className="bg-zinc-900/70 border border-zinc-800/80 rounded-2xl p-5 sm:p-6 hover:border-zinc-700/80 transition-colors flex flex-col justify-between gap-4 sm:gap-6">
+                                    <div className="flex items-center gap-2">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-pink-400 shadow-[0_0_8px_rgba(244,114,182,0.6)]" />
+                                        <h2 className="text-zinc-400 font-semibold text-[11px] tracking-[0.15em] uppercase">Projects</h2>
+                                    </div>
+                                    <div>
+                                        <div className="text-4xl sm:text-5xl font-bold text-white font-outfit tracking-tight tabular-nums leading-none">{totalProjects}</div>
+                                        <div className="text-xs text-zinc-500 mt-2">{activeProjects} in progress · across {totalClients} {totalClients === 1 ? 'client' : 'clients'}</div>
                                     </div>
                                 </div>
                             </div>
