@@ -1114,6 +1114,10 @@ export default function AdminDashboard() {
                                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-indigo-400 transition-colors" size={18} />
                                     <input
                                         type="text"
+                                        name="client_search"
+                                        autoComplete="off"
+                                        spellCheck={false}
+                                        data-form-type="other"
                                         placeholder="Search clients by name, email, or key..."
                                         className="w-full bg-zinc-900 border border-zinc-800 hover:border-zinc-700 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 rounded-xl pl-10 pr-10 py-2.5 text-sm text-zinc-200 outline-none transition-all placeholder:text-zinc-600 font-inter"
                                         value={clientSearch}
@@ -1143,7 +1147,7 @@ export default function AdminDashboard() {
                                         <motion.div
                                             initial={{ opacity: 0, y: -4 }}
                                             animate={{ opacity: 1, y: 0 }}
-                                            className="absolute right-0 top-full mt-2 w-52 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl shadow-black/40 z-30 overflow-hidden"
+                                            className="absolute right-0 top-full mt-2 w-52 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl shadow-black/40 z-50 overflow-hidden"
                                         >
                                             {(['recent', 'name', 'projects', 'value'] as ClientSortField[]).map(key => (
                                                 <button
@@ -1179,9 +1183,9 @@ export default function AdminDashboard() {
                                     </p>
                                 </div>
                             ) : (
-                                <div className="bg-zinc-900/50 border border-zinc-800/80 rounded-2xl overflow-hidden">
+                                <div className="bg-zinc-900/50 border border-zinc-800/80 rounded-2xl">
                                     {/* Table Header (desktop only) */}
-                                    <div className="hidden lg:grid grid-cols-12 gap-4 px-6 py-3 bg-zinc-900 border-b border-zinc-800 text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                                    <div className="hidden lg:grid grid-cols-12 gap-4 px-6 py-3 bg-zinc-900 border-b border-zinc-800 rounded-t-2xl text-xs font-medium text-zinc-500 uppercase tracking-wider">
                                         <div className="col-span-3">Client Details</div>
                                         <div className="col-span-2">Access Key</div>
                                         <div className="col-span-2">Projects</div>
@@ -1301,43 +1305,49 @@ export default function AdminDashboard() {
                                                         >
                                                             <MoreHorizontal size={18} />
                                                         </button>
-                                                        {openMenuId === client.id && (
-                                                            <motion.div
-                                                                initial={{ opacity: 0, y: -4 }}
-                                                                animate={{ opacity: 1, y: 0 }}
-                                                                className="absolute right-0 top-full mt-1 lg:mt-2 w-48 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl shadow-black/50 z-20 overflow-hidden"
-                                                            >
-                                                                <button
-                                                                    onClick={() => { setOpenMenuId(null); handleClientSelect(client); }}
-                                                                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800 transition-colors"
+                                                        {openMenuId === client.id && (() => {
+                                                            // Flip menu upward when this is one of the last 2 rows (prevents bottom clipping)
+                                                            const flipUp = filtered.length > 2 && idx >= filtered.length - 2;
+                                                            return (
+                                                                <motion.div
+                                                                    initial={{ opacity: 0, y: flipUp ? 4 : -4 }}
+                                                                    animate={{ opacity: 1, y: 0 }}
+                                                                    className={`absolute right-0 w-48 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl shadow-black/50 z-50 overflow-hidden ${
+                                                                        flipUp ? 'bottom-full mb-2' : 'top-full mt-1 lg:mt-2'
+                                                                    }`}
                                                                 >
-                                                                    <FolderPlus size={14} className="text-zinc-400" />
-                                                                    View Projects
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => { setOpenMenuId(null); handleViewActivity(client); }}
-                                                                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800 transition-colors"
-                                                                >
-                                                                    <Activity size={14} className="text-zinc-400" />
-                                                                    Activity Log
-                                                                </button>
-                                                                <div className="h-px bg-zinc-800" />
-                                                                <button
-                                                                    onClick={() => { setOpenMenuId(null); handleEditClient(client); }}
-                                                                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800 transition-colors"
-                                                                >
-                                                                    <Pencil size={14} className="text-zinc-400" />
-                                                                    Edit Client
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => { setOpenMenuId(null); handleDelete(client.id, 'clients'); }}
-                                                                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
-                                                                >
-                                                                    <Trash2 size={14} />
-                                                                    Delete Client
-                                                                </button>
-                                                            </motion.div>
-                                                        )}
+                                                                    <button
+                                                                        onClick={() => { setOpenMenuId(null); handleClientSelect(client); }}
+                                                                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800 transition-colors"
+                                                                    >
+                                                                        <FolderPlus size={14} className="text-zinc-400" />
+                                                                        View Projects
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => { setOpenMenuId(null); handleViewActivity(client); }}
+                                                                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800 transition-colors"
+                                                                    >
+                                                                        <Activity size={14} className="text-zinc-400" />
+                                                                        Activity Log
+                                                                    </button>
+                                                                    <div className="h-px bg-zinc-800" />
+                                                                    <button
+                                                                        onClick={() => { setOpenMenuId(null); handleEditClient(client); }}
+                                                                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800 transition-colors"
+                                                                    >
+                                                                        <Pencil size={14} className="text-zinc-400" />
+                                                                        Edit Client
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => { setOpenMenuId(null); handleDelete(client.id, 'clients'); }}
+                                                                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
+                                                                    >
+                                                                        <Trash2 size={14} />
+                                                                        Delete Client
+                                                                    </button>
+                                                                </motion.div>
+                                                            );
+                                                        })()}
                                                     </div>
                                                 </motion.div>
                                             );
