@@ -1314,8 +1314,9 @@ export default function AdminDashboard() {
                                                             <MoreHorizontal size={18} />
                                                         </button>
                                                         {openMenuId === client.id && (() => {
-                                                            // Flip menu upward when this is one of the last 2 rows (prevents bottom clipping)
-                                                            const flipUp = filtered.length > 2 && idx >= filtered.length - 2;
+                                                            // Flip menu upward for bottom rows so it doesn't hang in empty space below the card.
+                                                            // Last row always flips (when >1 total); 2nd-to-last also flips on 3+ row lists.
+                                                            const flipUp = filtered.length > 1 && idx >= Math.max(1, filtered.length - 2);
                                                             return (
                                                                 <motion.div
                                                                     initial={{ opacity: 0, y: flipUp ? 4 : -4 }}
