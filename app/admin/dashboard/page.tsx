@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logActivity, type ActivityLog } from '@/lib/activityLogger';
 import { sendNotification, sendDigestNotification } from '@/lib/notifications';
-import { Users, Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut, ArrowUp, ArrowDown, Calendar, Mail, MailCheck, Send, CheckCircle2, Clock, Zap, CreditCard, FileText, Link2, Activity, RefreshCw, PackagePlus, ArrowRight, EyeOff, Eye, Search, Copy, Check, Briefcase, TrendingUp, Hash, UserPlus, SlidersHorizontal, MoreHorizontal, ArrowUpRight, CircleDashed, Wallet } from 'lucide-react';
+import { Users, Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut, ArrowUp, ArrowDown, Calendar, Mail, MailCheck, Send, CheckCircle2, Clock, Zap, CreditCard, FileText, Link2, Activity, RefreshCw, PackagePlus, ArrowRight, EyeOff, Eye, Search, Copy, Check, Briefcase, TrendingUp, Hash, UserPlus, SlidersHorizontal, MoreHorizontal, ArrowUpRight, CircleDashed, Wallet, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 
@@ -81,6 +81,7 @@ export default function AdminDashboard() {
     const [clientSort, setClientSort] = useState<ClientSortField>('recent');
     const [copiedKey, setCopiedKey] = useState<string | null>(null);
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+    const [menuFlipUp, setMenuFlipUp] = useState(false);
     const [sortOpen, setSortOpen] = useState(false);
     const [projects, setProjects] = useState<ProjectWithStats[]>([]);
     const [features, setFeatures] = useState<Feature[]>([]);
@@ -899,64 +900,32 @@ export default function AdminDashboard() {
     };
 
     return (
-        <div className={`min-h-screen font-inter antialiased selection:bg-indigo-500/30 ${view === 'clients' ? 'bg-[#09090b] text-zinc-100' : 'bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-900 font-sans'}`}>
-            {/* Premium Google Fonts — Instrument Serif for hero numbers, Outfit for headings, Inter for body */}
+        <div className="min-h-screen antialiased geist-canvas font-geist bg-[#0a0a0a] text-[#ededed] selection:bg-[#0a72ef]/30">
+            {/* Geist + Geist Mono (Vercel design system) for clients view; legacy fonts retained for other views */}
             <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;600&display=swap');
+                @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Inter:wght@400;500;600&family=Outfit:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+                .font-geist { font-family: 'Geist', Arial, system-ui, sans-serif; font-feature-settings: "liga"; }
+                .font-geistmono { font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-feature-settings: "liga","tnum"; }
                 .font-outfit { font-family: 'Outfit', system-ui, sans-serif; }
                 .font-inter { font-family: 'Inter', system-ui, sans-serif; }
                 .font-display { font-family: 'Instrument Serif', 'Times New Roman', serif; }
                 .font-grotesk { font-family: 'Space Grotesk', system-ui, sans-serif; }
+                .font-jbmono { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+                /* Subtle atmospheric gradient at top — barely visible, per DESIGN.md hero gradient principle */
+                .geist-canvas {
+                    background-image: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(10,114,239,0.07), transparent 60%);
+                    background-attachment: fixed;
+                }
             `}</style>
-            {view !== 'clients' && (
-                <header className="bg-white/80 backdrop-blur-xl border-b border-slate-200/70 px-4 sm:px-6 py-3 sm:py-4 sticky top-0 z-20">
-                    <div className="flex items-center justify-between gap-2 max-w-7xl mx-auto">
-                        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                            <button onClick={handleBack} className="p-1.5 sm:p-2 hover:bg-slate-100 rounded-full transition-colors shrink-0">
-                                <ArrowLeft size={18} className="sm:w-5 sm:h-5" />
-                            </button>
-                            <div className="min-w-0">
-                                <h1 className="font-black text-base sm:text-lg tracking-tight">Admin Dashboard</h1>
-                                <p className="text-[11px] sm:text-xs text-slate-500 truncate max-w-[200px] sm:max-w-none">
-                                    {view === 'projects' ? `Projects for ${selectedClient?.name}` :
-                                        view === 'links' ? `Links for ${selectedProject?.description}` :
-                                            view === 'activity' ? `Activity Log for ${selectedClient?.name}` :
-                                                `Features for ${selectedProject?.description?.substring(0, 20)}...`}
-                                </p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                            {view !== 'activity' && (
-                                <button
-                                    onClick={() => { setFormData({}); setEditingId(null); setEditingLinkIndex(null); setShowModal(true); }}
-                                    className="bg-slate-900 hover:bg-slate-800 text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-1.5 sm:gap-2 transition-all active:scale-[0.97] shadow-sm"
-                                >
-                                    <Plus size={14} className="sm:w-4 sm:h-4" strokeWidth={2.5} />
-                                    <span className="hidden sm:inline">{view === 'projects' ? 'Add Project' : view === 'links' ? 'Add Link' : 'Add Feature'}</span>
-                                    <span className="sm:hidden">Add</span>
-                                </button>
-                            )}
-                            <button
-                                onClick={async () => { await supabaseAdmin.auth.signOut(); router.push('/admin'); }}
-                                className="p-2 sm:p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
-                                title="Logout"
-                            >
-                                <LogOut size={18} className="sm:w-5 sm:h-5" />
-                            </button>
-                        </div>
-                    </div>
-                </header>
-            )}
-
-            <main className={`${view === 'clients' ? 'max-w-7xl p-4 md:p-8' : 'max-w-5xl p-4 sm:p-6'} mx-auto`}>
+            <main className="max-w-7xl p-4 md:p-8 mx-auto">
                 {loading && (
                     <div className="flex flex-col items-center justify-center py-20">
                         <div className="flex items-center gap-2 mb-4">
-                            <span className="w-2.5 h-2.5 rounded-full bg-blue-500 loader-dot"></span>
-                            <span className="w-2.5 h-2.5 rounded-full bg-blue-500 loader-dot"></span>
-                            <span className="w-2.5 h-2.5 rounded-full bg-blue-500 loader-dot"></span>
+                            <span className="w-2 h-2 rounded-full bg-[#0a72ef] loader-dot"></span>
+                            <span className="w-2 h-2 rounded-full bg-[#de1d8d] loader-dot"></span>
+                            <span className="w-2 h-2 rounded-full bg-[#ff5b4f] loader-dot"></span>
                         </div>
-                        <p className="text-slate-400 text-sm font-medium">Loading...</p>
+                        <p className="text-[#737373] text-sm font-medium font-geistmono uppercase tracking-[0.02em]">Loading</p>
                     </div>
                 )}
 
@@ -988,23 +957,6 @@ export default function AdminDashboard() {
                         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
                     });
 
-                    // Per-client gradient palette + matching text color for progress
-                    const palettes = [
-                        { gradient: 'from-orange-500 to-amber-500', text: 'text-orange-400' },
-                        { gradient: 'from-pink-500 to-rose-500', text: 'text-pink-400' },
-                        { gradient: 'from-blue-500 to-indigo-500', text: 'text-blue-400' },
-                        { gradient: 'from-emerald-400 to-teal-500', text: 'text-emerald-400' },
-                        { gradient: 'from-violet-500 to-purple-500', text: 'text-violet-400' },
-                        { gradient: 'from-cyan-500 to-sky-500', text: 'text-cyan-400' },
-                        { gradient: 'from-fuchsia-500 to-pink-500', text: 'text-fuchsia-400' },
-                        { gradient: 'from-yellow-500 to-orange-500', text: 'text-yellow-400' },
-                    ];
-                    const paletteFor = (name: string) => {
-                        let hash = 0;
-                        for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
-                        return palettes[hash % palettes.length];
-                    };
-
                     const sortLabels: Record<ClientSortField, string> = {
                         recent: 'Recently Added',
                         name: 'Name (A–Z)',
@@ -1014,1072 +966,1973 @@ export default function AdminDashboard() {
                     const formatK = (n: number) => n >= 100000 ? `₹${(n / 1000).toFixed(0)}k` : n >= 1000 ? `₹${(n / 1000).toFixed(1)}k` : `₹${n}`;
 
                     return (
-                        <div className="space-y-8">
-                            {/* ===== HEADER ===== */}
-                            <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-zinc-800/60">
-                                <div>
-                                    <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-white mb-1 font-outfit">
-                                        Admin Overview
-                                    </h1>
-                                    <p className="text-zinc-400 text-sm">
-                                        Manage your clients, projects, and financial portfolio.
-                                    </p>
+                        <div className="space-y-14 relative">
+                            {/* ===== COMMAND BAR ===== */}
+                            <header className="flex items-center justify-between gap-3 -mt-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <span className="font-geistmono text-[12px] font-medium uppercase text-[#a1a1a1] truncate tracking-[0.02em]">
+                                        admin <span className="text-[#404040] mx-1">/</span> <span className="text-white">overview</span>
+                                    </span>
                                 </div>
-                                <div className="flex items-center gap-2 self-end md:self-auto">
+                                <div className="flex items-center gap-2 shrink-0">
                                     <button
                                         onClick={async () => { await supabaseAdmin.auth.signOut(); router.push('/admin'); }}
-                                        className="p-2.5 text-zinc-400 hover:text-red-400 hover:bg-zinc-900 border border-transparent hover:border-zinc-800 rounded-lg transition-colors"
-                                        title="Logout"
+                                        className="h-9 px-3 rounded-md bg-transparent hover:bg-[#181818] text-[#a1a1a1] hover:text-white flex items-center justify-center gap-2 transition-colors text-[13px] font-medium font-geist"
+                                        style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
+                                        title="Sign out"
+                                        aria-label="Sign out"
                                     >
-                                        <LogOut size={18} />
+                                        <LogOut size={13} strokeWidth={2} />
+                                        <span className="hidden sm:inline">Sign out</span>
                                     </button>
                                     <button
                                         onClick={() => { setFormData({}); setEditingId(null); setEditingLinkIndex(null); setShowModal(true); }}
-                                        className="bg-white hover:bg-zinc-100 text-zinc-900 px-5 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all shadow-[0_0_20px_-5px_rgba(255,255,255,0.3)] hover:shadow-[0_0_25px_-5px_rgba(255,255,255,0.5)] active:scale-95"
+                                        className="h-9 px-3.5 rounded-md bg-white hover:bg-[#ededed] text-[#0a0a0a] flex items-center justify-center gap-1.5 transition-colors text-[13px] font-medium font-geist"
                                     >
-                                        <Plus size={16} strokeWidth={2.5} />
-                                        New Client
+                                        <Plus size={13} strokeWidth={2.5} />
+                                        New client
                                     </button>
                                 </div>
                             </header>
 
-                            {/* ===== STATS ROW ===== */}
-                            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-                                {/* Total Collected — spans 2 columns */}
-                                <div className="lg:col-span-2 bg-zinc-900/60 border border-zinc-800/60 rounded-2xl p-6 sm:p-7 hover:border-zinc-700/60 transition-colors">
-                                    <div className="flex items-start justify-between gap-4 h-full">
-                                        {/* Left: label + main value */}
-                                        <div className="flex flex-col justify-between gap-5 sm:gap-7 flex-1 min-w-0">
+                            {/* ===== HERO ===== */}
+                            <section className="pt-6 pb-2 max-w-3xl">
+                                {totalClients === 0 ? (
+                                    <>
+                                        <h1
+                                            className="text-white font-semibold font-geist leading-[0.95]"
+                                            style={{ fontSize: 'clamp(44px, 6.6vw, 76px)', letterSpacing: '-0.055em', fontFeatureSettings: '"liga"' }}
+                                        >
+                                            Empty<br /><span className="text-[#525252]">portfolio.</span>
+                                        </h1>
+                                        <p className="text-[#a1a1a1] text-[18px] leading-[1.56] mt-6 max-w-xl font-geist">
+                                            Add your first client to begin tracking projects, contracts, and collections.
+                                        </p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <h1
+                                            className="text-white font-semibold font-geist leading-[0.95]"
+                                            style={{ fontSize: 'clamp(44px, 6.6vw, 76px)', letterSpacing: '-0.055em', fontFeatureSettings: '"liga"' }}
+                                        >
+                                            {totalClients} {totalClients === 1 ? 'client' : 'clients'}.<br />
+                                            <span className="text-[#525252]">{totalProjects} {totalProjects === 1 ? 'project' : 'projects'}.</span>
+                                        </h1>
+                                        <p className="text-[#a1a1a1] text-[18px] leading-[1.56] mt-6 max-w-xl font-geist">
+                                            {totalValue > 0 ? (
+                                                <>
+                                                    Tracking <span className="text-white tabular-nums">₹{totalValue.toLocaleString('en-IN')}</span> in contracted work
+                                                    {paidPct === 100
+                                                        ? <>. Fully collected.</>
+                                                        : paidPct === 0
+                                                            ? <>. Awaiting first collection.</>
+                                                            : <>. <span className="text-white tabular-nums">{paidPct}%</span> collected, <span className="tabular-nums">{100 - paidPct}%</span> outstanding.</>}
+                                                </>
+                                            ) : (
+                                                <>No contracted work yet — add a project to begin.</>
+                                            )}
+                                        </p>
+                                    </>
+                                )}
+                            </section>
+
+                            {/* ===== WORKFLOW PIPELINE ===== */}
+                            <section>
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className="font-geistmono text-[11px] font-medium uppercase text-[#737373]">Pipeline</span>
+                                    <div className="flex items-center gap-1">
+                                        <span className="w-1 h-1 rounded-full bg-[#0a72ef]" />
+                                        <span className="w-1 h-1 rounded-full bg-[#de1d8d]" />
+                                        <span className="w-1 h-1 rounded-full bg-[#ff5b4f]" />
+                                    </div>
+                                </div>
+                                <div
+                                    className="grid grid-cols-1 md:grid-cols-3 rounded-lg overflow-hidden"
+                                    style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px, rgba(0,0,0,0.4) 0px 1px 2px' }}
+                                >
+                                    {[
+                                        { idx: '01', label: 'Develop', sub: 'Total contracted', value: totalValue, color: '#0a72ef', meta: `${totalProjects} ${totalProjects === 1 ? 'project' : 'projects'}` },
+                                        { idx: '02', label: 'Preview', sub: 'Awaiting collection', value: totalPending, color: '#de1d8d', meta: totalValue > 0 ? `${Math.max(100 - paidPct, 0)}% outstanding` : '—' },
+                                        { idx: '03', label: 'Ship', sub: 'Realized revenue', value: totalPaid, color: '#ff5b4f', meta: totalValue > 0 ? `${paidPct}% collected` : '—' },
+                                    ].map((step, i) => (
+                                        <div
+                                            key={step.idx}
+                                            className={`relative p-7 flex flex-col gap-5 ${i < 2 ? 'shadow-[inset_0_-1px_0_0_rgba(255,255,255,0.08)] md:shadow-[inset_-1px_0_0_0_rgba(255,255,255,0.08)]' : ''}`}
+                                        >
                                             <div className="flex items-center justify-between gap-2">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/90 shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
-                                                    <h2 className="text-zinc-500 font-medium text-[10.5px] tracking-[0.2em] uppercase">Total Collected</h2>
-                                                </div>
-                                                <span className="inline-flex items-center gap-0.5 text-emerald-400/90 text-[11px] font-medium tabular-nums bg-emerald-500/[0.06] px-1.5 py-0.5 rounded-md font-grotesk">
-                                                    <ArrowUpRight size={11} strokeWidth={2.25} />{paidPct}%
+                                                <span className="font-geistmono text-[11px] font-medium uppercase" style={{ color: step.color }}>
+                                                    {step.idx} · {step.label}
                                                 </span>
+                                                <span className="font-geistmono text-[10px] uppercase text-[#737373] tabular-nums">{step.meta}</span>
                                             </div>
-                                            <div className="min-w-0">
-                                                <div className="text-5xl sm:text-[64px] text-zinc-50 tracking-[-0.02em] font-display italic tabular-nums leading-[0.95]">
-                                                    ₹{totalPaid.toLocaleString('en-IN')}
-                                                </div>
-                                                <div className="text-[11px] text-zinc-500/90 mt-3 tabular-nums tracking-wide font-grotesk">of ₹{totalValue.toLocaleString('en-IN')}</div>
+                                            <div className="text-[#a1a1a1] text-[14px] leading-[1.4] font-geist">
+                                                {step.sub}
                                             </div>
-                                        </div>
-
-                                        {/* Right: vertical divider + Pending Dues */}
-                                        <div className="hidden sm:flex flex-col items-end justify-center pl-5 sm:pl-7 border-l border-zinc-800/60 shrink-0 self-stretch">
-                                            <div className="text-right">
-                                                <div className="text-zinc-500 text-[10px] font-medium uppercase tracking-[0.2em] mb-3">Pending Dues</div>
-                                                <div className="text-3xl sm:text-[36px] text-amber-400/90 font-display italic tracking-[-0.02em] tabular-nums leading-[0.95]">
-                                                    ₹{totalPending.toLocaleString('en-IN')}
-                                                </div>
-                                                <div className="text-[10px] text-zinc-500/80 mt-2.5 tracking-wide font-grotesk">awaiting payment</div>
+                                            <div
+                                                className="text-white font-semibold tabular-nums font-geist"
+                                                style={{ fontSize: '40px', letterSpacing: '-1.6px', lineHeight: 1.0, fontFeatureSettings: '"tnum","liga"' }}
+                                            >
+                                                ₹{step.value.toLocaleString('en-IN')}
                                             </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Pending Dues — stacked below on mobile */}
-                                    <div className="sm:hidden mt-5 pt-5 border-t border-zinc-800/60 flex items-end justify-between">
-                                        <div>
-                                            <div className="text-zinc-500 text-[10px] font-medium uppercase tracking-[0.2em] mb-2">Pending Dues</div>
-                                            <div className="text-3xl text-amber-400/90 font-display italic tracking-[-0.02em] tabular-nums leading-[0.95]">
-                                                ₹{totalPending.toLocaleString('en-IN')}
-                                            </div>
-                                        </div>
-                                        <div className="text-[10px] text-zinc-500/80 tracking-wide font-grotesk">awaiting payment</div>
-                                    </div>
-                                </div>
-
-                                {/* Clients */}
-                                <div className="bg-zinc-900/60 border border-zinc-800/60 rounded-2xl p-6 sm:p-7 hover:border-zinc-700/60 transition-colors flex flex-col justify-between gap-5 sm:gap-7">
-                                    <div className="flex items-center gap-2">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-blue-400/90 shadow-[0_0_8px_rgba(96,165,250,0.5)]" />
-                                        <h2 className="text-zinc-500 font-medium text-[10.5px] tracking-[0.2em] uppercase">Clients</h2>
-                                    </div>
-                                    <div>
-                                        <div className="text-5xl sm:text-[64px] text-zinc-50 font-display italic tracking-[-0.02em] tabular-nums leading-[0.95]">{totalClients}</div>
-                                        <div className="text-[11px] text-zinc-500/90 mt-3 tracking-wide font-grotesk">{clientsWithEmail} with email on file</div>
-                                    </div>
-                                </div>
-
-                                {/* Projects */}
-                                <div className="bg-zinc-900/60 border border-zinc-800/60 rounded-2xl p-6 sm:p-7 hover:border-zinc-700/60 transition-colors flex flex-col justify-between gap-5 sm:gap-7">
-                                    <div className="flex items-center gap-2">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-pink-400/90 shadow-[0_0_8px_rgba(244,114,182,0.5)]" />
-                                        <h2 className="text-zinc-500 font-medium text-[10.5px] tracking-[0.2em] uppercase">Projects</h2>
-                                    </div>
-                                    <div>
-                                        <div className="text-5xl sm:text-[64px] text-zinc-50 font-display italic tracking-[-0.02em] tabular-nums leading-[0.95]">{totalProjects}</div>
-                                        <div className="text-[11px] text-zinc-500/90 mt-3 tracking-wide font-grotesk">{activeProjects} in progress · across {totalClients} {totalClients === 1 ? 'client' : 'clients'}</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* ===== TOOLBAR ===== */}
-                            <div className="flex flex-col sm:flex-row gap-3">
-                                <div className="relative flex-1 group">
-                                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-indigo-400 transition-colors" size={18} />
-                                    <input
-                                        type="text"
-                                        name="client_search"
-                                        autoComplete="off"
-                                        spellCheck={false}
-                                        data-form-type="other"
-                                        placeholder="Search clients by name, email, or key..."
-                                        className="w-full bg-zinc-900 border border-zinc-800 hover:border-zinc-700 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 rounded-xl pl-10 pr-10 py-2.5 text-sm text-zinc-200 outline-none transition-all placeholder:text-zinc-600 font-inter"
-                                        value={clientSearch}
-                                        onChange={(e) => setClientSearch(e.target.value)}
-                                    />
-                                    {clientSearch && (
-                                        <button
-                                            type="button"
-                                            onClick={() => setClientSearch('')}
-                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 transition-colors"
-                                            aria-label="Clear search"
-                                        >
-                                            <X size={12} strokeWidth={3} />
-                                        </button>
-                                    )}
-                                </div>
-                                {/* Sort dropdown (styled like Filters in the mockup) */}
-                                <div className="relative" data-menu-root>
-                                    <button
-                                        onClick={() => setSortOpen(o => !o)}
-                                        className="w-full sm:w-auto flex items-center justify-center gap-2 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors"
-                                    >
-                                        <SlidersHorizontal size={16} />
-                                        <span>Sort: {sortLabels[clientSort]}</span>
-                                    </button>
-                                    {sortOpen && (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: -4 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            className="absolute right-0 top-full mt-2 w-52 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl shadow-black/40 z-50 overflow-hidden"
-                                        >
-                                            {(['recent', 'name', 'projects', 'value'] as ClientSortField[]).map(key => (
-                                                <button
-                                                    key={key}
-                                                    onClick={() => { setClientSort(key); setSortOpen(false); }}
-                                                    className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                                                        clientSort === key
-                                                            ? 'bg-zinc-800 text-white font-medium'
-                                                            : 'text-zinc-300 hover:bg-zinc-800/70'
-                                                    }`}
+                                            {/* connector arrow — only on desktop horizontal layout */}
+                                            {i < 2 && (
+                                                <div
+                                                    className="hidden md:flex absolute top-1/2 -right-3 -translate-y-1/2 w-6 h-6 items-center justify-center rounded-full bg-[#0a0a0a] z-10"
+                                                    style={{ boxShadow: 'rgba(255,255,255,0.12) 0px 0px 0px 1px' }}
+                                                    aria-hidden="true"
                                                 >
-                                                    {sortLabels[key]}
-                                                </button>
-                                            ))}
-                                        </motion.div>
-                                    )}
+                                                    <ArrowRight size={11} className="text-[#737373]" strokeWidth={2} />
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
                                 </div>
-                            </div>
+                            </section>
 
-                            {/* ===== CLIENTS LIST VIEW ===== */}
-                            {filtered.length === 0 ? (
-                                <div className="bg-zinc-900/50 border border-dashed border-zinc-800 rounded-2xl py-20 text-center">
-                                    <div className="inline-flex p-5 bg-zinc-900 border border-zinc-800 rounded-2xl mb-4">
-                                        {clients.length === 0 ? <UserPlus size={32} className="text-zinc-500" /> : <Search size={32} className="text-zinc-500" />}
+                            {/* ===== COUNT METRICS ===== */}
+                            <section
+                                className="grid grid-cols-2 rounded-lg overflow-hidden"
+                                style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
+                            >
+                                <div
+                                    className="p-7 flex flex-col gap-4"
+                                    style={{ boxShadow: 'rgba(255,255,255,0.08) -1px 0px 0px inset' }}
+                                >
+                                    <div className="flex items-center justify-between">
+                                        <span className="font-geistmono text-[11px] font-medium uppercase text-[#737373]">Clients</span>
+                                        <UserPlus size={13} className="text-[#525252]" strokeWidth={2} />
                                     </div>
-                                    <p className="text-base font-bold text-zinc-200 font-outfit">
-                                        {clients.length === 0 ? 'No clients yet' : 'No matches found'}
-                                    </p>
-                                    <p className="text-sm text-zinc-500 mt-1 px-4 max-w-sm mx-auto">
-                                        {clients.length === 0
-                                            ? 'Click "New Client" in the top right to create your first client.'
-                                            : `Nothing matches "${clientSearch}". Try a different search term.`}
-                                    </p>
+                                    <div
+                                        className="text-white font-semibold tabular-nums font-geist"
+                                        style={{ fontSize: '52px', letterSpacing: '-2.08px', lineHeight: 1.0 }}
+                                    >
+                                        {totalClients}
+                                    </div>
+                                    <div className="flex items-center gap-2 text-[13px] font-geist">
+                                        <span
+                                            className="inline-flex items-center px-2 h-5 rounded-full font-medium tabular-nums"
+                                            style={{ background: 'rgba(10,114,245,0.12)', color: '#3a8dff', fontSize: '11px' }}
+                                        >
+                                            {clientsWithEmail} email-enabled
+                                        </span>
+                                        {totalClients - clientsWithEmail > 0 && (
+                                            <span className="text-[#737373] tabular-nums">{totalClients - clientsWithEmail} pending</span>
+                                        )}
+                                    </div>
                                 </div>
-                            ) : (
-                                <div className="bg-zinc-900/50 border border-zinc-800/80 rounded-2xl">
-                                    {/* Table Header (desktop only) */}
-                                    <div className="hidden lg:grid grid-cols-12 gap-4 px-6 py-3 bg-zinc-900 border-b border-zinc-800 rounded-t-2xl text-xs font-medium text-zinc-500 uppercase tracking-wider">
-                                        <div className="col-span-3">Client Details</div>
-                                        <div className="col-span-2">Access Key</div>
-                                        <div className="col-span-2">Projects</div>
-                                        <div className="col-span-2">Financials</div>
-                                        <div className="col-span-2">Progress</div>
-                                        <div className="col-span-1 text-right">Actions</div>
+                                <div className="p-7 flex flex-col gap-4">
+                                    <div className="flex items-center justify-between">
+                                        <span className="font-geistmono text-[11px] font-medium uppercase text-[#737373]">Projects</span>
+                                        <Briefcase size={13} className="text-[#525252]" strokeWidth={2} />
                                     </div>
+                                    <div
+                                        className="text-white font-semibold tabular-nums font-geist"
+                                        style={{ fontSize: '52px', letterSpacing: '-2.08px', lineHeight: 1.0 }}
+                                    >
+                                        {totalProjects}
+                                    </div>
+                                    <div className="flex items-center gap-2 text-[13px] font-geist">
+                                        <span
+                                            className="inline-flex items-center px-2 h-5 rounded-full font-medium tabular-nums"
+                                            style={{ background: 'rgba(255,91,79,0.12)', color: '#ff7a72', fontSize: '11px' }}
+                                        >
+                                            {activeProjects} active
+                                        </span>
+                                        <span className="text-[#525252]">·</span>
+                                        <span className="text-[#a1a1a1] tabular-nums">{totalProjects - activeProjects} shipped</span>
+                                    </div>
+                                </div>
+                            </section>
 
-                                    {/* List Items */}
-                                    <div className="divide-y divide-zinc-800/60">
+                            {/* ===== DIRECTORY ===== */}
+                            <section className="space-y-6">
+                                <div
+                                    className="flex items-end justify-between gap-4 pb-5"
+                                    style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 1px 0px' }}
+                                >
+                                    <div>
+                                        <span className="font-geistmono text-[11px] font-medium uppercase text-[#737373] mb-2 block">Directory</span>
+                                        <h2
+                                            className="text-white font-semibold font-geist leading-[1.0]"
+                                            style={{ fontSize: '32px', letterSpacing: '-1.28px' }}
+                                        >
+                                            All clients
+                                        </h2>
+                                    </div>
+                                    <span className="font-geistmono text-[11px] uppercase text-[#737373] tabular-nums pb-1">
+                                        {filtered.length} <span className="text-[#525252]">of</span> {clients.length}
+                                    </span>
+                                </div>
+
+                                {/* Toolbar */}
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                    <div className="relative flex-1">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#737373]" size={14} strokeWidth={2} />
+                                        <input
+                                            type="text"
+                                            name="client_search"
+                                            autoComplete="off"
+                                            spellCheck={false}
+                                            data-form-type="other"
+                                            placeholder="Search by name, email, or access key..."
+                                            className="w-full bg-transparent rounded-md pl-9 pr-9 h-10 text-[14px] text-white placeholder:text-[#737373] outline-none transition-shadow font-geist"
+                                            style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
+                                            onFocus={(e) => { e.currentTarget.style.boxShadow = 'rgba(10,114,239,0.6) 0px 0px 0px 1px, rgba(10,114,239,0.20) 0px 0px 0px 3px'; }}
+                                            onBlur={(e) => { e.currentTarget.style.boxShadow = 'rgba(255,255,255,0.10) 0px 0px 0px 1px'; }}
+                                            value={clientSearch}
+                                            onChange={(e) => setClientSearch(e.target.value)}
+                                        />
+                                        {clientSearch && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setClientSearch('')}
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded text-[#737373] hover:text-white hover:bg-[#181818] transition-colors"
+                                                aria-label="Clear search"
+                                            >
+                                                <X size={12} strokeWidth={2.5} />
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="relative" data-menu-root>
+                                        <button
+                                            onClick={() => setSortOpen(o => !o)}
+                                            aria-expanded={sortOpen}
+                                            aria-haspopup="listbox"
+                                            className="w-full sm:w-auto h-10 px-3 rounded-md text-[#a1a1a1] hover:text-white flex items-center justify-center gap-2 transition-colors text-[13px] font-medium font-geist"
+                                            style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
+                                        >
+                                            <SlidersHorizontal size={13} strokeWidth={2} />
+                                            <span>{sortLabels[clientSort]}</span>
+                                            <ChevronDown size={13} strokeWidth={2} className={`transition-transform ${sortOpen ? 'rotate-180' : ''}`} />
+                                        </button>
+                                        {sortOpen && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: -4 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                className="absolute right-0 top-full mt-1.5 w-56 rounded-md z-50 overflow-hidden p-1 bg-[#161616]"
+                                                style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px, rgba(0,0,0,0.7) 0px 12px 32px -4px, rgba(0,0,0,0.5) 0px 4px 8px -2px' }}
+                                            >
+                                                {(['recent', 'name', 'projects', 'value'] as ClientSortField[]).map(key => (
+                                                    <button
+                                                        key={key}
+                                                        onClick={() => { setClientSort(key); setSortOpen(false); }}
+                                                        className={`w-full text-left px-2.5 py-2 text-[13px] rounded transition-colors font-geist ${
+                                                            clientSort === key
+                                                                ? 'bg-[#222] text-white font-medium'
+                                                                : 'text-[#a1a1a1] hover:bg-[#222] hover:text-white'
+                                                        }`}
+                                                    >
+                                                        {sortLabels[key]}
+                                                    </button>
+                                                ))}
+                                            </motion.div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* List */}
+                                {filtered.length === 0 ? (
+                                    <div
+                                        className="rounded-lg py-20 px-6 text-center"
+                                        style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
+                                    >
+                                        <div
+                                            className="inline-flex w-12 h-12 items-center justify-center rounded-md mb-5"
+                                            style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
+                                        >
+                                            {clients.length === 0
+                                                ? <UserPlus size={18} className="text-[#a1a1a1]" strokeWidth={2} />
+                                                : <Search size={18} className="text-[#a1a1a1]" strokeWidth={2} />}
+                                        </div>
+                                        <p className="text-white text-[20px] font-semibold font-geist" style={{ letterSpacing: '-0.4px' }}>
+                                            {clients.length === 0 ? 'No clients yet' : 'No matches'}
+                                        </p>
+                                        <p className="text-[#a1a1a1] text-[14px] mt-2 max-w-sm mx-auto font-geist">
+                                            {clients.length === 0
+                                                ? 'Click "New client" to onboard your first client.'
+                                                : `Nothing matches "${clientSearch}".`}
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div
+                                        className="rounded-lg"
+                                        style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
+                                    >
+                                        {/* Header */}
+                                        <div
+                                            className="hidden lg:grid grid-cols-12 gap-4 px-6 h-10 items-center font-geistmono text-[10px] font-medium uppercase text-[#737373] rounded-t-lg"
+                                            style={{ boxShadow: 'rgba(255,255,255,0.08) 0px -1px 0px inset', background: 'rgba(255,255,255,0.015)' }}
+                                        >
+                                            <div className="col-span-4">Client</div>
+                                            <div className="col-span-2">Access Key</div>
+                                            <div className="col-span-1 text-right">Projects</div>
+                                            <div className="col-span-2 text-right">Contract</div>
+                                            <div className="col-span-2">Status</div>
+                                            <div className="col-span-1 text-right">Actions</div>
+                                        </div>
+
                                         {filtered.map((client, idx) => {
                                             const isCopied = copiedKey === client.access_key;
-                                            const palette = paletteFor(client.name);
                                             const paidPctClient = client.stats.totalValue > 0
                                                 ? Math.round((client.stats.paidValue / client.stats.totalValue) * 100)
                                                 : 0;
                                             const hasProjects = client.stats.projectCount > 0;
                                             const progress = client.stats.progress;
+                                            // Map status to workflow stages — Develop (early) Blue → Preview (mid) Pink → Ship (done) Red
+                                            const statusColor = progress === 100 ? '#ff5b4f' : progress >= 50 ? '#de1d8d' : '#0a72ef';
+                                            const statusLabel = progress === 100 ? 'Shipped' : progress >= 50 ? 'Preview' : 'Develop';
 
+                                            const isFirst = idx === 0;
+                                            const isLast = idx === filtered.length - 1;
                                             return (
                                                 <motion.div
                                                     key={client.id}
-                                                    initial={{ opacity: 0, y: 6 }}
-                                                    animate={{ opacity: 1, y: 0 }}
-                                                    transition={{ delay: idx * 0.03, duration: 0.25 }}
-                                                    className="group grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-4 items-center p-5 lg:px-6 hover:bg-zinc-800/30 transition-colors"
+                                                    initial={{ opacity: 0 }}
+                                                    animate={{ opacity: 1 }}
+                                                    transition={{ delay: idx * 0.03, duration: 0.2 }}
+                                                    className={`group grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-4 items-center px-5 lg:px-6 py-4 hover:bg-[#0d0d0d] transition-colors ${isFirst ? 'rounded-t-lg lg:rounded-t-none' : ''} ${isLast ? 'rounded-b-lg' : ''}`}
+                                                    style={{ boxShadow: idx > 0 ? 'rgba(255,255,255,0.08) 0px 1px 0px inset' : undefined }}
                                                 >
-                                                    {/* 1. Profile */}
-                                                    <div className="col-span-1 lg:col-span-3 flex items-center gap-4 min-w-0">
-                                                        <div className={`shrink-0 w-12 h-12 rounded-full bg-gradient-to-br ${palette.gradient} flex items-center justify-center text-white font-bold shadow-lg font-outfit text-lg`}>
+                                                    {/* Profile */}
+                                                    <div className="col-span-1 lg:col-span-4 flex items-center gap-3 min-w-0">
+                                                        <div
+                                                            className="shrink-0 w-9 h-9 rounded-md flex items-center justify-center bg-[#111] text-[#ededed] text-[14px] font-semibold font-geist"
+                                                            style={{ letterSpacing: '-0.4px', boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
+                                                        >
                                                             {client.name.charAt(0).toUpperCase()}
                                                         </div>
                                                         <div className="min-w-0 flex-1">
-                                                            <div className="flex items-center gap-2 flex-wrap">
-                                                                <h3 className="text-zinc-100 font-medium truncate font-outfit text-[1.05rem]">{client.name}</h3>
-                                                                <span className="text-[10px] text-zinc-500 font-medium shrink-0">
+                                                            <div className="flex items-center gap-2">
+                                                                <h3 className="text-white font-semibold truncate text-[15px] font-geist" style={{ letterSpacing: '-0.3px' }}>
+                                                                    {client.name}
+                                                                </h3>
+                                                            </div>
+                                                            <p className="text-[#737373] text-[12px] truncate font-geist mt-0.5 flex items-center gap-2">
+                                                                <span className="truncate">
+                                                                    {client.email || <span className="text-[#ff5b4f]">No email on file</span>}
+                                                                </span>
+                                                                <span className="font-geistmono text-[10px] uppercase text-[#525252] shrink-0">
                                                                     {new Date(client.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                                                                 </span>
-                                                            </div>
-                                                            <p className="text-zinc-500 text-xs truncate mt-0.5">
-                                                                {client.email || <span className="italic text-amber-500/80">No email provided</span>}
                                                             </p>
                                                         </div>
                                                     </div>
 
-                                                    {/* 2. Access Key */}
+                                                    {/* Access Key */}
                                                     <div className="col-span-1 lg:col-span-2 flex items-center justify-between lg:justify-start gap-2">
-                                                        <span className="lg:hidden text-zinc-500 text-xs">Access Key:</span>
+                                                        <span className="lg:hidden font-geistmono text-[10px] uppercase text-[#737373]">Key</span>
                                                         <button
                                                             onClick={() => copyAccessKey(client.access_key)}
-                                                            className="flex items-center gap-2 bg-zinc-950 px-2.5 py-1.5 rounded-md border border-zinc-800/80 hover:border-zinc-700 transition-colors max-w-full"
-                                                            title={isCopied ? 'Copied!' : 'Click to copy'}
+                                                            className="flex items-center gap-1.5 hover:bg-[#181818] px-2 h-7 rounded transition-colors max-w-full"
+                                                            style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
+                                                            title={isCopied ? 'Copied' : 'Click to copy'}
                                                         >
-                                                            <span className="text-zinc-400 font-mono text-xs truncate max-w-[120px]">{client.access_key}</span>
-                                                            {isCopied ? (
-                                                                <Check size={12} className="text-emerald-400 shrink-0" strokeWidth={3} />
-                                                            ) : (
-                                                                <Copy size={12} className="text-zinc-600 group-hover:text-zinc-300 shrink-0 transition-colors" />
-                                                            )}
+                                                            <span className="text-[#a1a1a1] font-geistmono text-[11px] truncate max-w-[110px]">{client.access_key}</span>
+                                                            {isCopied
+                                                                ? <Check size={11} className="text-[#0a72ef] shrink-0" strokeWidth={3} />
+                                                                : <Copy size={11} className="text-[#525252] group-hover:text-[#a1a1a1] shrink-0 transition-colors" />}
                                                         </button>
                                                     </div>
 
-                                                    {/* 3. Projects */}
-                                                    <div className="col-span-1 lg:col-span-2 flex items-center justify-between lg:justify-start">
-                                                        <span className="lg:hidden text-zinc-500 text-xs">Projects:</span>
+                                                    {/* Projects */}
+                                                    <div className="col-span-1 lg:col-span-1 flex items-center justify-between lg:justify-end">
+                                                        <span className="lg:hidden font-geistmono text-[10px] uppercase text-[#737373]">Projects</span>
                                                         {hasProjects ? (
-                                                            <div className="flex items-center gap-1.5 text-sm">
-                                                                <span className="text-zinc-200 font-medium tabular-nums">{client.stats.projectCount}</span>
-                                                                <span className="text-zinc-600">/</span>
-                                                                <span className="text-zinc-400 text-xs tabular-nums">{client.stats.completedProjects} done</span>
-                                                            </div>
-                                                        ) : (
-                                                            <span className="text-zinc-600 text-sm flex items-center gap-1.5">
-                                                                <CircleDashed size={14} /> None
+                                                            <span className="font-geist text-white tabular-nums text-[15px] font-semibold" style={{ letterSpacing: '-0.3px' }}>
+                                                                {client.stats.completedProjects}<span className="text-[#525252] font-normal">/</span>{client.stats.projectCount}
                                                             </span>
+                                                        ) : (
+                                                            <span className="text-[#525252] text-[14px] font-geist">—</span>
                                                         )}
                                                     </div>
 
-                                                    {/* 4. Financials */}
-                                                    <div className="col-span-1 lg:col-span-2 flex items-center justify-between lg:justify-start">
-                                                        <span className="lg:hidden text-zinc-500 text-xs">Financials:</span>
+                                                    {/* Contract */}
+                                                    <div className="col-span-1 lg:col-span-2 flex items-center justify-between lg:justify-end">
+                                                        <span className="lg:hidden font-geistmono text-[10px] uppercase text-[#737373]">Contract</span>
                                                         {client.stats.totalValue > 0 ? (
-                                                            <div className="flex flex-col">
-                                                                <span className="text-zinc-200 font-medium text-sm font-outfit tracking-wide tabular-nums">{formatK(client.stats.totalValue)}</span>
-                                                                <span className="text-zinc-500 text-xs tabular-nums">{paidPctClient}% paid</span>
+                                                            <div className="text-right font-geist">
+                                                                <div className="text-white text-[14px] font-semibold tabular-nums" style={{ letterSpacing: '-0.28px' }}>
+                                                                    {formatK(client.stats.totalValue)}
+                                                                </div>
+                                                                <div className="text-[#737373] text-[11px] tabular-nums font-geistmono">{paidPctClient}% paid</div>
                                                             </div>
                                                         ) : (
-                                                            <span className="text-zinc-600 text-sm">—</span>
+                                                            <span className="text-[#525252] text-[14px] font-geist">—</span>
                                                         )}
                                                     </div>
 
-                                                    {/* 5. Progress */}
-                                                    <div className="col-span-1 lg:col-span-2 flex items-center justify-between lg:justify-start">
-                                                        <span className="lg:hidden text-zinc-500 text-xs">Progress:</span>
-                                                        <div className="w-full max-w-[160px] lg:max-w-[140px]">
-                                                            <div className="flex justify-between items-center mb-1.5">
-                                                                <span className={`text-xs font-medium tabular-nums ${palette.text}`}>{progress}%</span>
-                                                                {progress === 100 && <CheckCircle2 size={12} className="text-emerald-500" />}
-                                                            </div>
-                                                            <div className="h-1.5 w-full bg-zinc-800 rounded-full overflow-hidden">
+                                                    {/* Status */}
+                                                    <div className="col-span-1 lg:col-span-2 flex items-center justify-between lg:justify-start gap-3">
+                                                        <span className="lg:hidden font-geistmono text-[10px] uppercase text-[#737373]">Status</span>
+                                                        <div className="flex items-center gap-2 flex-1 max-w-[180px]">
+                                                            <span
+                                                                className="inline-flex items-center gap-1.5 px-2 h-5 rounded-full font-geistmono text-[10px] uppercase font-medium shrink-0"
+                                                                style={{ background: `${statusColor}1f`, color: statusColor }}
+                                                            >
+                                                                <span className="w-1 h-1 rounded-full" style={{ background: statusColor }} />
+                                                                {statusLabel}
+                                                            </span>
+                                                            <div className="flex-1 h-[2px] bg-[#1a1a1a] rounded-full overflow-hidden">
                                                                 <motion.div
                                                                     initial={{ width: 0 }}
                                                                     animate={{ width: `${progress}%` }}
-                                                                    transition={{ duration: 0.8, ease: 'easeOut', delay: 0.1 + idx * 0.03 }}
-                                                                    className={`h-full rounded-full bg-gradient-to-r ${palette.gradient}`}
+                                                                    transition={{ duration: 0.7, ease: 'easeOut', delay: 0.1 + idx * 0.03 }}
+                                                                    className="h-full rounded-full"
+                                                                    style={{ background: statusColor }}
                                                                 />
                                                             </div>
+                                                            <span className="font-geistmono text-[10px] tabular-nums text-[#737373] w-9 text-right shrink-0">{progress}%</span>
                                                         </div>
                                                     </div>
 
-                                                    {/* 6. Actions */}
-                                                    <div className="col-span-1 lg:col-span-1 flex items-center justify-end gap-2 mt-2 lg:mt-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-zinc-800/60 relative" data-menu-root>
+                                                    {/* Actions */}
+                                                    <div className="col-span-1 lg:col-span-1 flex items-center justify-end relative" data-menu-root>
                                                         <button
-                                                            onClick={() => setOpenMenuId(openMenuId === client.id ? null : client.id)}
-                                                            className="p-2 text-zinc-500 hover:text-white hover:bg-zinc-700 rounded-lg transition-colors"
+                                                            onClick={(e) => {
+                                                                if (openMenuId === client.id) {
+                                                                    setOpenMenuId(null);
+                                                                    return;
+                                                                }
+                                                                // Viewport-aware flip: if not enough room below, open upward
+                                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                                const menuApproxHeight = 220;
+                                                                const spaceBelow = window.innerHeight - rect.bottom;
+                                                                setMenuFlipUp(spaceBelow < menuApproxHeight + 16);
+                                                                setOpenMenuId(client.id);
+                                                            }}
                                                             aria-label="Open actions menu"
+                                                            aria-expanded={openMenuId === client.id}
+                                                            aria-haspopup="menu"
+                                                            className="w-8 h-8 rounded-md text-[#737373] hover:text-white hover:bg-[#181818] flex items-center justify-center transition-colors"
                                                         >
-                                                            <MoreHorizontal size={18} />
+                                                            <MoreHorizontal size={15} />
                                                         </button>
-                                                        {openMenuId === client.id && (() => {
-                                                            // Flip menu upward for bottom rows so it doesn't hang in empty space below the card.
-                                                            // Last row always flips (when >1 total); 2nd-to-last also flips on 3+ row lists.
-                                                            const flipUp = filtered.length > 1 && idx >= Math.max(1, filtered.length - 2);
-                                                            return (
-                                                                <motion.div
-                                                                    initial={{ opacity: 0, y: flipUp ? 4 : -4 }}
-                                                                    animate={{ opacity: 1, y: 0 }}
-                                                                    className={`absolute right-0 w-48 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl shadow-black/50 z-50 overflow-hidden ${
-                                                                        flipUp ? 'bottom-full mb-2' : 'top-full mt-1 lg:mt-2'
-                                                                    }`}
+                                                        {openMenuId === client.id && (
+                                                            <motion.div
+                                                                role="menu"
+                                                                initial={{ opacity: 0, y: menuFlipUp ? 4 : -4 }}
+                                                                animate={{ opacity: 1, y: 0 }}
+                                                                className={`absolute right-0 w-52 rounded-md z-50 overflow-hidden p-1 bg-[#161616] ${
+                                                                    menuFlipUp ? 'bottom-full mb-2' : 'top-full mt-1.5'
+                                                                }`}
+                                                                style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px, rgba(0,0,0,0.7) 0px 12px 32px -4px, rgba(0,0,0,0.5) 0px 4px 8px -2px' }}
+                                                            >
+                                                                <button
+                                                                    role="menuitem"
+                                                                    onClick={() => { setOpenMenuId(null); handleClientSelect(client); }}
+                                                                    className="w-full flex items-center gap-2.5 px-2.5 py-2 text-[13px] text-[#a1a1a1] hover:text-white rounded hover:bg-[#222] transition-colors font-geist"
                                                                 >
-                                                                    <button
-                                                                        onClick={() => { setOpenMenuId(null); handleClientSelect(client); }}
-                                                                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800 transition-colors"
-                                                                    >
-                                                                        <FolderPlus size={14} className="text-zinc-400" />
-                                                                        View Projects
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => { setOpenMenuId(null); handleViewActivity(client); }}
-                                                                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800 transition-colors"
-                                                                    >
-                                                                        <Activity size={14} className="text-zinc-400" />
-                                                                        Activity Log
-                                                                    </button>
-                                                                    <div className="h-px bg-zinc-800" />
-                                                                    <button
-                                                                        onClick={() => { setOpenMenuId(null); handleEditClient(client); }}
-                                                                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800 transition-colors"
-                                                                    >
-                                                                        <Pencil size={14} className="text-zinc-400" />
-                                                                        Edit Client
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => { setOpenMenuId(null); handleDelete(client.id, 'clients'); }}
-                                                                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
-                                                                    >
-                                                                        <Trash2 size={14} />
-                                                                        Delete Client
-                                                                    </button>
-                                                                </motion.div>
-                                                            );
-                                                        })()}
+                                                                    <FolderPlus size={13} />
+                                                                    Projects
+                                                                </button>
+                                                                <button
+                                                                    role="menuitem"
+                                                                    onClick={() => { setOpenMenuId(null); handleViewActivity(client); }}
+                                                                    className="w-full flex items-center gap-2.5 px-2.5 py-2 text-[13px] text-[#a1a1a1] hover:text-white rounded hover:bg-[#222] transition-colors font-geist"
+                                                                >
+                                                                    <Activity size={13} />
+                                                                    Activity log
+                                                                </button>
+                                                                <div className="h-px my-1" style={{ background: 'rgba(255,255,255,0.08)' }} />
+                                                                <button
+                                                                    role="menuitem"
+                                                                    onClick={() => { setOpenMenuId(null); handleEditClient(client); }}
+                                                                    className="w-full flex items-center gap-2.5 px-2.5 py-2 text-[13px] text-[#a1a1a1] hover:text-white rounded hover:bg-[#222] transition-colors font-geist"
+                                                                >
+                                                                    <Pencil size={13} />
+                                                                    Edit
+                                                                </button>
+                                                                <button
+                                                                    role="menuitem"
+                                                                    onClick={() => { setOpenMenuId(null); handleDelete(client.id, 'clients'); }}
+                                                                    className="w-full flex items-center gap-2.5 px-2.5 py-2 text-[13px] text-[#ff5b4f] rounded hover:bg-[#222] transition-colors font-geist"
+                                                                >
+                                                                    <Trash2 size={13} />
+                                                                    Delete
+                                                                </button>
+                                                            </motion.div>
+                                                        )}
                                                     </div>
                                                 </motion.div>
                                             );
                                         })}
                                     </div>
-                                </div>
-                            )}
+                                )}
+                            </section>
                         </div>
                     );
                 })()}
 
                 {/* ========== PROJECTS VIEW ========== */}
-                {view === 'projects' && !loading && (
-                    <div className="space-y-4">
-                        {projects.map(project => (
-                            <motion.div layout key={project.id} className="bg-white p-4 sm:p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3 sm:gap-4 group">
-                                {/* Project Info Row */}
-                                <div className="flex items-start gap-3 sm:gap-4">
-                                    <div className="p-2.5 sm:p-3 bg-blue-50 text-blue-600 rounded-xl shrink-0">
-                                        <FolderPlus size={20} className="sm:w-6 sm:h-6" />
+                {view === 'projects' && !loading && (() => {
+                    const projectsCount = projects.length;
+                    const completedCount = projects.filter(p => p.status === 'Completed').length;
+                    const activeCount = projectsCount - completedCount;
+                    const totalValue = projects.reduce((a, p) => a + (p.stats?.total ?? 0), 0);
+                    const totalPaid = projects.reduce((a, p) => a + (p.stats?.paid ?? 0), 0);
+                    const totalPending = Math.max(totalValue - totalPaid, 0);
+                    const paidPct = totalValue > 0 ? Math.round((totalPaid / totalValue) * 100) : 0;
+                    const formatINR = (n: number) => `₹${(n ?? 0).toLocaleString('en-IN')}`;
+
+                    return (
+                        <div className="space-y-12">
+                            {/* ===== COMMAND BAR ===== */}
+                            <header className="flex items-center justify-between gap-3 -mt-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <button
+                                        onClick={handleBack}
+                                        aria-label="Back to clients"
+                                        className="h-8 w-8 rounded-md flex items-center justify-center text-[#a1a1a1] hover:text-white hover:bg-[#181818] transition-colors shrink-0"
+                                        style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
+                                    >
+                                        <ArrowLeft size={13} strokeWidth={2} />
+                                    </button>
+                                    <span className="font-geistmono text-[12px] font-medium uppercase text-[#a1a1a1] truncate tracking-[0.02em] ml-1">
+                                        admin
+                                        <span className="text-[#404040] mx-1.5">/</span>
+                                        <button
+                                            type="button"
+                                            onClick={handleBack}
+                                            className="hover:text-white transition-colors uppercase"
+                                        >
+                                            clients
+                                        </button>
+                                        <span className="text-[#404040] mx-1.5">/</span>
+                                        <span className="text-white">{selectedClient?.name || '—'}</span>
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <button
+                                        onClick={async () => { await supabaseAdmin.auth.signOut(); router.push('/admin'); }}
+                                        className="h-9 px-3 rounded-md bg-transparent hover:bg-[#181818] text-[#a1a1a1] hover:text-white flex items-center justify-center gap-2 transition-colors text-[13px] font-medium font-geist"
+                                        style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
+                                        aria-label="Sign out"
+                                    >
+                                        <LogOut size={13} strokeWidth={2} />
+                                        <span className="hidden sm:inline">Sign out</span>
+                                    </button>
+                                    <button
+                                        onClick={() => { setFormData({}); setEditingId(null); setEditingLinkIndex(null); setShowModal(true); }}
+                                        className="h-9 px-3.5 rounded-md bg-white hover:bg-[#ededed] text-[#0a0a0a] flex items-center justify-center gap-1.5 transition-colors text-[13px] font-medium font-geist"
+                                    >
+                                        <Plus size={13} strokeWidth={2.5} />
+                                        New project
+                                    </button>
+                                </div>
+                            </header>
+
+                            {/* ===== HERO ===== */}
+                            <section className="pt-6 pb-2 max-w-3xl">
+                                {projectsCount === 0 ? (
+                                    <>
+                                        <h1
+                                            className="text-white font-semibold font-geist leading-[0.95]"
+                                            style={{ fontSize: 'clamp(44px, 6.6vw, 76px)', letterSpacing: '-0.055em', fontFeatureSettings: '"liga"' }}
+                                        >
+                                            {selectedClient?.name || 'Client'}.<br />
+                                            <span className="text-[#525252]">No projects yet.</span>
+                                        </h1>
+                                        <p className="text-[#a1a1a1] text-[18px] leading-[1.56] mt-6 max-w-xl font-geist">
+                                            Create the first project for this client to begin tracking features and collections.
+                                        </p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <h1
+                                            className="text-white font-semibold font-geist leading-[0.95]"
+                                            style={{ fontSize: 'clamp(44px, 6.6vw, 76px)', letterSpacing: '-0.055em', fontFeatureSettings: '"liga"' }}
+                                        >
+                                            {selectedClient?.name}.<br />
+                                            <span className="text-[#525252]">{projectsCount} {projectsCount === 1 ? 'project' : 'projects'}.</span>
+                                        </h1>
+                                        <p className="text-[#a1a1a1] text-[18px] leading-[1.56] mt-6 max-w-xl font-geist">
+                                            {totalValue > 0 ? (
+                                                <>
+                                                    Tracking <span className="text-white tabular-nums">{formatINR(totalValue)}</span> in contracted work
+                                                    {paidPct === 100
+                                                        ? <>. Fully collected.</>
+                                                        : paidPct === 0
+                                                            ? <>. Awaiting first collection.</>
+                                                            : <>. <span className="text-white tabular-nums">{paidPct}%</span> collected, <span className="tabular-nums">{100 - paidPct}%</span> outstanding.</>}
+                                                </>
+                                            ) : (
+                                                <>{activeCount} active · {completedCount} shipped. No financials recorded yet.</>
+                                            )}
+                                        </p>
+                                    </>
+                                )}
+                            </section>
+
+                            {/* ===== AGGREGATE PIPELINE ===== */}
+                            {projectsCount > 0 && (
+                                <section>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <span className="font-geistmono text-[11px] font-medium uppercase text-[#737373]">Financials</span>
+                                        <div className="flex items-center gap-1">
+                                            <span className="w-1 h-1 rounded-full bg-[#0a72ef]" />
+                                            <span className="w-1 h-1 rounded-full bg-[#de1d8d]" />
+                                            <span className="w-1 h-1 rounded-full bg-[#ff5b4f]" />
+                                        </div>
                                     </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-start justify-between gap-2">
-                                            <h3 className="font-bold text-slate-900 text-sm sm:text-base leading-snug">{project.description}</h3>
-                                            <div className="hidden sm:flex items-center gap-2 shrink-0">
-                                                <button onClick={() => handleEditProject(project)} className="text-slate-400 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity p-2">
-                                                    <Pencil size={16} />
-                                                </button>
-                                                <button onClick={() => handleDelete(project.id, 'projects')} className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-2">
-                                                    <Trash2 size={16} />
-                                                </button>
+                                    <div
+                                        className="grid grid-cols-1 md:grid-cols-3 rounded-lg"
+                                        style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px, rgba(0,0,0,0.4) 0px 1px 2px' }}
+                                    >
+                                        {[
+                                            { idx: '01', label: 'Develop', sub: 'Total contracted', value: totalValue, color: '#0a72ef', meta: `${activeCount} active` },
+                                            { idx: '02', label: 'Preview', sub: 'Awaiting collection', value: totalPending, color: '#de1d8d', meta: totalValue > 0 ? `${100 - paidPct}% outstanding` : '—' },
+                                            { idx: '03', label: 'Ship', sub: 'Realized revenue', value: totalPaid, color: '#ff5b4f', meta: totalValue > 0 ? `${paidPct}% collected` : '—' },
+                                        ].map((step, i) => (
+                                            <div
+                                                key={step.idx}
+                                                className={`relative p-7 flex flex-col gap-5 ${i === 0 ? 'rounded-t-lg md:rounded-tr-none md:rounded-l-lg' : ''} ${i === 2 ? 'rounded-b-lg md:rounded-bl-none md:rounded-r-lg' : ''} ${i < 2 ? 'shadow-[inset_0_-1px_0_0_rgba(255,255,255,0.08)] md:shadow-[inset_-1px_0_0_0_rgba(255,255,255,0.08)]' : ''}`}
+                                            >
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <span className="font-geistmono text-[11px] font-medium uppercase" style={{ color: step.color }}>
+                                                        {step.idx} · {step.label}
+                                                    </span>
+                                                    <span className="font-geistmono text-[10px] uppercase text-[#737373] tabular-nums">{step.meta}</span>
+                                                </div>
+                                                <div className="text-[#a1a1a1] text-[14px] leading-[1.4] font-geist">
+                                                    {step.sub}
+                                                </div>
+                                                <div
+                                                    className="text-white font-semibold tabular-nums font-geist"
+                                                    style={{ fontSize: '40px', letterSpacing: '-1.6px', lineHeight: 1.0, fontFeatureSettings: '"tnum","liga"' }}
+                                                >
+                                                    {formatINR(step.value)}
+                                                </div>
+                                                {i < 2 && (
+                                                    <div
+                                                        className="hidden md:flex absolute top-1/2 -right-3 -translate-y-1/2 w-6 h-6 items-center justify-center rounded-full bg-[#0a0a0a] z-10"
+                                                        style={{ boxShadow: 'rgba(255,255,255,0.12) 0px 0px 0px 1px' }}
+                                                        aria-hidden="true"
+                                                    >
+                                                        <ArrowRight size={11} className="text-[#737373]" strokeWidth={2} />
+                                                    </div>
+                                                )}
                                             </div>
-                                        </div>
-                                        <div className="flex flex-wrap gap-1.5 sm:gap-2 mt-1.5">
-                                            <span className="text-[11px] sm:text-xs font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600">{project.category}</span>
-                                            <span className={`text-[11px] sm:text-xs font-medium px-2 py-0.5 rounded ${project.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{project.status}</span>
-                                            <span className="inline-flex items-center gap-1 text-[11px] sm:text-xs text-slate-400 px-1.5 py-0.5 whitespace-nowrap">
-                                                <Calendar size={10} className="sm:w-[11px] sm:h-[11px]" />
-                                                {new Date(project.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                            </span>
-                                        </div>
+                                        ))}
                                     </div>
+                                </section>
+                            )}
+
+                            {/* ===== PROJECTS LIST ===== */}
+                            <section className="space-y-6">
+                                <div
+                                    className="flex items-end justify-between gap-4 pb-5"
+                                    style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 1px 0px' }}
+                                >
+                                    <div>
+                                        <span className="font-geistmono text-[11px] font-medium uppercase text-[#737373] mb-2 block">Catalog</span>
+                                        <h2
+                                            className="text-white font-semibold font-geist leading-[1.0]"
+                                            style={{ fontSize: '32px', letterSpacing: '-1.28px' }}
+                                        >
+                                            All projects
+                                        </h2>
+                                    </div>
+                                    {projectsCount > 0 && (
+                                        <span className="font-geistmono text-[11px] uppercase text-[#737373] tabular-nums pb-1">
+                                            {completedCount} <span className="text-[#525252]">shipped of</span> {projectsCount}
+                                        </span>
+                                    )}
                                 </div>
 
-                                {/* Progress Bar */}
-                                <div className="w-full">
-                                    <div className="flex justify-between items-end text-xs mb-1.5">
-                                        <span className="text-slate-500 font-medium">Progress</span>
-                                        <div className="text-right">
-                                            <span className="font-bold text-slate-700">{project.stats.progress}%</span>
-                                            <span className="text-[10px] text-slate-400 font-normal ml-1">
-                                                ({project.stats.completedFeatures}/{project.stats.totalFeatures})
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
+                                {projectsCount === 0 ? (
+                                    <div
+                                        className="rounded-lg py-20 px-6 text-center"
+                                        style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
+                                    >
                                         <div
-                                            className={`h-full rounded-full transition-all duration-700 ease-out ${project.stats.progress === 100 ? 'bg-green-500' : 'bg-blue-500'}`}
-                                            style={{ width: `${project.stats.progress}%` }}
-                                        />
+                                            className="inline-flex w-12 h-12 items-center justify-center rounded-md mb-5"
+                                            style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
+                                        >
+                                            <PackagePlus size={18} className="text-[#a1a1a1]" strokeWidth={2} />
+                                        </div>
+                                        <p className="text-white text-[20px] font-semibold font-geist" style={{ letterSpacing: '-0.4px' }}>
+                                            No projects yet
+                                        </p>
+                                        <p className="text-[#a1a1a1] text-[14px] mt-2 max-w-sm mx-auto font-geist">
+                                            Click &quot;New project&quot; to create the first deliverable for this client.
+                                        </p>
                                     </div>
-                                </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {projects.map((project, idx) => {
+                                            const isCompleted = project.status === 'Completed';
+                                            const progress = project.stats?.progress ?? 0;
+                                            const stageColor = isCompleted ? '#ff5b4f' : progress >= 50 ? '#de1d8d' : '#0a72ef';
+                                            const stageLabel = isCompleted ? 'Shipped' : progress >= 50 ? 'Preview' : 'Develop';
+                                            const projectIdx = String(idx + 1).padStart(2, '0');
+                                            const total = project.stats?.total ?? 0;
+                                            const paid = project.stats?.paid ?? 0;
+                                            const pending = project.stats?.pending ?? Math.max(total - paid, 0);
 
-                                {/* Financial Summary - Mobile Only */}
-                                <div className="grid grid-cols-3 gap-1 bg-slate-50 rounded-lg p-2.5 sm:hidden">
-                                    {/* Desktop: table layout */}
-                                    <div className="hidden sm:contents">
-                                    </div>
-                                    {/* Shared: stat blocks that work on both */}
-                                    <div className="text-center">
-                                        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-medium sm:hidden">Total</p>
-                                        <p className="text-xs sm:text-sm font-bold text-slate-900 mt-0.5">₹{project.stats.total}</p>
-                                    </div>
-                                    <div className="text-center border-x border-slate-200/60">
-                                        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-medium sm:hidden">Paid</p>
-                                        <p className="text-xs sm:text-sm font-bold text-green-600 mt-0.5">₹{project.stats.paid}</p>
-                                    </div>
-                                    <div className="text-center">
-                                        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-medium sm:hidden">Pending</p>
-                                        <p className="text-xs sm:text-sm font-bold text-amber-600 mt-0.5">₹{project.stats.pending}</p>
-                                    </div>
-                                </div>
+                                            return (
+                                                <motion.article
+                                                    layout
+                                                    key={project.id}
+                                                    initial={{ opacity: 0, y: 4 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    transition={{ delay: idx * 0.04, duration: 0.25 }}
+                                                    className="rounded-lg p-6 sm:p-7 group hover:bg-[#0c0c0c] transition-colors"
+                                                    style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
+                                                >
+                                                    {/* Header row: index + category + date */}
+                                                    <div className="flex items-center justify-between gap-2 mb-5 flex-wrap">
+                                                        <div className="flex items-center gap-3 flex-wrap">
+                                                            <span
+                                                                className="inline-flex items-center gap-1.5 px-2 h-5 rounded-full font-geistmono text-[10px] uppercase font-medium shrink-0"
+                                                                style={{ background: `${stageColor}1f`, color: stageColor }}
+                                                            >
+                                                                <span className="w-1 h-1 rounded-full" style={{ background: stageColor }} />
+                                                                {projectIdx} · {stageLabel}
+                                                            </span>
+                                                            <span className="font-geistmono text-[11px] uppercase text-[#737373]">
+                                                                {project.category}
+                                                            </span>
+                                                        </div>
+                                                        <span className="font-geistmono text-[10px] uppercase text-[#525252] tabular-nums">
+                                                            {new Date(project.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                        </span>
+                                                    </div>
 
-                                {/* Desktop: table header row (hidden on mobile since labels are inline) */}
-                                <div className="hidden sm:block border border-slate-100 rounded-lg overflow-hidden -mt-2">
-                                    <table className="w-full text-center text-xs">
-                                        <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-100">
-                                            <tr>
-                                                <th className="py-2 border-r border-slate-100">Total Payment</th>
-                                                <th className="py-2 border-r border-slate-100">Paid</th>
-                                                <th className="py-2">Pending</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="bg-white text-slate-900 font-semibold">
-                                            <tr>
-                                                <td className="py-2 border-r border-slate-100">₹{project.stats.total}</td>
-                                                <td className="py-2 border-r border-slate-100 text-green-600">₹{project.stats.paid}</td>
-                                                <td className="py-2 text-amber-600">₹{project.stats.pending}</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
+                                                    {/* Project title */}
+                                                    <h3
+                                                        className="text-white font-semibold font-geist mb-6"
+                                                        style={{ fontSize: 'clamp(20px, 2.4vw, 24px)', letterSpacing: '-0.96px', lineHeight: 1.2 }}
+                                                    >
+                                                        {project.description}
+                                                    </h3>
 
-                                {/* Action Buttons */}
-                                <div className="flex items-center gap-2 pt-2 border-t border-slate-100 sm:border-0 sm:pt-0 sm:justify-end">
-                                    <button onClick={() => handleEditProject(project)} className="sm:hidden p-2 text-slate-400 hover:text-blue-600 rounded-lg border border-slate-200 active:bg-blue-50">
-                                        <Pencil size={15} />
-                                    </button>
-                                    <button onClick={() => handleDelete(project.id, 'projects')} className="sm:hidden p-2 text-slate-300 hover:text-red-500 rounded-lg border border-slate-200 active:bg-red-50">
-                                        <Trash2 size={15} />
-                                    </button>
-                                    <div className="flex-1 sm:flex-none" />
-                                    <button
-                                        onClick={() => handleProjectLinksSelect(project)}
-                                        className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs sm:text-sm font-medium transition-colors active:bg-slate-300"
-                                    >
-                                        Links
-                                    </button>
-                                    <button
-                                        onClick={() => handleProjectSelect(project)}
-                                        className="px-3 sm:px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs sm:text-sm font-medium transition-colors active:bg-blue-800"
-                                    >
-                                        Manage Features
-                                    </button>
-                                </div>
-                            </motion.div>
-                        ))}
-                        {projects.length === 0 && <div className="text-center py-10 text-slate-400">No projects yet. Click "Add Project" to create one.</div>}
-                    </div>
-                )}
+                                                    {/* Progress */}
+                                                    <div className="mb-6">
+                                                        <div className="flex items-end justify-between mb-2.5">
+                                                            <span className="font-geistmono text-[11px] font-medium uppercase text-[#737373]">Progress</span>
+                                                            <div className="flex items-baseline gap-2 font-geist">
+                                                                <span
+                                                                    className="text-white font-semibold tabular-nums"
+                                                                    style={{ fontSize: '18px', letterSpacing: '-0.36px' }}
+                                                                >
+                                                                    {progress}%
+                                                                </span>
+                                                                <span className="text-[#737373] text-[11px] font-geistmono tabular-nums">
+                                                                    {project.stats?.completedFeatures ?? 0}<span className="text-[#404040]">/</span>{project.stats?.totalFeatures ?? 0}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="h-1 w-full bg-[#181818] rounded-full overflow-hidden">
+                                                            <motion.div
+                                                                initial={{ width: 0 }}
+                                                                animate={{ width: `${progress}%` }}
+                                                                transition={{ duration: 0.7, ease: 'easeOut', delay: 0.1 + idx * 0.04 }}
+                                                                className="h-full rounded-full"
+                                                                style={{ background: stageColor }}
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Payment breakdown */}
+                                                    <div
+                                                        className="grid grid-cols-3 rounded-md mb-6"
+                                                        style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
+                                                    >
+                                                        <div
+                                                            className="p-4 flex flex-col gap-2 rounded-l-md"
+                                                            style={{ boxShadow: 'rgba(255,255,255,0.08) -1px 0px 0px inset' }}
+                                                        >
+                                                            <span className="font-geistmono text-[10px] font-medium uppercase text-[#737373]">Total</span>
+                                                            <span
+                                                                className="text-white font-semibold tabular-nums font-geist"
+                                                                style={{ fontSize: 'clamp(15px, 2vw, 18px)', letterSpacing: '-0.36px' }}
+                                                            >
+                                                                {formatINR(total)}
+                                                            </span>
+                                                        </div>
+                                                        <div
+                                                            className="p-4 flex flex-col gap-2"
+                                                            style={{ boxShadow: 'rgba(255,255,255,0.08) -1px 0px 0px inset' }}
+                                                        >
+                                                            <span className="font-geistmono text-[10px] font-medium uppercase text-[#737373]">Paid</span>
+                                                            <span
+                                                                className="font-semibold tabular-nums font-geist"
+                                                                style={{ fontSize: 'clamp(15px, 2vw, 18px)', letterSpacing: '-0.36px', color: paid > 0 ? '#ff5b4f' : '#525252' }}
+                                                            >
+                                                                {formatINR(paid)}
+                                                            </span>
+                                                        </div>
+                                                        <div className="p-4 flex flex-col gap-2 rounded-r-md">
+                                                            <span className="font-geistmono text-[10px] font-medium uppercase text-[#737373]">Pending</span>
+                                                            <span
+                                                                className="font-semibold tabular-nums font-geist"
+                                                                style={{ fontSize: 'clamp(15px, 2vw, 18px)', letterSpacing: '-0.36px', color: pending > 0 ? '#de1d8d' : '#525252' }}
+                                                            >
+                                                                {formatINR(pending)}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Footer actions */}
+                                                    <div
+                                                        className="flex items-center justify-between gap-2 pt-5"
+                                                        style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 1px 0px inset' }}
+                                                    >
+                                                        <div className="flex items-center gap-1">
+                                                            <button
+                                                                onClick={() => handleEditProject(project)}
+                                                                aria-label="Edit project"
+                                                                className="h-8 w-8 rounded-md flex items-center justify-center text-[#737373] hover:text-white hover:bg-[#181818] transition-colors"
+                                                            >
+                                                                <Pencil size={13} strokeWidth={2} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDelete(project.id, 'projects')}
+                                                                aria-label="Delete project"
+                                                                className="h-8 w-8 rounded-md flex items-center justify-center text-[#737373] hover:text-[#ff5b4f] hover:bg-[#181818] transition-colors"
+                                                            >
+                                                                <Trash2 size={13} strokeWidth={2} />
+                                                            </button>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <button
+                                                                onClick={() => handleProjectLinksSelect(project)}
+                                                                className="h-9 px-3.5 rounded-md text-[#a1a1a1] hover:text-white hover:bg-[#181818] flex items-center justify-center gap-1.5 transition-colors text-[13px] font-medium font-geist"
+                                                                style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
+                                                            >
+                                                                <Link2 size={13} strokeWidth={2} />
+                                                                Links
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleProjectSelect(project)}
+                                                                className="h-9 px-3.5 rounded-md bg-white hover:bg-[#ededed] text-[#0a0a0a] flex items-center justify-center gap-1.5 transition-colors text-[13px] font-medium font-geist"
+                                                            >
+                                                                Manage features
+                                                                <ArrowRight size={13} strokeWidth={2.5} />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </motion.article>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </section>
+                        </div>
+                    );
+                })()}
 
                 {/* ========== LINKS VIEW ========== */}
                 {view === 'links' && !loading && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {links.map((link, index) => (
-                            <div key={index} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between gap-3">
-                                <div className="overflow-hidden min-w-0 flex-1">
-                                    <h4 className="font-semibold text-sm sm:text-base text-slate-900">{link.title}</h4>
-                                    <a href={link.url} target="_blank" rel="noopener noreferrer" className="text-[11px] sm:text-xs text-blue-500 hover:underline truncate block">
-                                        {link.url}
-                                    </a>
-                                </div>
-                                <div className="flex items-center gap-1 shrink-0">
-                                    <button onClick={() => { setEditingLinkIndex(index); setFormData({ link_title: link.title, link_url: link.url }); setShowModal(true); }} className="p-2 text-slate-300 hover:text-blue-500 transition-colors rounded-md hover:bg-blue-50">
-                                        <Pencil size={16} />
-                                    </button>
-                                    <button onClick={() => handleDeleteLink(index)} className="p-2 text-slate-300 hover:text-red-500 transition-colors rounded-md hover:bg-red-50">
-                                        <Trash2 size={16} />
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-                        {links.length === 0 && <div className="col-span-full text-center py-10 text-slate-400 bg-white rounded-xl border border-dashed border-slate-300">No links added. Click "Add Link" to add one.</div>}
-                    </div>
-                )}
-
-                {/* ========== FEATURES VIEW ========== */}
-                {view === 'features' && !loading && (
-                    <div>
-                        {/* Sorting Controls */}
-                        {features.length > 1 && (
-                            <div className="flex items-center justify-between sm:justify-end gap-2 mb-4">
-                                <span className="text-xs text-slate-500">Sort by:</span>
-                                <div className="flex bg-white border border-slate-200 rounded-lg p-0.5">
-                                    {(['amount', 'status', 'created_at'] as SortField[]).map((field) => (
-                                        <button
-                                            key={field}
-                                            onClick={() => {
-                                                if (sortField === field) {
-                                                    setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                                                } else {
-                                                    setSortField(field);
-                                                    setSortOrder('asc');
-                                                }
-                                            }}
-                                            className={`px-2.5 sm:px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1 ${sortField === field ? 'bg-blue-600 text-white' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'}`}
-                                        >
-                                            {field === 'created_at' ? 'Date' : field.charAt(0).toUpperCase() + field.slice(1)}
-                                            {sortField === field && (
-                                                sortOrder === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />
-                                            )}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Desktop Table - hidden on mobile */}
-                        <div className="hidden sm:block bg-white rounded-xl border border-slate-200 overflow-x-auto">
-                            <table className="w-full text-left text-sm min-w-[700px]">
-                                <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
-                                    <tr>
-                                        <th className="px-6 py-4">Description</th>
-                                        <th className="px-6 py-4">Date</th>
-                                        <th className="px-6 py-4">Estimation</th>
-                                        <th className="px-6 py-4">Amount (₹)</th>
-                                        <th className="px-6 py-4">Type</th>
-                                        <th className="px-6 py-4">Status</th>
-                                        <th className="px-6 py-4">Payment</th>
-                                        <th className="px-6 py-4">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100">
-                                    {[...features].sort((a, b) => {
-                                        let comparison = 0;
-                                        if (sortField === 'amount') {
-                                            comparison = (a.amount || 0) - (b.amount || 0);
-                                        } else if (sortField === 'status') {
-                                            const statusOrder = ['Requested', 'Approved', 'Working', 'Updating', 'Completed'];
-                                            comparison = statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status);
-                                        } else if (sortField === 'created_at') {
-                                            comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-                                        }
-                                        return sortOrder === 'asc' ? comparison : -comparison;
-                                    }).map((feature) => (
-                                        <tr key={feature.id} className="hover:bg-slate-50/50">
-                                            <td className="px-6 py-4 font-medium text-slate-900">{feature.description}</td>
-                                            <td className="px-6 py-4 text-slate-500 text-xs">
-                                                {feature.created_at ? new Date(feature.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '-'}
-                                            </td>
-                                            <td className="px-6 py-4 text-slate-600">{feature.estimation || '-'}</td>
-                                            <td className="px-6 py-4">
-                                                {feature.payment_confirmed === false ? (
-                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-orange-50 text-orange-600 border border-orange-200">
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
-                                                        Rate Pending
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-slate-900 font-semibold">₹{feature.amount || 0}</span>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                {feature.is_new_request ? (
-                                                    <span className="inline-flex px-2 py-1 rounded text-xs font-medium bg-purple-50 text-purple-700">Extra</span>
-                                                ) : (
-                                                    <span className="inline-flex px-2 py-1 rounded text-xs font-medium bg-indigo-50 text-indigo-700">Core</span>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${feature.status === 'Completed' ? 'bg-green-50 text-green-700' :
-                                                    feature.status === 'Working' ? 'bg-blue-50 text-blue-700' :
-                                                        'bg-amber-50 text-amber-700'
-                                                    }`}>{feature.status}</span>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                {feature.payment_confirmed === false ? (
-                                                    <span className="text-xs text-slate-400 italic">—</span>
-                                                ) : (
-                                                    <div className="flex flex-col gap-1 items-start">
-                                                        <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${feature.payment_status === 'Paid' ? 'bg-green-50 text-green-700' :
-                                                            feature.payment_status === 'Partial' ? 'bg-blue-50 text-blue-700' :
-                                                                'bg-red-50 text-red-700'
-                                                            }`}>{feature.payment_status}</span>
-                                                        {(feature.paid_amount || 0) > 0 && (
-                                                            <span className="text-xs text-slate-500 font-mono">
-                                                                ₹{feature.paid_amount} / ₹{feature.amount}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-2">
-                                                    <button onClick={() => handleEditFeature(feature)} className="text-slate-400 hover:text-blue-600 transition-colors">
-                                                        <Pencil size={16} />
-                                                    </button>
-                                                    <button onClick={() => handleDelete(feature.id, 'features')} className="text-slate-400 hover:text-red-500 transition-colors">
-                                                        <Trash2 size={16} />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                            {features.length === 0 && <div className="p-8 text-center text-slate-400">No features added yet.</div>}
-                        </div>
-
-                        {/* Mobile Cards - shown only on mobile */}
-                        <div className="sm:hidden space-y-3">
-                            {[...features].sort((a, b) => {
-                                let comparison = 0;
-                                if (sortField === 'amount') comparison = (a.amount || 0) - (b.amount || 0);
-                                else if (sortField === 'status') {
-                                    const statusOrder = ['Requested', 'Approved', 'Working', 'Updating', 'Completed'];
-                                    comparison = statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status);
-                                } else if (sortField === 'created_at') comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-                                return sortOrder === 'asc' ? comparison : -comparison;
-                            }).map((feature) => (
-                                <div key={feature.id} className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
-                                    <div className="flex items-start justify-between gap-2">
-                                        <h4 className="font-semibold text-slate-900 text-sm leading-snug flex-1">{feature.description}</h4>
-                                        <div className="flex items-center gap-1.5 shrink-0">
-                                            <button onClick={() => handleEditFeature(feature)} className="p-1.5 text-slate-400 hover:text-blue-600 rounded-md hover:bg-blue-50 transition-colors">
-                                                <Pencil size={14} />
-                                            </button>
-                                            <button onClick={() => handleDelete(feature.id, 'features')} className="p-1.5 text-slate-400 hover:text-red-500 rounded-md hover:bg-red-50 transition-colors">
-                                                <Trash2 size={14} />
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-wrap gap-1.5">
-                                        <span className={`inline-flex px-2 py-0.5 rounded text-[11px] font-medium ${feature.status === 'Completed' ? 'bg-green-50 text-green-700' : feature.status === 'Working' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>{feature.status}</span>
-                                        <span className={`inline-flex px-2 py-0.5 rounded text-[11px] font-medium ${feature.payment_status === 'Paid' ? 'bg-green-50 text-green-700' : feature.payment_status === 'Partial' ? 'bg-blue-50 text-blue-700' : 'bg-red-50 text-red-700'}`}>{feature.payment_status}</span>
-                                        {feature.is_new_request ? (
-                                            <span className="inline-flex px-2 py-0.5 rounded text-[11px] font-medium bg-purple-50 text-purple-700">Extra</span>
-                                        ) : (
-                                            <span className="inline-flex px-2 py-0.5 rounded text-[11px] font-medium bg-indigo-50 text-indigo-700">Core</span>
-                                        )}
-                                    </div>
-                                    <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100">
-                                        <div>
-                                            <p className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">Amount</p>
-                                            {feature.payment_confirmed === false ? (
-                                                <span className="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-50 text-orange-600 border border-orange-200">
-                                                    <span className="w-1 h-1 rounded-full bg-orange-400 animate-pulse" />
-                                                    Pending
-                                                </span>
-                                            ) : (
-                                                <p className="text-sm font-bold text-slate-900 mt-0.5">₹{feature.amount || 0}</p>
-                                            )}
-                                        </div>
-                                        <div>
-                                            <p className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">Paid</p>
-                                            {feature.payment_confirmed === false ? (
-                                                <span className="text-xs text-slate-300 mt-0.5">—</span>
-                                            ) : (
-                                                <p className="text-sm font-bold text-green-600 mt-0.5">₹{feature.paid_amount || 0}</p>
-                                            )}
-                                        </div>
-                                        <div>
-                                            <p className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">Date</p>
-                                            <p className="text-xs text-slate-600 mt-0.5">{feature.created_at ? new Date(feature.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '-'}</p>
-                                        </div>
-                                    </div>
-                                    {feature.estimation && (
-                                        <p className="text-xs text-slate-500"><span className="font-medium text-slate-400">Est:</span> {feature.estimation}</p>
-                                    )}
-                                </div>
-                            ))}
-                            {features.length === 0 && <div className="p-8 text-center text-slate-400 bg-white rounded-xl border border-dashed border-slate-300">No features added yet.</div>}
-                        </div>
-                    </div>
-                )}
-
-                {/* ========== ACTIVITY VIEW ========== */}
-                {view === 'activity' && !loading && selectedClient && (
-                    <div className="space-y-4">
-                        {/* Email status banner */}
-                        {!selectedClient.email ? (
-                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3">
-                                <Mail size={20} className="text-amber-500 shrink-0" />
-                                <div>
-                                    <p className="text-sm font-semibold text-amber-800">No email address</p>
-                                    <p className="text-xs text-amber-600">Edit this client to add an email before sending notifications.</p>
-                                </div>
+                    <div className="space-y-12">
+                        {/* ===== COMMAND BAR ===== */}
+                        <header className="flex items-center justify-between gap-3 -mt-2">
+                            <div className="flex items-center gap-2 min-w-0">
                                 <button
-                                    onClick={() => handleEditClient(selectedClient)}
-                                    className="ml-auto px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-lg text-xs font-semibold transition-colors"
+                                    onClick={handleBack}
+                                    aria-label="Back to projects"
+                                    className="h-8 w-8 rounded-md flex items-center justify-center text-[#a1a1a1] hover:text-white hover:bg-[#181818] transition-colors shrink-0"
+                                    style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
                                 >
-                                    Add Email
+                                    <ArrowLeft size={13} strokeWidth={2} />
+                                </button>
+                                <span className="font-geistmono text-[12px] font-medium uppercase text-[#a1a1a1] truncate tracking-[0.02em] ml-1">
+                                    admin
+                                    <span className="text-[#404040] mx-1.5">/</span>
+                                    <span className="text-[#737373]">{selectedClient?.name || '—'}</span>
+                                    <span className="text-[#404040] mx-1.5">/</span>
+                                    <button type="button" onClick={handleBack} className="hover:text-white transition-colors uppercase">projects</button>
+                                    <span className="text-[#404040] mx-1.5">/</span>
+                                    <span className="text-white">links</span>
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                                <button
+                                    onClick={async () => { await supabaseAdmin.auth.signOut(); router.push('/admin'); }}
+                                    className="h-9 px-3 rounded-md bg-transparent hover:bg-[#181818] text-[#a1a1a1] hover:text-white flex items-center justify-center gap-2 transition-colors text-[13px] font-medium font-geist"
+                                    style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
+                                    aria-label="Sign out"
+                                >
+                                    <LogOut size={13} strokeWidth={2} />
+                                    <span className="hidden sm:inline">Sign out</span>
+                                </button>
+                                <button
+                                    onClick={() => { setFormData({}); setEditingId(null); setEditingLinkIndex(null); setShowModal(true); }}
+                                    className="h-9 px-3.5 rounded-md bg-white hover:bg-[#ededed] text-[#0a0a0a] flex items-center justify-center gap-1.5 transition-colors text-[13px] font-medium font-geist"
+                                >
+                                    <Plus size={13} strokeWidth={2.5} />
+                                    New link
                                 </button>
                             </div>
-                        ) : (
-                            <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-3">
-                                <MailCheck size={18} className="text-green-600 shrink-0" />
-                                <p className="text-sm text-green-700">Notifications will be sent to <strong>{selectedClient.email}</strong></p>
-                            </div>
-                        )}
+                        </header>
 
-                        {/* Batch actions bar */}
-                        {selectedLogIds.size > 0 && selectedClient.email && (
-                            <motion.div
-                                initial={{ opacity: 0, y: -10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="bg-blue-600 text-white rounded-xl p-3 flex items-center justify-between sticky top-16 z-10 shadow-lg"
+                        {/* ===== HERO ===== */}
+                        <section className="pt-6 pb-2 max-w-3xl">
+                            <h1
+                                className="text-white font-semibold font-geist leading-[0.95]"
+                                style={{ fontSize: 'clamp(40px, 5.6vw, 64px)', letterSpacing: '-0.05em', fontFeatureSettings: '"liga"' }}
                             >
-                                <span className="text-sm font-medium">{selectedLogIds.size} update{selectedLogIds.size > 1 ? 's' : ''} selected</span>
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        onClick={() => setSelectedLogIds(new Set())}
-                                        className="px-3 py-1.5 bg-blue-500 hover:bg-blue-400 rounded-lg text-xs font-semibold transition-colors"
-                                    >
-                                        Clear
-                                    </button>
-                                    <button
-                                        onClick={handleSendDigest}
-                                        disabled={sendingDigest}
-                                        className="px-4 py-1.5 bg-white text-blue-700 hover:bg-blue-50 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 disabled:opacity-50"
-                                    >
-                                        {sendingDigest ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
-                                        Send Digest
-                                    </button>
-                                </div>
-                            </motion.div>
-                        )}
+                                {selectedProject?.description || 'Project'}.<br />
+                                <span className="text-[#525252]">{links.length} {links.length === 1 ? 'link' : 'links'}.</span>
+                            </h1>
+                            <p className="text-[#a1a1a1] text-[18px] leading-[1.56] mt-6 max-w-xl font-geist">
+                                {links.length === 0
+                                    ? <>Pin design files, deployments, repos, or any reference URL the client should see.</>
+                                    : <>Resources visible to the client on their portal.</>}
+                            </p>
+                        </section>
 
-                        {/* Timeline */}
-                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                        {/* ===== LIST ===== */}
+                        <section className="space-y-6">
+                            <div
+                                className="flex items-end justify-between gap-4 pb-5"
+                                style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 1px 0px' }}
+                            >
                                 <div>
-                                    <h3 className="font-bold text-slate-900">Activity Timeline</h3>
-                                    <p className="text-xs text-slate-400">Click checkboxes to batch-select, or send individually</p>
+                                    <span className="font-geistmono text-[11px] font-medium uppercase text-[#737373] mb-2 block">Resources</span>
+                                    <h2
+                                        className="text-white font-semibold font-geist leading-[1.0]"
+                                        style={{ fontSize: '32px', letterSpacing: '-1.28px' }}
+                                    >
+                                        All links
+                                    </h2>
                                 </div>
-                                <span className="text-xs text-slate-400 font-mono bg-slate-50 px-2 py-1 rounded">{activityLogs.length} logs</span>
+                                {links.length > 0 && (
+                                    <span className="font-geistmono text-[11px] uppercase text-[#737373] tabular-nums pb-1">
+                                        {links.length} <span className="text-[#525252]">total</span>
+                                    </span>
+                                )}
                             </div>
 
-                            {loadingLogs ? (
-                                <div className="flex justify-center py-16"><Loader2 className="animate-spin text-blue-500" size={28} /></div>
-                            ) : activityLogs.length === 0 ? (
-                                <div className="text-center py-16 text-slate-400">
-                                    <Activity size={32} className="mx-auto mb-2 text-slate-300" />
-                                    <p className="text-sm font-medium">No activity logs yet</p>
+                            {links.length === 0 ? (
+                                <div
+                                    className="rounded-lg py-20 px-6 text-center"
+                                    style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
+                                >
+                                    <div
+                                        className="inline-flex w-12 h-12 items-center justify-center rounded-md mb-5"
+                                        style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
+                                    >
+                                        <Link2 size={18} className="text-[#a1a1a1]" strokeWidth={2} />
+                                    </div>
+                                    <p className="text-white text-[20px] font-semibold font-geist" style={{ letterSpacing: '-0.4px' }}>
+                                        No links yet
+                                    </p>
+                                    <p className="text-[#a1a1a1] text-[14px] mt-2 max-w-sm mx-auto font-geist">
+                                        Click &quot;New link&quot; to attach a URL to this project.
+                                    </p>
                                 </div>
                             ) : (
-                                <div className="divide-y divide-slate-50">
-                                    {activityLogs.map((log) => {
-                                        const meta = getActivityMeta(log.action_type);
-                                        const isSent = !!log.notified_at;
-                                        const isSending = sendingIds.has(log.id);
-                                        const isSelected = selectedLogIds.has(log.id);
-                                        const isHidden = !!log.is_hidden;
-
+                                <div
+                                    className="rounded-lg"
+                                    style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
+                                >
+                                    {links.map((link, index) => {
+                                        const isFirst = index === 0;
+                                        const isLast = index === links.length - 1;
                                         return (
-                                            <div key={log.id} className={`flex items-start gap-3 px-5 py-4 hover:bg-slate-50/50 transition-colors ${isSelected ? 'bg-blue-50/30' : ''} ${isHidden ? 'opacity-50' : ''}`}>
-                                                {/* Checkbox */}
-                                                <div className="pt-1 shrink-0">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={isSelected}
-                                                        onChange={() => toggleLogSelection(log.id)}
-                                                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                                                    />
-                                                </div>
-
-                                                {/* Icon */}
-                                                <div className={`p-2 rounded-lg ${meta.color} text-white shrink-0 mt-0.5`}>
-                                                    {meta.icon}
-                                                </div>
-
-                                                {/* Content */}
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                                                        <span className={`text-[10px] font-bold uppercase tracking-wider ${meta.textColor} ${meta.bgLight} px-1.5 py-0.5 rounded`}>
-                                                            {meta.label}
-                                                        </span>
-                                                        {isHidden && (
-                                                            <span className="text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                                                                <EyeOff size={9} />
-                                                                Hidden
-                                                            </span>
-                                                        )}
-
-                                                        {/* Amount badges per action type */}
-                                                        {log.action_type === 'payment_received' && log.metadata?.paidAmount && (
-                                                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                                                                ₹{Number(log.metadata.paidAmount - (log.metadata.oldPaidAmount || 0)).toLocaleString()}
-                                                            </span>
-                                                        )}
-                                                        {log.action_type === 'feature_added' && log.metadata?.amount > 0 && (
-                                                            <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
-                                                                ₹{Number(log.metadata.amount).toLocaleString()}
-                                                            </span>
-                                                        )}
-                                                        {log.action_type === 'feature_updated' && log.metadata?.oldAmount !== undefined && log.metadata?.amount !== log.metadata?.oldAmount && (
-                                                            <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                                                                ₹{Number(log.metadata.oldAmount).toLocaleString()} → ₹{Number(log.metadata.amount).toLocaleString()}
-                                                            </span>
-                                                        )}
-                                                        {log.action_type === 'rate_confirmed' && log.metadata?.amount > 0 && (
-                                                            <span className="text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">
-                                                                ₹{Number(log.metadata.amount).toLocaleString()}
-                                                            </span>
-                                                        )}
-
-                                                        <span className="text-[10px] text-slate-400 font-medium">{getRelativeTime(log.created_at)}</span>
+                                            <motion.div
+                                                key={index}
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                transition={{ delay: index * 0.04, duration: 0.25 }}
+                                                className={`group flex items-center justify-between gap-3 px-5 sm:px-6 py-4 hover:bg-[#0c0c0c] transition-colors ${isFirst ? 'rounded-t-lg' : ''} ${isLast ? 'rounded-b-lg' : ''}`}
+                                                style={{ boxShadow: index > 0 ? 'rgba(255,255,255,0.08) 0px 1px 0px inset' : undefined }}
+                                            >
+                                                <div className="flex items-center gap-4 min-w-0 flex-1">
+                                                    <div
+                                                        className="shrink-0 w-9 h-9 rounded-md flex items-center justify-center bg-[#111]"
+                                                        style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
+                                                    >
+                                                        <Link2 size={14} className="text-[#a1a1a1]" strokeWidth={2} />
                                                     </div>
-                                                    <p className="text-sm font-semibold text-slate-900 leading-snug">{log.title}</p>
-                                                    {log.description && (
-                                                        <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{log.description}</p>
-                                                    )}
-
-                                                    {/* Visual Diff for object changes */}
-                                                    {log.metadata?.changes && Object.keys(log.metadata.changes).length > 0 && (
-                                                        <div className="mt-1.5 space-y-1 bg-slate-50 border border-slate-100 rounded-lg p-2">
-                                                            {Object.entries(log.metadata.changes).map(([key, diff]: [string, any], i) => (
-                                                                <div key={i} className="flex items-center gap-1.5 text-[10px] font-mono">
-                                                                    <span className="text-slate-500 font-semibold">{key}:</span>
-                                                                    <span className="text-slate-400 line-through decoration-red-300/60">{diff.old || 'none'}</span>
-                                                                    <ArrowRight size={10} className="text-slate-300" />
-                                                                    <span className="text-emerald-600 font-bold bg-emerald-50 px-1 rounded">{diff.new}</span>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-
-                                                    {/* Payment progress mini bar */}
-                                                    {log.action_type === 'payment_received' && log.metadata?.amount > 0 && (
-                                                        <div className="mt-1.5 flex items-center gap-2">
-                                                            <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden max-w-[120px]">
-                                                                <div
-                                                                    className="h-full bg-emerald-400 rounded-full transition-all"
-                                                                    style={{ width: `${Math.min((Number(log.metadata.paidAmount) / Number(log.metadata.amount)) * 100, 100)}%` }}
-                                                                />
-                                                            </div>
-                                                            <span className="text-[9px] text-slate-400 font-mono">
-                                                                ₹{Number(log.metadata.paidAmount).toLocaleString()}/{Number(log.metadata.amount).toLocaleString()}
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                {/* Actions */}
-                                                <div className="shrink-0 flex flex-col items-end gap-2">
-                                                    {isSent && (
-                                                        <div className="flex items-center gap-1.5">
-                                                            <span className="text-[9px] text-slate-400">{getRelativeTime(log.notified_at!)}</span>
-                                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-green-50 text-green-600 text-[10px] font-bold border border-green-200">
-                                                                <MailCheck size={9} />
-                                                                Sent
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                    <div className="flex items-center gap-1">
-                                                        <button
-                                                            onClick={() => handleSendSingle(log.id)}
-                                                            disabled={isSending || !selectedClient?.email}
-                                                            className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all border ${
-                                                                !selectedClient?.email
-                                                                    ? 'bg-slate-50 text-slate-300 border-slate-200 cursor-not-allowed'
-                                                                    : 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100'
-                                                            } disabled:opacity-50`}
-                                                            title={!selectedClient?.email ? 'Add client email first' : isSent ? 'Resend this update via email' : 'Send this update via email'}
+                                                    <div className="min-w-0 flex-1">
+                                                        <h4 className="text-white text-[15px] font-semibold font-geist truncate" style={{ letterSpacing: '-0.3px' }}>
+                                                            {link.title}
+                                                        </h4>
+                                                        <a
+                                                            href={link.url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-[#737373] hover:text-[#0a72ef] text-[12px] font-geistmono truncate block transition-colors mt-0.5"
                                                         >
-                                                            {isSending ? <Loader2 size={10} className="animate-spin" /> : <Send size={10} />}
-                                                            {isSent ? 'Resend' : 'Send'}
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleToggleHideLog(log.id, !isHidden)}
-                                                            className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all border ${
-                                                                isHidden
-                                                                    ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'
-                                                                    : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
-                                                            }`}
-                                                            title={isHidden ? 'Unhide — make visible to client' : 'Hide from client view'}
-                                                        >
-                                                            {isHidden ? <Eye size={10} /> : <EyeOff size={10} />}
-                                                            {isHidden ? 'Unhide' : 'Hide'}
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleDeleteLog(log.id)}
-                                                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all border bg-red-50 text-red-500 border-red-200 hover:bg-red-100"
-                                                            title="Permanently delete this log"
-                                                        >
-                                                            <Trash2 size={10} />
-                                                        </button>
+                                                            {link.url}
+                                                        </a>
                                                     </div>
                                                 </div>
-                                            </div>
+                                                <div className="flex items-center gap-1 shrink-0">
+                                                    <a
+                                                        href={link.url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        aria-label="Open link"
+                                                        className="h-8 w-8 rounded-md flex items-center justify-center text-[#737373] hover:text-white hover:bg-[#181818] transition-colors"
+                                                    >
+                                                        <ArrowUpRight size={13} strokeWidth={2} />
+                                                    </a>
+                                                    <button
+                                                        onClick={() => { setEditingLinkIndex(index); setFormData({ link_title: link.title, link_url: link.url }); setShowModal(true); }}
+                                                        aria-label="Edit link"
+                                                        className="h-8 w-8 rounded-md flex items-center justify-center text-[#737373] hover:text-white hover:bg-[#181818] transition-colors"
+                                                    >
+                                                        <Pencil size={13} strokeWidth={2} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteLink(index)}
+                                                        aria-label="Delete link"
+                                                        className="h-8 w-8 rounded-md flex items-center justify-center text-[#737373] hover:text-[#ff5b4f] hover:bg-[#181818] transition-colors"
+                                                    >
+                                                        <Trash2 size={13} strokeWidth={2} />
+                                                    </button>
+                                                </div>
+                                            </motion.div>
                                         );
                                     })}
                                 </div>
                             )}
-                        </div>
+                        </section>
                     </div>
                 )}
+
+                {/* ========== FEATURES VIEW ========== */}
+                {view === 'features' && !loading && (() => {
+                    const featuresCount = features.length;
+                    const completedCount = features.filter(f => f.status === 'Completed').length;
+                    const totalAmount = features.reduce((a, f) => a + (Number(f.amount) || 0), 0);
+                    const paidAmount = features.reduce((a, f) => a + (Number(f.paid_amount) || 0), 0);
+                    const pendingAmount = Math.max(totalAmount - paidAmount, 0);
+                    const paidPct = totalAmount > 0 ? Math.round((paidAmount / totalAmount) * 100) : 0;
+                    const ratePending = features.filter(f => f.payment_confirmed === false).length;
+                    const formatINR = (n: number) => `₹${(n ?? 0).toLocaleString('en-IN')}`;
+
+                    const sorted = [...features].sort((a, b) => {
+                        let cmp = 0;
+                        if (sortField === 'amount') cmp = (a.amount || 0) - (b.amount || 0);
+                        else if (sortField === 'status') {
+                            const order = ['Requested', 'Approved', 'Working', 'Updating', 'Completed'];
+                            cmp = order.indexOf(a.status) - order.indexOf(b.status);
+                        } else if (sortField === 'created_at') {
+                            cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+                        }
+                        return sortOrder === 'asc' ? cmp : -cmp;
+                    });
+
+                    const stageFor = (status: string) => {
+                        if (status === 'Completed') return { color: '#ff5b4f', label: 'Shipped' };
+                        if (status === 'Working' || status === 'Updating') return { color: '#de1d8d', label: status === 'Updating' ? 'Updating' : 'Preview' };
+                        if (status === 'Approved') return { color: '#0a72ef', label: 'Approved' };
+                        return { color: '#737373', label: 'Requested' };
+                    };
+
+                    return (
+                        <div className="space-y-12">
+                            {/* ===== COMMAND BAR ===== */}
+                            <header className="flex items-center justify-between gap-3 -mt-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <button
+                                        onClick={handleBack}
+                                        aria-label="Back to projects"
+                                        className="h-8 w-8 rounded-md flex items-center justify-center text-[#a1a1a1] hover:text-white hover:bg-[#181818] transition-colors shrink-0"
+                                        style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
+                                    >
+                                        <ArrowLeft size={13} strokeWidth={2} />
+                                    </button>
+                                    <span className="font-geistmono text-[12px] font-medium uppercase text-[#a1a1a1] truncate tracking-[0.02em] ml-1">
+                                        admin
+                                        <span className="text-[#404040] mx-1.5">/</span>
+                                        <span className="text-[#737373]">{selectedClient?.name || '—'}</span>
+                                        <span className="text-[#404040] mx-1.5">/</span>
+                                        <button type="button" onClick={handleBack} className="hover:text-white transition-colors uppercase">projects</button>
+                                        <span className="text-[#404040] mx-1.5">/</span>
+                                        <span className="text-white">features</span>
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <button
+                                        onClick={async () => { await supabaseAdmin.auth.signOut(); router.push('/admin'); }}
+                                        className="h-9 px-3 rounded-md bg-transparent hover:bg-[#181818] text-[#a1a1a1] hover:text-white flex items-center justify-center gap-2 transition-colors text-[13px] font-medium font-geist"
+                                        style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
+                                        aria-label="Sign out"
+                                    >
+                                        <LogOut size={13} strokeWidth={2} />
+                                        <span className="hidden sm:inline">Sign out</span>
+                                    </button>
+                                    <button
+                                        onClick={() => { setFormData({}); setEditingId(null); setEditingLinkIndex(null); setShowModal(true); }}
+                                        className="h-9 px-3.5 rounded-md bg-white hover:bg-[#ededed] text-[#0a0a0a] flex items-center justify-center gap-1.5 transition-colors text-[13px] font-medium font-geist"
+                                    >
+                                        <Plus size={13} strokeWidth={2.5} />
+                                        New feature
+                                    </button>
+                                </div>
+                            </header>
+
+                            {/* ===== HERO ===== */}
+                            <section className="pt-6 pb-2 max-w-3xl">
+                                <h1
+                                    className="text-white font-semibold font-geist leading-[0.95]"
+                                    style={{ fontSize: 'clamp(40px, 5.6vw, 64px)', letterSpacing: '-0.05em', fontFeatureSettings: '"liga"' }}
+                                >
+                                    {selectedProject?.description || 'Project'}.<br />
+                                    <span className="text-[#525252]">{featuresCount} {featuresCount === 1 ? 'feature' : 'features'}.</span>
+                                </h1>
+                                <p className="text-[#a1a1a1] text-[18px] leading-[1.56] mt-6 max-w-xl font-geist">
+                                    {featuresCount === 0
+                                        ? <>Add the first feature to break this project into deliverables.</>
+                                        : totalAmount > 0
+                                            ? <>Tracking <span className="text-white tabular-nums">{formatINR(totalAmount)}</span> across this project. <span className="text-white tabular-nums">{paidPct}%</span> collected.</>
+                                            : <>{completedCount} shipped · {featuresCount - completedCount} in flight. Rates pending on {ratePending}.</>}
+                                </p>
+                            </section>
+
+                            {/* ===== AGGREGATE METRICS ===== */}
+                            {featuresCount > 0 && (
+                                <section
+                                    className="grid grid-cols-2 md:grid-cols-4 rounded-lg"
+                                    style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
+                                >
+                                    {[
+                                        { label: 'Features', value: featuresCount.toString(), meta: `${completedCount} shipped`, color: '#a1a1a1' },
+                                        { label: 'Total', value: formatINR(totalAmount), meta: '—', color: '#0a72ef' },
+                                        { label: 'Paid', value: formatINR(paidAmount), meta: totalAmount > 0 ? `${paidPct}%` : '—', color: '#ff5b4f' },
+                                        { label: 'Pending', value: formatINR(pendingAmount), meta: ratePending > 0 ? `${ratePending} rate-pending` : (totalAmount > 0 ? `${100 - paidPct}%` : '—'), color: '#de1d8d' },
+                                    ].map((cell, i, arr) => (
+                                        <div
+                                            key={cell.label}
+                                            className={`p-6 flex flex-col gap-2.5 ${i === 0 ? 'rounded-tl-lg' : ''} ${i === arr.length - 1 ? 'md:rounded-r-lg' : ''} ${i === 1 ? 'md:rounded-tr-lg rounded-tr-lg md:rounded-none' : ''} ${i < arr.length - 1 ? (i === 1 ? 'shadow-[inset_0_-1px_0_0_rgba(255,255,255,0.08)] md:shadow-[inset_-1px_0_0_0_rgba(255,255,255,0.08)]' : 'shadow-[inset_-1px_0_0_0_rgba(255,255,255,0.08),inset_0_-1px_0_0_rgba(255,255,255,0.08)] md:shadow-[inset_-1px_0_0_0_rgba(255,255,255,0.08)]') : ''} ${i >= 2 ? 'rounded-bl-lg md:rounded-bl-none' : ''}`}
+                                        >
+                                            <span className="font-geistmono text-[10px] font-medium uppercase text-[#737373]">{cell.label}</span>
+                                            <span
+                                                className="text-white font-semibold tabular-nums font-geist"
+                                                style={{ fontSize: 'clamp(20px, 2.4vw, 26px)', letterSpacing: '-0.6px', lineHeight: 1.1 }}
+                                            >
+                                                {cell.value}
+                                            </span>
+                                            <span className="font-geistmono text-[10px] uppercase text-[#525252] tabular-nums">{cell.meta}</span>
+                                        </div>
+                                    ))}
+                                </section>
+                            )}
+
+                            {/* ===== TABLE ===== */}
+                            <section className="space-y-6">
+                                <div
+                                    className="flex items-end justify-between gap-4 pb-5 flex-wrap"
+                                    style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 1px 0px' }}
+                                >
+                                    <div>
+                                        <span className="font-geistmono text-[11px] font-medium uppercase text-[#737373] mb-2 block">Backlog</span>
+                                        <h2
+                                            className="text-white font-semibold font-geist leading-[1.0]"
+                                            style={{ fontSize: '32px', letterSpacing: '-1.28px' }}
+                                        >
+                                            All features
+                                        </h2>
+                                    </div>
+                                    {featuresCount > 1 && (
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-geistmono text-[10px] uppercase text-[#737373] tracking-[0.02em]">Sort</span>
+                                            <div className="flex items-center gap-1 rounded-md p-0.5" style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}>
+                                                {(['amount', 'status', 'created_at'] as SortField[]).map(field => (
+                                                    <button
+                                                        key={field}
+                                                        onClick={() => {
+                                                            if (sortField === field) setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                                                            else { setSortField(field); setSortOrder('asc'); }
+                                                        }}
+                                                        className={`px-2.5 h-7 rounded text-[11px] font-medium font-geistmono uppercase tracking-[0.02em] flex items-center gap-1 transition-colors ${
+                                                            sortField === field
+                                                                ? 'bg-white text-[#0a0a0a]'
+                                                                : 'text-[#a1a1a1] hover:text-white hover:bg-[#181818]'
+                                                        }`}
+                                                    >
+                                                        {field === 'created_at' ? 'Date' : field}
+                                                        {sortField === field && (sortOrder === 'asc' ? <ArrowUp size={10} strokeWidth={2.5} /> : <ArrowDown size={10} strokeWidth={2.5} />)}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {featuresCount === 0 ? (
+                                    <div
+                                        className="rounded-lg py-20 px-6 text-center"
+                                        style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
+                                    >
+                                        <div
+                                            className="inline-flex w-12 h-12 items-center justify-center rounded-md mb-5"
+                                            style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
+                                        >
+                                            <Zap size={18} className="text-[#a1a1a1]" strokeWidth={2} />
+                                        </div>
+                                        <p className="text-white text-[20px] font-semibold font-geist" style={{ letterSpacing: '-0.4px' }}>
+                                            No features yet
+                                        </p>
+                                        <p className="text-[#a1a1a1] text-[14px] mt-2 max-w-sm mx-auto font-geist">
+                                            Click &quot;New feature&quot; to break this project into deliverables.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {/* Desktop table */}
+                                        <div
+                                            className="hidden lg:block rounded-lg"
+                                            style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
+                                        >
+                                            <div
+                                                className="grid grid-cols-12 gap-4 px-6 h-10 items-center font-geistmono text-[10px] font-medium uppercase text-[#737373] rounded-t-lg"
+                                                style={{ boxShadow: 'rgba(255,255,255,0.08) 0px -1px 0px inset', background: 'rgba(255,255,255,0.015)' }}
+                                            >
+                                                <div className="col-span-4">Description</div>
+                                                <div className="col-span-1">Date</div>
+                                                <div className="col-span-1">Estimate</div>
+                                                <div className="col-span-2 text-right">Amount</div>
+                                                <div className="col-span-1">Type</div>
+                                                <div className="col-span-2">Status</div>
+                                                <div className="col-span-1 text-right">Actions</div>
+                                            </div>
+                                            {sorted.map((feature, idx) => {
+                                                const isLast = idx === sorted.length - 1;
+                                                const stage = stageFor(feature.status);
+                                                const ratePending = feature.payment_confirmed === false;
+                                                return (
+                                                    <motion.div
+                                                        key={feature.id}
+                                                        initial={{ opacity: 0 }}
+                                                        animate={{ opacity: 1 }}
+                                                        transition={{ delay: idx * 0.025, duration: 0.2 }}
+                                                        className={`group grid grid-cols-12 gap-4 items-center px-6 py-4 hover:bg-[#0c0c0c] transition-colors ${isLast ? 'rounded-b-lg' : ''}`}
+                                                        style={{ boxShadow: idx > 0 ? 'rgba(255,255,255,0.08) 0px 1px 0px inset' : undefined }}
+                                                    >
+                                                        <div className="col-span-4 min-w-0">
+                                                            <p className="text-white text-[14px] font-medium font-geist truncate" style={{ letterSpacing: '-0.28px' }}>
+                                                                {feature.description}
+                                                            </p>
+                                                            {feature.estimation && (
+                                                                <p className="text-[#525252] text-[11px] font-geistmono uppercase mt-0.5 lg:hidden">
+                                                                    {feature.estimation}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                        <div className="col-span-1">
+                                                            <span className="font-geistmono text-[11px] uppercase text-[#a1a1a1] tabular-nums">
+                                                                {feature.created_at ? new Date(feature.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—'}
+                                                            </span>
+                                                        </div>
+                                                        <div className="col-span-1">
+                                                            <span className="font-geistmono text-[11px] uppercase text-[#737373]">
+                                                                {feature.estimation || '—'}
+                                                            </span>
+                                                        </div>
+                                                        <div className="col-span-2 text-right">
+                                                            {ratePending ? (
+                                                                <span className="inline-flex items-center gap-1.5 px-2 h-5 rounded-full font-geistmono text-[10px] uppercase font-medium" style={{ background: 'rgba(255,164,43,0.12)', color: '#ffa42b' }}>
+                                                                    <span className="w-1 h-1 rounded-full bg-[#ffa42b] animate-pulse" />
+                                                                    Rate pending
+                                                                </span>
+                                                            ) : (
+                                                                <div className="font-geist">
+                                                                    <span className="text-white text-[14px] font-semibold tabular-nums" style={{ letterSpacing: '-0.28px' }}>
+                                                                        {formatINR(feature.amount || 0)}
+                                                                    </span>
+                                                                    {(feature.paid_amount || 0) > 0 && (feature.paid_amount || 0) < (feature.amount || 0) && (
+                                                                        <div className="text-[#737373] text-[10px] font-geistmono tabular-nums">
+                                                                            {formatINR(feature.paid_amount || 0)} paid
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <div className="col-span-1">
+                                                            <span
+                                                                className="inline-flex px-2 h-5 items-center rounded-full font-geistmono text-[10px] uppercase font-medium"
+                                                                style={feature.is_new_request
+                                                                    ? { background: 'rgba(222,29,141,0.12)', color: '#de1d8d' }
+                                                                    : { background: 'rgba(10,114,239,0.12)', color: '#3a8dff' }}
+                                                            >
+                                                                {feature.is_new_request ? 'Extra' : 'Core'}
+                                                            </span>
+                                                        </div>
+                                                        <div className="col-span-2 flex items-center gap-2">
+                                                            <span
+                                                                className="inline-flex items-center gap-1.5 px-2 h-5 rounded-full font-geistmono text-[10px] uppercase font-medium"
+                                                                style={{ background: `${stage.color}1f`, color: stage.color }}
+                                                            >
+                                                                <span className="w-1 h-1 rounded-full" style={{ background: stage.color }} />
+                                                                {stage.label}
+                                                            </span>
+                                                            {!ratePending && (
+                                                                <span
+                                                                    className="font-geistmono text-[10px] uppercase tabular-nums"
+                                                                    style={{ color: feature.payment_status === 'Paid' ? '#ff5b4f' : feature.payment_status === 'Partial' ? '#de1d8d' : '#737373' }}
+                                                                >
+                                                                    · {feature.payment_status}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="col-span-1 flex items-center justify-end gap-1">
+                                                            <button
+                                                                onClick={() => handleEditFeature(feature)}
+                                                                aria-label="Edit feature"
+                                                                className="h-7 w-7 rounded-md flex items-center justify-center text-[#737373] hover:text-white hover:bg-[#181818] transition-colors"
+                                                            >
+                                                                <Pencil size={12} strokeWidth={2} />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDelete(feature.id, 'features')}
+                                                                aria-label="Delete feature"
+                                                                className="h-7 w-7 rounded-md flex items-center justify-center text-[#737373] hover:text-[#ff5b4f] hover:bg-[#181818] transition-colors"
+                                                            >
+                                                                <Trash2 size={12} strokeWidth={2} />
+                                                            </button>
+                                                        </div>
+                                                    </motion.div>
+                                                );
+                                            })}
+                                        </div>
+
+                                        {/* Mobile cards */}
+                                        <div className="lg:hidden space-y-3">
+                                            {sorted.map((feature, idx) => {
+                                                const stage = stageFor(feature.status);
+                                                const ratePending = feature.payment_confirmed === false;
+                                                return (
+                                                    <motion.div
+                                                        key={feature.id}
+                                                        initial={{ opacity: 0, y: 4 }}
+                                                        animate={{ opacity: 1, y: 0 }}
+                                                        transition={{ delay: idx * 0.03, duration: 0.2 }}
+                                                        className="rounded-lg p-5 space-y-4"
+                                                        style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
+                                                    >
+                                                        <div className="flex items-start justify-between gap-3">
+                                                            <h4 className="text-white text-[15px] font-semibold font-geist flex-1 leading-snug" style={{ letterSpacing: '-0.3px' }}>
+                                                                {feature.description}
+                                                            </h4>
+                                                            <div className="flex items-center gap-1 shrink-0">
+                                                                <button onClick={() => handleEditFeature(feature)} className="h-7 w-7 rounded-md flex items-center justify-center text-[#737373] hover:text-white hover:bg-[#181818] transition-colors" aria-label="Edit">
+                                                                    <Pencil size={12} strokeWidth={2} />
+                                                                </button>
+                                                                <button onClick={() => handleDelete(feature.id, 'features')} className="h-7 w-7 rounded-md flex items-center justify-center text-[#737373] hover:text-[#ff5b4f] hover:bg-[#181818] transition-colors" aria-label="Delete">
+                                                                    <Trash2 size={12} strokeWidth={2} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            <span
+                                                                className="inline-flex items-center gap-1.5 px-2 h-5 rounded-full font-geistmono text-[10px] uppercase font-medium"
+                                                                style={{ background: `${stage.color}1f`, color: stage.color }}
+                                                            >
+                                                                <span className="w-1 h-1 rounded-full" style={{ background: stage.color }} />
+                                                                {stage.label}
+                                                            </span>
+                                                            <span
+                                                                className="inline-flex px-2 h-5 items-center rounded-full font-geistmono text-[10px] uppercase font-medium"
+                                                                style={feature.is_new_request
+                                                                    ? { background: 'rgba(222,29,141,0.12)', color: '#de1d8d' }
+                                                                    : { background: 'rgba(10,114,239,0.12)', color: '#3a8dff' }}
+                                                            >
+                                                                {feature.is_new_request ? 'Extra' : 'Core'}
+                                                            </span>
+                                                            {feature.estimation && (
+                                                                <span className="font-geistmono text-[10px] uppercase text-[#737373]">
+                                                                    Est · {feature.estimation}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div
+                                                            className="grid grid-cols-3 rounded-md"
+                                                            style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
+                                                        >
+                                                            <div className="p-3 flex flex-col gap-1" style={{ boxShadow: 'rgba(255,255,255,0.08) -1px 0px 0px inset' }}>
+                                                                <span className="font-geistmono text-[9px] font-medium uppercase text-[#737373]">Amount</span>
+                                                                {ratePending ? (
+                                                                    <span className="font-geistmono text-[10px] uppercase font-medium" style={{ color: '#ffa42b' }}>Pending</span>
+                                                                ) : (
+                                                                    <span className="text-white text-[14px] font-semibold tabular-nums font-geist" style={{ letterSpacing: '-0.28px' }}>{formatINR(feature.amount || 0)}</span>
+                                                                )}
+                                                            </div>
+                                                            <div className="p-3 flex flex-col gap-1" style={{ boxShadow: 'rgba(255,255,255,0.08) -1px 0px 0px inset' }}>
+                                                                <span className="font-geistmono text-[9px] font-medium uppercase text-[#737373]">Paid</span>
+                                                                {ratePending ? (
+                                                                    <span className="text-[#525252] text-[14px] font-geist">—</span>
+                                                                ) : (
+                                                                    <span className="text-[14px] font-semibold tabular-nums font-geist" style={{ letterSpacing: '-0.28px', color: (feature.paid_amount || 0) > 0 ? '#ff5b4f' : '#525252' }}>{formatINR(feature.paid_amount || 0)}</span>
+                                                                )}
+                                                            </div>
+                                                            <div className="p-3 flex flex-col gap-1">
+                                                                <span className="font-geistmono text-[9px] font-medium uppercase text-[#737373]">Date</span>
+                                                                <span className="text-[#a1a1a1] text-[12px] font-geistmono uppercase tabular-nums">{feature.created_at ? new Date(feature.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—'}</span>
+                                                            </div>
+                                                        </div>
+                                                    </motion.div>
+                                                );
+                                            })}
+                                        </div>
+                                    </>
+                                )}
+                            </section>
+                        </div>
+                    );
+                })()}
+
+                {/* ========== ACTIVITY VIEW ========== */}
+                {view === 'activity' && !loading && selectedClient && (() => {
+                    const sentCount = activityLogs.filter(l => !!l.notified_at).length;
+                    const hiddenCount = activityLogs.filter(l => !!l.is_hidden).length;
+                    const totalLogs = activityLogs.length;
+                    const pendingCount = totalLogs - sentCount;
+
+                    const actionColor: Record<string, string> = {
+                        payment_received: '#ff5b4f',
+                        rate_confirmed: '#ff5b4f',
+                        feature_added: '#0a72ef',
+                        feature_updated: '#de1d8d',
+                        rate_pending: '#ffa42b',
+                        link_added: '#0a72ef',
+                        link_updated: '#de1d8d',
+                        link_removed: '#ff5b4f',
+                        status_changed: '#de1d8d',
+                    };
+
+                    return (
+                        <div className="space-y-12">
+                            {/* ===== COMMAND BAR ===== */}
+                            <header className="flex items-center justify-between gap-3 -mt-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <button
+                                        onClick={handleBack}
+                                        aria-label="Back to clients"
+                                        className="h-8 w-8 rounded-md flex items-center justify-center text-[#a1a1a1] hover:text-white hover:bg-[#181818] transition-colors shrink-0"
+                                        style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
+                                    >
+                                        <ArrowLeft size={13} strokeWidth={2} />
+                                    </button>
+                                    <span className="font-geistmono text-[12px] font-medium uppercase text-[#a1a1a1] truncate tracking-[0.02em] ml-1">
+                                        admin
+                                        <span className="text-[#404040] mx-1.5">/</span>
+                                        <span className="text-[#737373]">{selectedClient?.name || '—'}</span>
+                                        <span className="text-[#404040] mx-1.5">/</span>
+                                        <span className="text-white">activity</span>
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <button
+                                        onClick={async () => { await supabaseAdmin.auth.signOut(); router.push('/admin'); }}
+                                        className="h-9 px-3 rounded-md bg-transparent hover:bg-[#181818] text-[#a1a1a1] hover:text-white flex items-center justify-center gap-2 transition-colors text-[13px] font-medium font-geist"
+                                        style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
+                                        aria-label="Sign out"
+                                    >
+                                        <LogOut size={13} strokeWidth={2} />
+                                        <span className="hidden sm:inline">Sign out</span>
+                                    </button>
+                                </div>
+                            </header>
+
+                            {/* ===== HERO ===== */}
+                            <section className="pt-6 pb-2 max-w-3xl">
+                                <h1
+                                    className="text-white font-semibold font-geist leading-[0.95]"
+                                    style={{ fontSize: 'clamp(40px, 5.6vw, 64px)', letterSpacing: '-0.05em', fontFeatureSettings: '"liga"' }}
+                                >
+                                    {selectedClient?.name}.<br />
+                                    <span className="text-[#525252]">Activity log.</span>
+                                </h1>
+                                <p className="text-[#a1a1a1] text-[18px] leading-[1.56] mt-6 max-w-xl font-geist">
+                                    {totalLogs === 0
+                                        ? <>No activity recorded yet for this client.</>
+                                        : <><span className="text-white tabular-nums">{totalLogs}</span> {totalLogs === 1 ? 'event' : 'events'} captured · <span className="text-white tabular-nums">{sentCount}</span> notified · <span className="tabular-nums">{pendingCount}</span> awaiting send.</>}
+                                </p>
+                            </section>
+
+                            {/* ===== EMAIL STATUS ===== */}
+                            {!selectedClient.email ? (
+                                <div
+                                    className="rounded-lg p-5 flex items-center gap-4"
+                                    style={{ boxShadow: 'rgba(255,164,43,0.32) 0px 0px 0px 1px, rgba(255,164,43,0.04) 0px 0px 0px 9999px inset' }}
+                                >
+                                    <div
+                                        className="shrink-0 w-9 h-9 rounded-md flex items-center justify-center"
+                                        style={{ background: 'rgba(255,164,43,0.12)' }}
+                                    >
+                                        <Mail size={15} className="text-[#ffa42b]" strokeWidth={2} />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-geistmono text-[10px] uppercase font-medium text-[#ffa42b] tracking-[0.04em] mb-1">No email on file</p>
+                                        <p className="text-[#a1a1a1] text-[13px] font-geist leading-[1.4]">Add an email to enable notifications and digests.</p>
+                                    </div>
+                                    <button
+                                        onClick={() => handleEditClient(selectedClient)}
+                                        className="h-8 px-3 rounded-md text-[13px] font-medium font-geist text-[#ffa42b] hover:bg-[#181818] transition-colors flex items-center gap-1.5"
+                                        style={{ boxShadow: 'rgba(255,164,43,0.32) 0px 0px 0px 1px' }}
+                                    >
+                                        <Plus size={12} strokeWidth={2.5} />
+                                        Add email
+                                    </button>
+                                </div>
+                            ) : (
+                                <div
+                                    className="rounded-lg px-5 py-4 flex items-center gap-3"
+                                    style={{ boxShadow: 'rgba(10,114,239,0.28) 0px 0px 0px 1px' }}
+                                >
+                                    <MailCheck size={14} className="text-[#3a8dff] shrink-0" strokeWidth={2} />
+                                    <p className="text-[#a1a1a1] text-[13px] font-geist">
+                                        Notifications go to <span className="text-white font-geistmono">{selectedClient.email}</span>
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* ===== BATCH ACTIONS ===== */}
+                            {selectedLogIds.size > 0 && selectedClient.email && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -6 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="sticky top-3 z-20 rounded-lg px-4 py-3 flex items-center justify-between bg-[#161616]"
+                                    style={{ boxShadow: 'rgba(10,114,239,0.5) 0px 0px 0px 1px, rgba(0,0,0,0.7) 0px 12px 32px -4px' }}
+                                >
+                                    <span className="font-geistmono text-[12px] uppercase font-medium text-white tracking-[0.02em]">
+                                        {selectedLogIds.size} <span className="text-[#a1a1a1]">selected</span>
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => setSelectedLogIds(new Set())}
+                                            className="h-8 px-3 rounded-md text-[12px] font-medium font-geist text-[#a1a1a1] hover:text-white hover:bg-[#181818] transition-colors"
+                                            style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
+                                        >
+                                            Clear
+                                        </button>
+                                        <button
+                                            onClick={handleSendDigest}
+                                            disabled={sendingDigest}
+                                            className="h-8 px-3.5 rounded-md bg-white hover:bg-[#ededed] text-[#0a0a0a] flex items-center gap-1.5 transition-colors text-[12px] font-medium font-geist disabled:opacity-50"
+                                        >
+                                            {sendingDigest ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} strokeWidth={2.5} />}
+                                            Send digest
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            )}
+
+                            {/* ===== TIMELINE ===== */}
+                            <section className="space-y-6">
+                                <div
+                                    className="flex items-end justify-between gap-4 pb-5 flex-wrap"
+                                    style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 1px 0px' }}
+                                >
+                                    <div>
+                                        <span className="font-geistmono text-[11px] font-medium uppercase text-[#737373] mb-2 block">Timeline</span>
+                                        <h2
+                                            className="text-white font-semibold font-geist leading-[1.0]"
+                                            style={{ fontSize: '32px', letterSpacing: '-1.28px' }}
+                                        >
+                                            All events
+                                        </h2>
+                                    </div>
+                                    {totalLogs > 0 && (
+                                        <div className="flex items-center gap-3 pb-1 font-geistmono text-[11px] uppercase text-[#737373] tabular-nums">
+                                            <span><span className="text-white">{sentCount}</span> sent</span>
+                                            <span className="text-[#404040]">·</span>
+                                            <span><span className="text-white">{pendingCount}</span> pending</span>
+                                            {hiddenCount > 0 && (
+                                                <>
+                                                    <span className="text-[#404040]">·</span>
+                                                    <span><span className="text-white">{hiddenCount}</span> hidden</span>
+                                                </>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {loadingLogs ? (
+                                    <div className="flex justify-center py-16">
+                                        <Loader2 className="animate-spin text-[#0a72ef]" size={22} />
+                                    </div>
+                                ) : totalLogs === 0 ? (
+                                    <div
+                                        className="rounded-lg py-20 px-6 text-center"
+                                        style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
+                                    >
+                                        <div
+                                            className="inline-flex w-12 h-12 items-center justify-center rounded-md mb-5"
+                                            style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
+                                        >
+                                            <Activity size={18} className="text-[#a1a1a1]" strokeWidth={2} />
+                                        </div>
+                                        <p className="text-white text-[20px] font-semibold font-geist" style={{ letterSpacing: '-0.4px' }}>
+                                            No activity yet
+                                        </p>
+                                        <p className="text-[#a1a1a1] text-[14px] mt-2 max-w-sm mx-auto font-geist">
+                                            Events will appear here as you make changes to projects, features, and payments.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div
+                                        className="rounded-lg"
+                                        style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
+                                    >
+                                        {activityLogs.map((log, idx) => {
+                                            const meta = getActivityMeta(log.action_type);
+                                            const stageColor = actionColor[log.action_type] || '#737373';
+                                            const isSent = !!log.notified_at;
+                                            const isSending = sendingIds.has(log.id);
+                                            const isSelected = selectedLogIds.has(log.id);
+                                            const isHidden = !!log.is_hidden;
+                                            const isFirst = idx === 0;
+                                            const isLast = idx === activityLogs.length - 1;
+
+                                            return (
+                                                <div
+                                                    key={log.id}
+                                                    className={`group flex items-start gap-3 px-5 sm:px-6 py-5 transition-colors ${isSelected ? 'bg-[rgba(10,114,239,0.06)]' : 'hover:bg-[#0c0c0c]'} ${isHidden ? 'opacity-60' : ''} ${isFirst ? 'rounded-t-lg' : ''} ${isLast ? 'rounded-b-lg' : ''}`}
+                                                    style={{ boxShadow: idx > 0 ? 'rgba(255,255,255,0.08) 0px 1px 0px inset' : undefined }}
+                                                >
+                                                    <label className="pt-1 shrink-0 cursor-pointer">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isSelected}
+                                                            onChange={() => toggleLogSelection(log.id)}
+                                                            className="w-4 h-4 rounded accent-[#0a72ef] cursor-pointer"
+                                                        />
+                                                    </label>
+
+                                                    <div
+                                                        className="shrink-0 w-8 h-8 rounded-md flex items-center justify-center mt-0.5"
+                                                        style={{ background: `${stageColor}1f`, color: stageColor, boxShadow: `${stageColor}33 0px 0px 0px 1px` }}
+                                                    >
+                                                        {meta.icon}
+                                                    </div>
+
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                                            <span
+                                                                className="inline-flex items-center px-2 h-5 rounded-full font-geistmono text-[10px] uppercase font-medium tracking-[0.02em]"
+                                                                style={{ background: `${stageColor}1f`, color: stageColor }}
+                                                            >
+                                                                {meta.label}
+                                                            </span>
+                                                            {isHidden && (
+                                                                <span className="inline-flex items-center gap-1 px-2 h-5 rounded-full font-geistmono text-[10px] uppercase font-medium text-[#737373]" style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}>
+                                                                    <EyeOff size={9} />
+                                                                    Hidden
+                                                                </span>
+                                                            )}
+                                                            {log.action_type === 'payment_received' && log.metadata?.paidAmount != null && (
+                                                                <span className="inline-flex items-center px-2 h-5 rounded-full font-geistmono text-[10px] uppercase font-medium tabular-nums" style={{ background: 'rgba(255,91,79,0.12)', color: '#ff5b4f' }}>
+                                                                    +₹{Number(log.metadata.paidAmount - (log.metadata.oldPaidAmount || 0)).toLocaleString('en-IN')}
+                                                                </span>
+                                                            )}
+                                                            {log.action_type === 'feature_added' && log.metadata?.amount > 0 && (
+                                                                <span className="inline-flex items-center px-2 h-5 rounded-full font-geistmono text-[10px] uppercase font-medium tabular-nums" style={{ background: 'rgba(10,114,239,0.12)', color: '#3a8dff' }}>
+                                                                    ₹{Number(log.metadata.amount).toLocaleString('en-IN')}
+                                                                </span>
+                                                            )}
+                                                            {log.action_type === 'feature_updated' && log.metadata?.oldAmount !== undefined && log.metadata?.amount !== log.metadata?.oldAmount && (
+                                                                <span className="inline-flex items-center gap-1 px-2 h-5 rounded-full font-geistmono text-[10px] uppercase font-medium tabular-nums" style={{ background: 'rgba(255,164,43,0.12)', color: '#ffa42b' }}>
+                                                                    ₹{Number(log.metadata.oldAmount).toLocaleString('en-IN')}<ArrowRight size={9} />₹{Number(log.metadata.amount).toLocaleString('en-IN')}
+                                                                </span>
+                                                            )}
+                                                            {log.action_type === 'rate_confirmed' && log.metadata?.amount > 0 && (
+                                                                <span className="inline-flex items-center px-2 h-5 rounded-full font-geistmono text-[10px] uppercase font-medium tabular-nums" style={{ background: 'rgba(255,91,79,0.12)', color: '#ff5b4f' }}>
+                                                                    ₹{Number(log.metadata.amount).toLocaleString('en-IN')}
+                                                                </span>
+                                                            )}
+                                                            <span className="font-geistmono text-[10px] uppercase text-[#525252] tabular-nums">{getRelativeTime(log.created_at)}</span>
+                                                        </div>
+                                                        <p className="text-white text-[14px] font-semibold font-geist leading-snug" style={{ letterSpacing: '-0.28px' }}>
+                                                            {log.title}
+                                                        </p>
+                                                        {log.description && (
+                                                            <p className="text-[#a1a1a1] text-[12px] mt-1 line-clamp-2 font-geist leading-[1.5]">
+                                                                {log.description}
+                                                            </p>
+                                                        )}
+
+                                                        {log.metadata?.changes && Object.keys(log.metadata.changes).length > 0 && (
+                                                            <div
+                                                                className="mt-2 space-y-1 rounded-md p-2.5"
+                                                                style={{ boxShadow: 'rgba(255,255,255,0.06) 0px 0px 0px 1px' }}
+                                                            >
+                                                                {Object.entries(log.metadata.changes).map(([key, diff]: [string, any], i) => (
+                                                                    <div key={i} className="flex items-center gap-1.5 text-[10px] font-geistmono">
+                                                                        <span className="text-[#737373] uppercase">{key}</span>
+                                                                        <span className="text-[#525252] line-through">{diff.old || 'none'}</span>
+                                                                        <ArrowRight size={9} className="text-[#404040]" />
+                                                                        <span className="font-medium tabular-nums" style={{ color: '#3a8dff' }}>{diff.new}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+
+                                                        {log.action_type === 'payment_received' && log.metadata?.amount > 0 && (
+                                                            <div className="mt-2 flex items-center gap-2">
+                                                                <div className="flex-1 h-[2px] rounded-full overflow-hidden max-w-[140px]" style={{ background: '#181818' }}>
+                                                                    <div
+                                                                        className="h-full rounded-full transition-all"
+                                                                        style={{ width: `${Math.min((Number(log.metadata.paidAmount) / Number(log.metadata.amount)) * 100, 100)}%`, background: '#ff5b4f' }}
+                                                                    />
+                                                                </div>
+                                                                <span className="text-[10px] text-[#737373] font-geistmono tabular-nums">
+                                                                    ₹{Number(log.metadata.paidAmount).toLocaleString('en-IN')}<span className="text-[#404040]">/</span>₹{Number(log.metadata.amount).toLocaleString('en-IN')}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="shrink-0 flex flex-col items-end gap-2">
+                                                        {isSent && (
+                                                            <span className="inline-flex items-center gap-1 px-2 h-5 rounded-full font-geistmono text-[10px] uppercase font-medium" style={{ background: 'rgba(10,114,239,0.12)', color: '#3a8dff' }}>
+                                                                <MailCheck size={9} />
+                                                                Sent · {getRelativeTime(log.notified_at!)}
+                                                            </span>
+                                                        )}
+                                                        <div className="flex items-center gap-1">
+                                                            <button
+                                                                onClick={() => handleSendSingle(log.id)}
+                                                                disabled={isSending || !selectedClient?.email}
+                                                                className="h-7 px-2 rounded-md text-[11px] font-medium font-geist flex items-center gap-1 transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-[#a1a1a1] hover:text-white hover:bg-[#181818]"
+                                                                style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
+                                                                title={!selectedClient?.email ? 'Add client email first' : isSent ? 'Resend' : 'Send'}
+                                                            >
+                                                                {isSending ? <Loader2 size={10} className="animate-spin" /> : <Send size={10} strokeWidth={2} />}
+                                                                {isSent ? 'Resend' : 'Send'}
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleToggleHideLog(log.id, !isHidden)}
+                                                                className="h-7 w-7 rounded-md flex items-center justify-center text-[#737373] hover:text-white hover:bg-[#181818] transition-colors"
+                                                                title={isHidden ? 'Unhide' : 'Hide from client'}
+                                                                aria-label={isHidden ? 'Unhide log' : 'Hide log'}
+                                                            >
+                                                                {isHidden ? <Eye size={11} strokeWidth={2} /> : <EyeOff size={11} strokeWidth={2} />}
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDeleteLog(log.id)}
+                                                                className="h-7 w-7 rounded-md flex items-center justify-center text-[#737373] hover:text-[#ff5b4f] hover:bg-[#181818] transition-colors"
+                                                                title="Delete"
+                                                                aria-label="Delete log"
+                                                            >
+                                                                <Trash2 size={11} strokeWidth={2} />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </section>
+                        </div>
+                    );
+                })()}
             </main>
 
             {/* ========== CREATE MODAL ========== */}
             <AnimatePresence>
-                {showModal && (
-                    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/30 backdrop-blur-sm">
-                        <motion.div
-                            initial={{ opacity: 0, y: 50, scale: 0.98 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: 50, scale: 0.98 }}
-                            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                            className="bg-white text-slate-900 font-sans w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-xl overflow-hidden max-h-[90vh] sm:max-h-[85vh] flex flex-col"
-                        >
-                            <div className="px-5 sm:px-6 py-3.5 sm:py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
-                                <h3 className="font-semibold text-sm sm:text-base">{(editingId || editingLinkIndex !== null) ? 'Edit' : 'Add New'} {view === 'clients' ? 'Client' : view === 'projects' ? 'Project' : view === 'links' ? 'Link' : 'Feature'}</h3>
-                                <button onClick={() => { setShowModal(false); setEditingId(null); setEditingLinkIndex(null); }} className="p-1 rounded-md hover:bg-slate-200 transition-colors"><X size={20} className="text-slate-400" /></button>
-                            </div>
-
-                            <div className="p-5 sm:p-6 space-y-4 overflow-y-auto">
-                                {/* ===== CLIENT FORM ===== */}
-                                {view === 'clients' && (
-                                    <div className="space-y-3">
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">Client Name</label>
-                                            <input value={formData.name || ''} autoComplete="off" data-form-type="other" placeholder="Enter client name" className="w-full p-2 border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, name: e.target.value })} />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">Access Key (Unique ID)</label>
-                                            <input value={formData.access_key || ''} autoComplete="off" data-form-type="other" placeholder="Enter unique access key" className="w-full p-2 border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, access_key: e.target.value })} />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">Client Email (Optional)</label>
-                                            <input value={formData.email || ''} type="email" autoComplete="off" data-form-type="other" placeholder="e.g. client@example.com" className="w-full p-2 border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, email: e.target.value })} />
-                                            <p className="text-[11px] text-slate-400 mt-1">Required for sending email notifications</p>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* ===== PROJECT FORM ===== */}
-                                {view === 'projects' && (
-                                    <div className="space-y-3">
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">Project Description</label>
-                                            <input value={formData.description || ''} placeholder="e.g. Website Redesign" className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, description: e.target.value })} />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">Category</label>
-                                            <input value={formData.category || ''} placeholder="e.g. Web Development" className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, category: e.target.value })} />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
-                                            <input value={formData.status || ''} placeholder="e.g. In Progress" className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, status: e.target.value })} />
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* ===== LINK FORM ===== */}
-                                {view === 'links' && (
-                                    <div className="space-y-3">
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">Title</label>
-                                            <input value={formData.link_title || ''} placeholder="e.g. Figma Design" className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, link_title: e.target.value })} />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">URL</label>
-                                            <input value={formData.link_url || ''} placeholder="https://..." className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, link_url: e.target.value })} />
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* ===== FEATURE FORM ===== */}
-                                {view === 'features' && (
-                                    <div className="space-y-3">
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">Feature Description</label>
-                                            <input value={formData.description || ''} placeholder="e.g. Dark Mode Toggle" className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, description: e.target.value })} />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">Estimation (Text)</label>
-                                            <input value={formData.estimation || ''} placeholder="e.g. 2 days" className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, estimation: e.target.value })} />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">Is this an Extra Request?</label>
-                                            <select value={formData.is_new_request || 'false'} className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, is_new_request: e.target.value })}>
-                                                <option value="false">No (Core Feature)</option>
-                                                <option value="true">Yes (Extra Request)</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
-                                            <select
-                                                className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                                                onChange={e => setFormData({ ...formData, status: e.target.value })}
-                                                value={formData.status || 'Requested'}
-                                            >
-                                                <option value="Requested">Requested</option>
-                                                <option value="Approved">Approved</option>
-                                                <option value="Working">Working</option>
-                                                <option value="Updating">Updating</option>
-                                                <option value="Completed">Completed</option>
-                                            </select>
-                                        </div>
-
-                                        {/* Payment Confirmed Toggle */}
-                                        <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                                            <div className="flex items-center justify-between">
-                                                <div>
-                                                    <label className="block text-sm font-medium text-slate-700">Payment Confirmed</label>
-                                                    <p className="text-xs text-slate-400 mt-0.5">
-                                                        {formData.payment_confirmed !== false
-                                                            ? 'Rate is confirmed — amount fields visible'
-                                                            : 'Rate is pending — "Rate Pending" shown to client'}
-                                                    </p>
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setFormData({ ...formData, payment_confirmed: !formData.payment_confirmed })}
-                                                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                                                        formData.payment_confirmed !== false ? 'bg-blue-600' : 'bg-slate-300'
-                                                    }`}
-                                                >
-                                                    <span
-                                                        className={`inline-block h-5 w-5 rounded-full bg-white shadow-md transform transition-transform duration-300 ${
-                                                            formData.payment_confirmed !== false ? 'translate-x-6' : 'translate-x-1'
-                                                        }`}
-                                                    />
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {/* Amount fields - only show when payment is confirmed */}
-                                        {formData.payment_confirmed !== false && (
-                                            <>
-                                                <div>
-                                                    <label className="block text-sm font-medium text-slate-700 mb-1">Amount (₹)</label>
-                                                    <input value={formData.amount ?? ''} type="number" placeholder="e.g. 5000" className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, amount: e.target.value })} />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-sm font-medium text-slate-700 mb-1">Paid Amount (₹)</label>
-                                                    <input value={formData.paid_amount ?? ''} type="number" placeholder="e.g. 2500" className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({ ...formData, paid_amount: e.target.value })} />
-                                                </div>
-                                            </>
-                                        )}
-                                    </div>
-                                )}
-
-                                <button
-                                    onClick={view === 'clients' ? handleSaveClient : view === 'projects' ? handleSaveProject : view === 'links' ? handleAddLink : handleSaveFeature}
-                                    disabled={saving}
-                                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white py-2 rounded-lg font-medium mt-4"
+                {showModal && (() => {
+                    const entityLabel = view === 'clients' ? 'client' : view === 'projects' ? 'project' : view === 'links' ? 'link' : 'feature';
+                    const isEditing = !!(editingId || editingLinkIndex !== null);
+                    const inputCls = "w-full h-10 px-3 rounded-md bg-transparent text-[14px] text-white placeholder:text-[#525252] outline-none transition-shadow font-geist";
+                    const inputStyle: React.CSSProperties = { boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' };
+                    const inputFocus = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => { e.currentTarget.style.boxShadow = 'rgba(10,114,239,0.6) 0px 0px 0px 1px, rgba(10,114,239,0.20) 0px 0px 0px 3px'; };
+                    const inputBlur = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => { e.currentTarget.style.boxShadow = 'rgba(255,255,255,0.10) 0px 0px 0px 1px'; };
+                    const labelCls = "block font-geistmono text-[10px] font-medium uppercase text-[#737373] tracking-[0.04em] mb-2";
+                    const helpCls = "text-[11px] text-[#525252] mt-1.5 font-geist";
+                    return (
+                        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/60 backdrop-blur-sm">
+                            <motion.div
+                                initial={{ opacity: 0, y: 30, scale: 0.98 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: 30, scale: 0.98 }}
+                                transition={{ type: 'spring', damping: 26, stiffness: 320 }}
+                                className="font-geist bg-[#0a0a0a] text-[#ededed] w-full sm:max-w-md rounded-t-lg sm:rounded-lg overflow-hidden max-h-[92vh] sm:max-h-[88vh] flex flex-col"
+                                style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px, rgba(0,0,0,0.7) 0px 24px 64px -8px, rgba(0,0,0,0.5) 0px 8px 16px -4px' }}
+                            >
+                                <div
+                                    className="px-5 sm:px-6 py-4 flex justify-between items-center shrink-0"
+                                    style={{ boxShadow: 'rgba(255,255,255,0.08) 0px -1px 0px inset' }}
                                 >
-                                    {saving ? 'Saving...' : (editingId || editingLinkIndex !== null) ? 'Update Record' : 'Save Record'}
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <span className="font-geistmono text-[10px] font-medium uppercase text-[#0a72ef] tracking-[0.04em]">
+                                            {isEditing ? 'Edit' : 'New'}
+                                        </span>
+                                        <span className="text-[#404040]">/</span>
+                                        <h3 className="font-geist text-[15px] text-white font-semibold capitalize truncate" style={{ letterSpacing: '-0.3px' }}>
+                                            {entityLabel}
+                                        </h3>
+                                    </div>
+                                    <button
+                                        onClick={() => { setShowModal(false); setEditingId(null); setEditingLinkIndex(null); }}
+                                        aria-label="Close"
+                                        className="h-8 w-8 rounded-md flex items-center justify-center text-[#737373] hover:text-white hover:bg-[#181818] transition-colors"
+                                    >
+                                        <X size={14} strokeWidth={2} />
+                                    </button>
+                                </div>
+
+                                <div className="p-5 sm:p-6 space-y-5 overflow-y-auto custom-scrollbar">
+                                    {/* ===== CLIENT FORM ===== */}
+                                    {view === 'clients' && (
+                                        <>
+                                            <div>
+                                                <label className={labelCls}>Client name</label>
+                                                <input value={formData.name || ''} autoComplete="off" data-form-type="other" placeholder="Acme Studio" className={inputCls} style={inputStyle} onFocus={inputFocus} onBlur={inputBlur} onChange={e => setFormData({ ...formData, name: e.target.value })} />
+                                            </div>
+                                            <div>
+                                                <label className={labelCls}>Access key</label>
+                                                <input value={formData.access_key || ''} autoComplete="off" data-form-type="other" placeholder="acme-9281" className={`${inputCls} font-geistmono`} style={inputStyle} onFocus={inputFocus} onBlur={inputBlur} onChange={e => setFormData({ ...formData, access_key: e.target.value })} />
+                                                <p className={helpCls}>Unique identifier the client will use to log in.</p>
+                                            </div>
+                                            <div>
+                                                <label className={labelCls}>Email <span className="text-[#525252] normal-case">(optional)</span></label>
+                                                <input value={formData.email || ''} type="email" autoComplete="off" data-form-type="other" placeholder="hello@acme.com" className={inputCls} style={inputStyle} onFocus={inputFocus} onBlur={inputBlur} onChange={e => setFormData({ ...formData, email: e.target.value })} />
+                                                <p className={helpCls}>Required for sending notifications.</p>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {/* ===== PROJECT FORM ===== */}
+                                    {view === 'projects' && (
+                                        <>
+                                            <div>
+                                                <label className={labelCls}>Description</label>
+                                                <input value={formData.description || ''} placeholder="Marketing site redesign" className={inputCls} style={inputStyle} onFocus={inputFocus} onBlur={inputBlur} onChange={e => setFormData({ ...formData, description: e.target.value })} />
+                                            </div>
+                                            <div>
+                                                <label className={labelCls}>Category</label>
+                                                <input value={formData.category || ''} placeholder="Web Development" className={inputCls} style={inputStyle} onFocus={inputFocus} onBlur={inputBlur} onChange={e => setFormData({ ...formData, category: e.target.value })} />
+                                            </div>
+                                            <div>
+                                                <label className={labelCls}>Status</label>
+                                                <input value={formData.status || ''} placeholder="In Progress" className={inputCls} style={inputStyle} onFocus={inputFocus} onBlur={inputBlur} onChange={e => setFormData({ ...formData, status: e.target.value })} />
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {/* ===== LINK FORM ===== */}
+                                    {view === 'links' && (
+                                        <>
+                                            <div>
+                                                <label className={labelCls}>Title</label>
+                                                <input value={formData.link_title || ''} placeholder="Figma design" className={inputCls} style={inputStyle} onFocus={inputFocus} onBlur={inputBlur} onChange={e => setFormData({ ...formData, link_title: e.target.value })} />
+                                            </div>
+                                            <div>
+                                                <label className={labelCls}>URL</label>
+                                                <input value={formData.link_url || ''} placeholder="https://..." className={`${inputCls} font-geistmono`} style={inputStyle} onFocus={inputFocus} onBlur={inputBlur} onChange={e => setFormData({ ...formData, link_url: e.target.value })} />
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {/* ===== FEATURE FORM ===== */}
+                                    {view === 'features' && (
+                                        <>
+                                            <div>
+                                                <label className={labelCls}>Feature description</label>
+                                                <input value={formData.description || ''} placeholder="Dark mode toggle" className={inputCls} style={inputStyle} onFocus={inputFocus} onBlur={inputBlur} onChange={e => setFormData({ ...formData, description: e.target.value })} />
+                                            </div>
+                                            <div>
+                                                <label className={labelCls}>Estimation</label>
+                                                <input value={formData.estimation || ''} placeholder="2 days" className={inputCls} style={inputStyle} onFocus={inputFocus} onBlur={inputBlur} onChange={e => setFormData({ ...formData, estimation: e.target.value })} />
+                                            </div>
+                                            <div>
+                                                <label className={labelCls}>Type</label>
+                                                <select
+                                                    value={formData.is_new_request || 'false'}
+                                                    className={`${inputCls} appearance-none bg-[#0a0a0a]`}
+                                                    style={inputStyle}
+                                                    onFocus={inputFocus}
+                                                    onBlur={inputBlur}
+                                                    onChange={e => setFormData({ ...formData, is_new_request: e.target.value })}
+                                                >
+                                                    <option value="false" className="bg-[#161616]">No · Core feature</option>
+                                                    <option value="true" className="bg-[#161616]">Yes · Extra request</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className={labelCls}>Status</label>
+                                                <select
+                                                    className={`${inputCls} appearance-none bg-[#0a0a0a]`}
+                                                    style={inputStyle}
+                                                    onFocus={inputFocus}
+                                                    onBlur={inputBlur}
+                                                    onChange={e => setFormData({ ...formData, status: e.target.value })}
+                                                    value={formData.status || 'Requested'}
+                                                >
+                                                    {['Requested', 'Approved', 'Working', 'Updating', 'Completed'].map(s => (
+                                                        <option key={s} value={s} className="bg-[#161616]">{s}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            {/* Payment Confirmed Toggle */}
+                                            <div
+                                                className="rounded-md p-4"
+                                                style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
+                                            >
+                                                <div className="flex items-center justify-between gap-4">
+                                                    <div className="min-w-0">
+                                                        <label className="block font-geistmono text-[10px] font-medium uppercase text-[#737373] tracking-[0.04em] mb-1">Payment confirmed</label>
+                                                        <p className="text-[12px] text-[#a1a1a1] font-geist leading-[1.4]">
+                                                            {formData.payment_confirmed !== false
+                                                                ? 'Rate locked — amount fields visible to client.'
+                                                                : 'Rate pending — client sees “Rate pending”.'}
+                                                        </p>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        role="switch"
+                                                        aria-checked={formData.payment_confirmed !== false}
+                                                        onClick={() => setFormData({ ...formData, payment_confirmed: !formData.payment_confirmed })}
+                                                        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none ${
+                                                            formData.payment_confirmed !== false ? 'bg-[#0a72ef]' : 'bg-[#262626]'
+                                                        }`}
+                                                    >
+                                                        <span
+                                                            className={`inline-block h-4 w-4 rounded-full bg-white transition-transform duration-200 ${
+                                                                formData.payment_confirmed !== false ? 'translate-x-6' : 'translate-x-1'
+                                                            }`}
+                                                        />
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {/* Amount fields */}
+                                            {formData.payment_confirmed !== false && (
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div>
+                                                        <label className={labelCls}>Amount <span className="text-[#525252] normal-case">(₹)</span></label>
+                                                        <input value={formData.amount ?? ''} type="number" placeholder="5000" className={`${inputCls} tabular-nums font-geistmono`} style={inputStyle} onFocus={inputFocus} onBlur={inputBlur} onChange={e => setFormData({ ...formData, amount: e.target.value })} />
+                                                    </div>
+                                                    <div>
+                                                        <label className={labelCls}>Paid <span className="text-[#525252] normal-case">(₹)</span></label>
+                                                        <input value={formData.paid_amount ?? ''} type="number" placeholder="2500" className={`${inputCls} tabular-nums font-geistmono`} style={inputStyle} onFocus={inputFocus} onBlur={inputBlur} onChange={e => setFormData({ ...formData, paid_amount: e.target.value })} />
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+
+                                    {/* Footer actions */}
+                                    <div className="flex items-center gap-2 pt-2">
+                                        <button
+                                            onClick={() => { setShowModal(false); setEditingId(null); setEditingLinkIndex(null); }}
+                                            className="h-10 px-4 rounded-md bg-transparent hover:bg-[#181818] text-[#a1a1a1] hover:text-white flex items-center justify-center transition-colors text-[13px] font-medium font-geist"
+                                            style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={view === 'clients' ? handleSaveClient : view === 'projects' ? handleSaveProject : view === 'links' ? handleAddLink : handleSaveFeature}
+                                            disabled={saving}
+                                            className="flex-1 h-10 px-4 rounded-md bg-white hover:bg-[#ededed] text-[#0a0a0a] flex items-center justify-center gap-1.5 transition-colors text-[13px] font-medium font-geist disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            {saving ? <><Loader2 size={13} className="animate-spin" /> Saving</> : isEditing ? 'Update' : 'Create'}
+                                        </button>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        </div>
+                    );
+                })()}
             </AnimatePresence>
         </div>
     );
