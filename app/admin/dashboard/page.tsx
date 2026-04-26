@@ -1000,7 +1000,7 @@ export default function AdminDashboard() {
                                 {totalClients === 0 ? (
                                     <>
                                         <h1
-                                            className="text-white font-semibold font-geist leading-[0.95]"
+                                            className="text-white font-semibold font-geist leading-[0.95] break-words"
                                             style={{ fontSize: 'clamp(44px, 6.6vw, 76px)', letterSpacing: '-0.055em', fontFeatureSettings: '"liga"' }}
                                         >
                                             Empty<br /><span className="text-[#525252]">portfolio.</span>
@@ -1012,7 +1012,7 @@ export default function AdminDashboard() {
                                 ) : (
                                     <>
                                         <h1
-                                            className="text-white font-semibold font-geist leading-[0.95]"
+                                            className="text-white font-semibold font-geist leading-[0.95] break-words"
                                             style={{ fontSize: 'clamp(44px, 6.6vw, 76px)', letterSpacing: '-0.055em', fontFeatureSettings: '"liga"' }}
                                         >
                                             {totalClients} {totalClients === 1 ? 'client' : 'clients'}.<br />
@@ -1057,7 +1057,7 @@ export default function AdminDashboard() {
                                     ].map((step, i) => (
                                         <div
                                             key={step.idx}
-                                            className={`relative p-7 flex flex-col gap-5 ${i < 2 ? 'shadow-[inset_0_-1px_0_0_rgba(255,255,255,0.08)] md:shadow-[inset_-1px_0_0_0_rgba(255,255,255,0.08)]' : ''}`}
+                                            className={`relative p-5 sm:p-7 flex flex-col gap-4 sm:gap-5 min-w-0 ${i < 2 ? 'shadow-[inset_0_-1px_0_0_rgba(255,255,255,0.08)] md:shadow-[inset_-1px_0_0_0_rgba(255,255,255,0.08)]' : ''}`}
                                         >
                                             <div className="flex items-center justify-between gap-2">
                                                 <span className="font-geistmono text-[11px] font-medium uppercase" style={{ color: step.color }}>
@@ -1070,7 +1070,7 @@ export default function AdminDashboard() {
                                             </div>
                                             <div
                                                 className="text-white font-semibold tabular-nums font-geist"
-                                                style={{ fontSize: '40px', letterSpacing: '-1.6px', lineHeight: 1.0, fontFeatureSettings: '"tnum","liga"' }}
+                                                style={{ fontSize: 'clamp(28px, 5vw, 40px)', letterSpacing: '-1.4px', lineHeight: 1.0, fontFeatureSettings: '"tnum","liga"' }}
                                             >
                                                 ₹{step.value.toLocaleString('en-IN')}
                                             </div>
@@ -1095,7 +1095,7 @@ export default function AdminDashboard() {
                                 style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
                             >
                                 <div
-                                    className="p-7 flex flex-col gap-4"
+                                    className="p-5 sm:p-7 flex flex-col gap-3 sm:gap-4 min-w-0"
                                     style={{ boxShadow: 'rgba(255,255,255,0.08) -1px 0px 0px inset' }}
                                 >
                                     <div className="flex items-center justify-between">
@@ -1104,7 +1104,7 @@ export default function AdminDashboard() {
                                     </div>
                                     <div
                                         className="text-white font-semibold tabular-nums font-geist"
-                                        style={{ fontSize: '52px', letterSpacing: '-2.08px', lineHeight: 1.0 }}
+                                        style={{ fontSize: 'clamp(36px, 6vw, 52px)', letterSpacing: '-1.6px', lineHeight: 1.0 }}
                                     >
                                         {totalClients}
                                     </div>
@@ -1120,14 +1120,14 @@ export default function AdminDashboard() {
                                         )}
                                     </div>
                                 </div>
-                                <div className="p-7 flex flex-col gap-4">
+                                <div className="p-5 sm:p-7 flex flex-col gap-3 sm:gap-4 min-w-0">
                                     <div className="flex items-center justify-between">
                                         <span className="font-geistmono text-[11px] font-medium uppercase text-[#737373]">Projects</span>
                                         <Briefcase size={13} className="text-[#525252]" strokeWidth={2} />
                                     </div>
                                     <div
                                         className="text-white font-semibold tabular-nums font-geist"
-                                        style={{ fontSize: '52px', letterSpacing: '-2.08px', lineHeight: 1.0 }}
+                                        style={{ fontSize: 'clamp(36px, 6vw, 52px)', letterSpacing: '-1.6px', lineHeight: 1.0 }}
                                     >
                                         {totalProjects}
                                     </div>
@@ -1363,8 +1363,8 @@ export default function AdminDashboard() {
 
                                                     {/* Status */}
                                                     <div className="col-span-1 lg:col-span-2 flex items-center justify-between lg:justify-start gap-3">
-                                                        <span className="lg:hidden font-geistmono text-[10px] uppercase text-[#737373]">Status</span>
-                                                        <div className="flex items-center gap-2 flex-1 max-w-[180px]">
+                                                        <span className="lg:hidden font-geistmono text-[10px] uppercase text-[#737373] shrink-0">Status</span>
+                                                        <div className="flex items-center gap-2 flex-1 lg:max-w-[180px] min-w-0">
                                                             <span
                                                                 className="inline-flex items-center gap-1.5 px-2 h-5 rounded-full font-geistmono text-[10px] uppercase font-medium shrink-0"
                                                                 style={{ background: `${statusColor}1f`, color: statusColor }}
@@ -1372,7 +1372,7 @@ export default function AdminDashboard() {
                                                                 <span className="w-1 h-1 rounded-full" style={{ background: statusColor }} />
                                                                 {statusLabel}
                                                             </span>
-                                                            <div className="flex-1 h-[2px] bg-[#1a1a1a] rounded-full overflow-hidden">
+                                                            <div className="flex-1 min-w-0 h-[2px] bg-[#1a1a1a] rounded-full overflow-hidden">
                                                                 <motion.div
                                                                     initial={{ width: 0 }}
                                                                     animate={{ width: `${progress}%` }}
@@ -1526,7 +1526,7 @@ export default function AdminDashboard() {
                                 {projectsCount === 0 ? (
                                     <>
                                         <h1
-                                            className="text-white font-semibold font-geist leading-[0.95]"
+                                            className="text-white font-semibold font-geist leading-[0.95] break-words"
                                             style={{ fontSize: 'clamp(44px, 6.6vw, 76px)', letterSpacing: '-0.055em', fontFeatureSettings: '"liga"' }}
                                         >
                                             {selectedClient?.name || 'Client'}.<br />
@@ -1539,7 +1539,7 @@ export default function AdminDashboard() {
                                 ) : (
                                     <>
                                         <h1
-                                            className="text-white font-semibold font-geist leading-[0.95]"
+                                            className="text-white font-semibold font-geist leading-[0.95] break-words"
                                             style={{ fontSize: 'clamp(44px, 6.6vw, 76px)', letterSpacing: '-0.055em', fontFeatureSettings: '"liga"' }}
                                         >
                                             {selectedClient?.name}.<br />
@@ -1585,7 +1585,7 @@ export default function AdminDashboard() {
                                         ].map((step, i) => (
                                             <div
                                                 key={step.idx}
-                                                className={`relative p-7 flex flex-col gap-5 ${i === 0 ? 'rounded-t-lg md:rounded-tr-none md:rounded-l-lg' : ''} ${i === 2 ? 'rounded-b-lg md:rounded-bl-none md:rounded-r-lg' : ''} ${i < 2 ? 'shadow-[inset_0_-1px_0_0_rgba(255,255,255,0.08)] md:shadow-[inset_-1px_0_0_0_rgba(255,255,255,0.08)]' : ''}`}
+                                                className={`relative p-5 sm:p-7 flex flex-col gap-4 sm:gap-5 min-w-0 ${i === 0 ? 'rounded-t-lg md:rounded-tr-none md:rounded-l-lg' : ''} ${i === 2 ? 'rounded-b-lg md:rounded-bl-none md:rounded-r-lg' : ''} ${i < 2 ? 'shadow-[inset_0_-1px_0_0_rgba(255,255,255,0.08)] md:shadow-[inset_-1px_0_0_0_rgba(255,255,255,0.08)]' : ''}`}
                                             >
                                                 <div className="flex items-center justify-between gap-2">
                                                     <span className="font-geistmono text-[11px] font-medium uppercase" style={{ color: step.color }}>
@@ -1598,7 +1598,7 @@ export default function AdminDashboard() {
                                                 </div>
                                                 <div
                                                     className="text-white font-semibold tabular-nums font-geist"
-                                                    style={{ fontSize: '40px', letterSpacing: '-1.6px', lineHeight: 1.0, fontFeatureSettings: '"tnum","liga"' }}
+                                                    style={{ fontSize: 'clamp(28px, 5vw, 40px)', letterSpacing: '-1.4px', lineHeight: 1.0, fontFeatureSettings: '"tnum","liga"' }}
                                                 >
                                                     {formatINR(step.value)}
                                                 </div>
@@ -1735,38 +1735,38 @@ export default function AdminDashboard() {
 
                                                     {/* Payment breakdown */}
                                                     <div
-                                                        className="grid grid-cols-3 rounded-md mb-6"
+                                                        className="grid grid-cols-3 rounded-md mb-6 overflow-hidden"
                                                         style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
                                                     >
                                                         <div
-                                                            className="p-4 flex flex-col gap-2 rounded-l-md"
+                                                            className="p-3 sm:p-4 flex flex-col gap-1.5 sm:gap-2 min-w-0"
                                                             style={{ boxShadow: 'rgba(255,255,255,0.08) -1px 0px 0px inset' }}
                                                         >
                                                             <span className="font-geistmono text-[10px] font-medium uppercase text-[#737373]">Total</span>
                                                             <span
-                                                                className="text-white font-semibold tabular-nums font-geist"
-                                                                style={{ fontSize: 'clamp(15px, 2vw, 18px)', letterSpacing: '-0.36px' }}
+                                                                className="text-white font-semibold tabular-nums font-geist truncate"
+                                                                style={{ fontSize: 'clamp(13px, 2vw, 18px)', letterSpacing: '-0.32px' }}
                                                             >
                                                                 {formatINR(total)}
                                                             </span>
                                                         </div>
                                                         <div
-                                                            className="p-4 flex flex-col gap-2"
+                                                            className="p-3 sm:p-4 flex flex-col gap-1.5 sm:gap-2 min-w-0"
                                                             style={{ boxShadow: 'rgba(255,255,255,0.08) -1px 0px 0px inset' }}
                                                         >
                                                             <span className="font-geistmono text-[10px] font-medium uppercase text-[#737373]">Paid</span>
                                                             <span
-                                                                className="font-semibold tabular-nums font-geist"
-                                                                style={{ fontSize: 'clamp(15px, 2vw, 18px)', letterSpacing: '-0.36px', color: paid > 0 ? '#ff5b4f' : '#525252' }}
+                                                                className="font-semibold tabular-nums font-geist truncate"
+                                                                style={{ fontSize: 'clamp(13px, 2vw, 18px)', letterSpacing: '-0.32px', color: paid > 0 ? '#ff5b4f' : '#525252' }}
                                                             >
                                                                 {formatINR(paid)}
                                                             </span>
                                                         </div>
-                                                        <div className="p-4 flex flex-col gap-2 rounded-r-md">
+                                                        <div className="p-3 sm:p-4 flex flex-col gap-1.5 sm:gap-2 min-w-0">
                                                             <span className="font-geistmono text-[10px] font-medium uppercase text-[#737373]">Pending</span>
                                                             <span
-                                                                className="font-semibold tabular-nums font-geist"
-                                                                style={{ fontSize: 'clamp(15px, 2vw, 18px)', letterSpacing: '-0.36px', color: pending > 0 ? '#de1d8d' : '#525252' }}
+                                                                className="font-semibold tabular-nums font-geist truncate"
+                                                                style={{ fontSize: 'clamp(13px, 2vw, 18px)', letterSpacing: '-0.32px', color: pending > 0 ? '#de1d8d' : '#525252' }}
                                                             >
                                                                 {formatINR(pending)}
                                                             </span>
@@ -1775,29 +1775,29 @@ export default function AdminDashboard() {
 
                                                     {/* Footer actions */}
                                                     <div
-                                                        className="flex items-center justify-between gap-2 pt-5"
+                                                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-5"
                                                         style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 1px 0px inset' }}
                                                     >
-                                                        <div className="flex items-center gap-1">
+                                                        <div className="flex items-center gap-1 order-2 sm:order-1">
                                                             <button
                                                                 onClick={() => handleEditProject(project)}
                                                                 aria-label="Edit project"
-                                                                className="h-8 w-8 rounded-md flex items-center justify-center text-[#737373] hover:text-white hover:bg-[#181818] transition-colors"
+                                                                className="h-9 w-9 sm:h-8 sm:w-8 rounded-md flex items-center justify-center text-[#737373] hover:text-white hover:bg-[#181818] transition-colors"
                                                             >
                                                                 <Pencil size={13} strokeWidth={2} />
                                                             </button>
                                                             <button
                                                                 onClick={() => handleDelete(project.id, 'projects')}
                                                                 aria-label="Delete project"
-                                                                className="h-8 w-8 rounded-md flex items-center justify-center text-[#737373] hover:text-[#ff5b4f] hover:bg-[#181818] transition-colors"
+                                                                className="h-9 w-9 sm:h-8 sm:w-8 rounded-md flex items-center justify-center text-[#737373] hover:text-[#ff5b4f] hover:bg-[#181818] transition-colors"
                                                             >
                                                                 <Trash2 size={13} strokeWidth={2} />
                                                             </button>
                                                         </div>
-                                                        <div className="flex items-center gap-2">
+                                                        <div className="flex items-center gap-2 order-1 sm:order-2">
                                                             <button
                                                                 onClick={() => handleProjectLinksSelect(project)}
-                                                                className="h-9 px-3.5 rounded-md text-[#a1a1a1] hover:text-white hover:bg-[#181818] flex items-center justify-center gap-1.5 transition-colors text-[13px] font-medium font-geist"
+                                                                className="flex-1 sm:flex-none h-9 px-3.5 rounded-md text-[#a1a1a1] hover:text-white hover:bg-[#181818] flex items-center justify-center gap-1.5 transition-colors text-[13px] font-medium font-geist"
                                                                 style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
                                                             >
                                                                 <Link2 size={13} strokeWidth={2} />
@@ -1805,9 +1805,10 @@ export default function AdminDashboard() {
                                                             </button>
                                                             <button
                                                                 onClick={() => handleProjectSelect(project)}
-                                                                className="h-9 px-3.5 rounded-md bg-white hover:bg-[#ededed] text-[#0a0a0a] flex items-center justify-center gap-1.5 transition-colors text-[13px] font-medium font-geist"
+                                                                className="flex-1 sm:flex-none h-9 px-3.5 rounded-md bg-white hover:bg-[#ededed] text-[#0a0a0a] flex items-center justify-center gap-1.5 transition-colors text-[13px] font-medium font-geist whitespace-nowrap"
                                                             >
-                                                                Manage features
+                                                                <span className="sm:hidden">Features</span>
+                                                                <span className="hidden sm:inline">Manage features</span>
                                                                 <ArrowRight size={13} strokeWidth={2.5} />
                                                             </button>
                                                         </div>
@@ -1869,7 +1870,7 @@ export default function AdminDashboard() {
                         {/* ===== HERO ===== */}
                         <section className="pt-6 pb-2 max-w-3xl">
                             <h1
-                                className="text-white font-semibold font-geist leading-[0.95]"
+                                className="text-white font-semibold font-geist leading-[0.95] break-words"
                                 style={{ fontSize: 'clamp(40px, 5.6vw, 64px)', letterSpacing: '-0.05em', fontFeatureSettings: '"liga"' }}
                             >
                                 {selectedProject?.description || 'Project'}.<br />
@@ -2070,7 +2071,7 @@ export default function AdminDashboard() {
                             {/* ===== HERO ===== */}
                             <section className="pt-6 pb-2 max-w-3xl">
                                 <h1
-                                    className="text-white font-semibold font-geist leading-[0.95]"
+                                    className="text-white font-semibold font-geist leading-[0.95] break-words"
                                     style={{ fontSize: 'clamp(40px, 5.6vw, 64px)', letterSpacing: '-0.05em', fontFeatureSettings: '"liga"' }}
                                 >
                                     {selectedProject?.description || 'Project'}.<br />
@@ -2086,33 +2087,47 @@ export default function AdminDashboard() {
                             </section>
 
                             {/* ===== AGGREGATE METRICS ===== */}
-                            {featuresCount > 0 && (
-                                <section
-                                    className="grid grid-cols-2 md:grid-cols-4 rounded-lg"
-                                    style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
-                                >
-                                    {[
-                                        { label: 'Features', value: featuresCount.toString(), meta: `${completedCount} shipped`, color: '#a1a1a1' },
-                                        { label: 'Total', value: formatINR(totalAmount), meta: '—', color: '#0a72ef' },
-                                        { label: 'Paid', value: formatINR(paidAmount), meta: totalAmount > 0 ? `${paidPct}%` : '—', color: '#ff5b4f' },
-                                        { label: 'Pending', value: formatINR(pendingAmount), meta: ratePending > 0 ? `${ratePending} rate-pending` : (totalAmount > 0 ? `${100 - paidPct}%` : '—'), color: '#de1d8d' },
-                                    ].map((cell, i, arr) => (
-                                        <div
-                                            key={cell.label}
-                                            className={`p-6 flex flex-col gap-2.5 ${i === 0 ? 'rounded-tl-lg' : ''} ${i === arr.length - 1 ? 'md:rounded-r-lg' : ''} ${i === 1 ? 'md:rounded-tr-lg rounded-tr-lg md:rounded-none' : ''} ${i < arr.length - 1 ? (i === 1 ? 'shadow-[inset_0_-1px_0_0_rgba(255,255,255,0.08)] md:shadow-[inset_-1px_0_0_0_rgba(255,255,255,0.08)]' : 'shadow-[inset_-1px_0_0_0_rgba(255,255,255,0.08),inset_0_-1px_0_0_rgba(255,255,255,0.08)] md:shadow-[inset_-1px_0_0_0_rgba(255,255,255,0.08)]') : ''} ${i >= 2 ? 'rounded-bl-lg md:rounded-bl-none' : ''}`}
-                                        >
-                                            <span className="font-geistmono text-[10px] font-medium uppercase text-[#737373]">{cell.label}</span>
-                                            <span
-                                                className="text-white font-semibold tabular-nums font-geist"
-                                                style={{ fontSize: 'clamp(20px, 2.4vw, 26px)', letterSpacing: '-0.6px', lineHeight: 1.1 }}
+                            {featuresCount > 0 && (() => {
+                                const cells = [
+                                    { label: 'Features', value: featuresCount.toString(), meta: `${completedCount} shipped` },
+                                    { label: 'Total', value: formatINR(totalAmount), meta: '—' },
+                                    { label: 'Paid', value: formatINR(paidAmount), meta: totalAmount > 0 ? `${paidPct}%` : '—' },
+                                    { label: 'Pending', value: formatINR(pendingAmount), meta: ratePending > 0 ? `${ratePending} rate-pending` : (totalAmount > 0 ? `${100 - paidPct}%` : '—') },
+                                ];
+                                // 2x2 mobile / 1x4 desktop. Cell shadow needs differ:
+                                //   0: mobile right+bottom, desktop right
+                                //   1: mobile bottom,        desktop right
+                                //   2: mobile right,         desktop right
+                                //   3: nothing
+                                const shadowCls = [
+                                    'shadow-[inset_-1px_0_0_0_rgba(255,255,255,0.08),inset_0_-1px_0_0_rgba(255,255,255,0.08)] md:shadow-[inset_-1px_0_0_0_rgba(255,255,255,0.08)]',
+                                    'shadow-[inset_0_-1px_0_0_rgba(255,255,255,0.08)] md:shadow-[inset_-1px_0_0_0_rgba(255,255,255,0.08)]',
+                                    'shadow-[inset_-1px_0_0_0_rgba(255,255,255,0.08)] md:shadow-[inset_-1px_0_0_0_rgba(255,255,255,0.08)]',
+                                    '',
+                                ];
+                                return (
+                                    <section
+                                        className="grid grid-cols-2 md:grid-cols-4 rounded-lg overflow-hidden"
+                                        style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
+                                    >
+                                        {cells.map((cell, i) => (
+                                            <div
+                                                key={cell.label}
+                                                className={`p-5 sm:p-6 flex flex-col gap-2 sm:gap-2.5 min-w-0 ${shadowCls[i]}`}
                                             >
-                                                {cell.value}
-                                            </span>
-                                            <span className="font-geistmono text-[10px] uppercase text-[#525252] tabular-nums">{cell.meta}</span>
-                                        </div>
-                                    ))}
-                                </section>
-                            )}
+                                                <span className="font-geistmono text-[10px] font-medium uppercase text-[#737373]">{cell.label}</span>
+                                                <span
+                                                    className="text-white font-semibold tabular-nums font-geist truncate"
+                                                    style={{ fontSize: 'clamp(18px, 2.4vw, 26px)', letterSpacing: '-0.5px', lineHeight: 1.1 }}
+                                                >
+                                                    {cell.value}
+                                                </span>
+                                                <span className="font-geistmono text-[10px] uppercase text-[#525252] tabular-nums truncate">{cell.meta}</span>
+                                            </div>
+                                        ))}
+                                    </section>
+                                );
+                            })()}
 
                             {/* ===== TABLE ===== */}
                             <section className="space-y-6">
@@ -2433,7 +2448,7 @@ export default function AdminDashboard() {
                             {/* ===== HERO ===== */}
                             <section className="pt-6 pb-2 max-w-3xl">
                                 <h1
-                                    className="text-white font-semibold font-geist leading-[0.95]"
+                                    className="text-white font-semibold font-geist leading-[0.95] break-words"
                                     style={{ fontSize: 'clamp(40px, 5.6vw, 64px)', letterSpacing: '-0.05em', fontFeatureSettings: '"liga"' }}
                                 >
                                     {selectedClient?.name}.<br />
@@ -2584,7 +2599,7 @@ export default function AdminDashboard() {
                                             return (
                                                 <div
                                                     key={log.id}
-                                                    className={`group flex items-start gap-3 px-5 sm:px-6 py-5 transition-colors ${isSelected ? 'bg-[rgba(10,114,239,0.06)]' : 'hover:bg-[#0c0c0c]'} ${isHidden ? 'opacity-60' : ''} ${isFirst ? 'rounded-t-lg' : ''} ${isLast ? 'rounded-b-lg' : ''}`}
+                                                    className={`group flex flex-wrap items-start gap-3 px-5 sm:px-6 py-5 transition-colors ${isSelected ? 'bg-[rgba(10,114,239,0.06)]' : 'hover:bg-[#0c0c0c]'} ${isHidden ? 'opacity-60' : ''} ${isFirst ? 'rounded-t-lg' : ''} ${isLast ? 'rounded-b-lg' : ''}`}
                                                     style={{ boxShadow: idx > 0 ? 'rgba(255,255,255,0.08) 0px 1px 0px inset' : undefined }}
                                                 >
                                                     <label className="pt-1 shrink-0 cursor-pointer">
@@ -2603,7 +2618,7 @@ export default function AdminDashboard() {
                                                         {meta.icon}
                                                     </div>
 
-                                                    <div className="flex-1 min-w-0">
+                                                    <div className="flex-1 min-w-0 basis-[60%] sm:basis-auto">
                                                         <div className="flex items-center gap-2 mb-1 flex-wrap">
                                                             <span
                                                                 className="inline-flex items-center px-2 h-5 rounded-full font-geistmono text-[10px] uppercase font-medium tracking-[0.02em]"
@@ -2679,14 +2694,15 @@ export default function AdminDashboard() {
                                                         )}
                                                     </div>
 
-                                                    <div className="shrink-0 flex flex-col items-end gap-2">
+                                                    <div className="w-full sm:w-auto sm:shrink-0 flex items-center sm:flex-col sm:items-end gap-2 justify-end pl-11 sm:pl-0 mt-1 sm:mt-0">
                                                         {isSent && (
-                                                            <span className="inline-flex items-center gap-1 px-2 h-5 rounded-full font-geistmono text-[10px] uppercase font-medium" style={{ background: 'rgba(10,114,239,0.12)', color: '#3a8dff' }}>
+                                                            <span className="inline-flex items-center gap-1 px-2 h-5 rounded-full font-geistmono text-[10px] uppercase font-medium shrink-0" style={{ background: 'rgba(10,114,239,0.12)', color: '#3a8dff' }}>
                                                                 <MailCheck size={9} />
-                                                                Sent · {getRelativeTime(log.notified_at!)}
+                                                                <span className="hidden sm:inline">Sent · {getRelativeTime(log.notified_at!)}</span>
+                                                                <span className="sm:hidden">Sent</span>
                                                             </span>
                                                         )}
-                                                        <div className="flex items-center gap-1">
+                                                        <div className="flex items-center gap-1 shrink-0">
                                                             <button
                                                                 onClick={() => handleSendSingle(log.id)}
                                                                 disabled={isSending || !selectedClient?.email}
