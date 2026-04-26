@@ -911,6 +911,11 @@ export default function AdminDashboard() {
                 .font-display { font-family: 'Instrument Serif', 'Times New Roman', serif; }
                 .font-grotesk { font-family: 'Space Grotesk', system-ui, sans-serif; }
                 .font-jbmono { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+                /* Override globals.css light body bg so overscroll/bounce doesn't flash white at the bottom on the admin dashboard */
+                html, body {
+                    background-color: #0a0a0a !important;
+                    overscroll-behavior: none;
+                }
                 /* Subtle atmospheric gradient at top — barely visible, per DESIGN.md hero gradient principle */
                 .geist-canvas {
                     background-image: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(10,114,239,0.07), transparent 60%);
@@ -1110,7 +1115,7 @@ export default function AdminDashboard() {
                                     </div>
                                     <div className="flex items-center gap-2 text-[13px] font-geist">
                                         <span
-                                            className="inline-flex items-center px-2 h-5 rounded-full font-medium tabular-nums"
+                                            className="inline-flex items-center px-2 h-5 rounded-full whitespace-nowrap font-medium tabular-nums"
                                             style={{ background: 'rgba(10,114,245,0.12)', color: '#3a8dff', fontSize: '11px' }}
                                         >
                                             {clientsWithEmail} email-enabled
@@ -1133,7 +1138,7 @@ export default function AdminDashboard() {
                                     </div>
                                     <div className="flex items-center gap-2 text-[13px] font-geist">
                                         <span
-                                            className="inline-flex items-center px-2 h-5 rounded-full font-medium tabular-nums"
+                                            className="inline-flex items-center px-2 h-5 rounded-full whitespace-nowrap font-medium tabular-nums"
                                             style={{ background: 'rgba(255,91,79,0.12)', color: '#ff7a72', fontSize: '11px' }}
                                         >
                                             {activeProjects} active
@@ -1366,7 +1371,7 @@ export default function AdminDashboard() {
                                                         <span className="lg:hidden font-geistmono text-[10px] uppercase text-[#737373] shrink-0">Status</span>
                                                         <div className="flex items-center gap-2 flex-1 lg:max-w-[180px] min-w-0">
                                                             <span
-                                                                className="inline-flex items-center gap-1.5 px-2 h-5 rounded-full font-geistmono text-[10px] uppercase font-medium shrink-0"
+                                                                className="inline-flex items-center gap-1.5 px-2 h-5 rounded-full whitespace-nowrap font-geistmono text-[10px] uppercase font-medium shrink-0"
                                                                 style={{ background: `${statusColor}1f`, color: statusColor }}
                                                             >
                                                                 <span className="w-1 h-1 rounded-full" style={{ background: statusColor }} />
@@ -1683,7 +1688,7 @@ export default function AdminDashboard() {
                                                     <div className="flex items-center justify-between gap-2 mb-5 flex-wrap">
                                                         <div className="flex items-center gap-3 flex-wrap">
                                                             <span
-                                                                className="inline-flex items-center gap-1.5 px-2 h-5 rounded-full font-geistmono text-[10px] uppercase font-medium shrink-0"
+                                                                className="inline-flex items-center gap-1.5 px-2 h-5 rounded-full whitespace-nowrap font-geistmono text-[10px] uppercase font-medium shrink-0"
                                                                 style={{ background: `${stageColor}1f`, color: stageColor }}
                                                             >
                                                                 <span className="w-1 h-1 rounded-full" style={{ background: stageColor }} />
@@ -2242,7 +2247,7 @@ export default function AdminDashboard() {
                                                         </div>
                                                         <div className="col-span-2 text-right">
                                                             {ratePending ? (
-                                                                <span className="inline-flex items-center gap-1.5 px-2 h-5 rounded-full font-geistmono text-[10px] uppercase font-medium" style={{ background: 'rgba(255,164,43,0.12)', color: '#ffa42b' }}>
+                                                                <span className="inline-flex items-center gap-1.5 px-2 h-5 rounded-full whitespace-nowrap font-geistmono text-[10px] uppercase font-medium" style={{ background: 'rgba(255,164,43,0.12)', color: '#ffa42b' }}>
                                                                     <span className="w-1 h-1 rounded-full bg-[#ffa42b] animate-pulse" />
                                                                     Rate pending
                                                                 </span>
@@ -2261,7 +2266,7 @@ export default function AdminDashboard() {
                                                         </div>
                                                         <div className="col-span-1">
                                                             <span
-                                                                className="inline-flex px-2 h-5 items-center rounded-full font-geistmono text-[10px] uppercase font-medium"
+                                                                className="inline-flex px-2 h-5 items-center rounded-full whitespace-nowrap font-geistmono text-[10px] uppercase font-medium"
                                                                 style={feature.is_new_request
                                                                     ? { background: 'rgba(222,29,141,0.12)', color: '#de1d8d' }
                                                                     : { background: 'rgba(10,114,239,0.12)', color: '#3a8dff' }}
@@ -2271,7 +2276,7 @@ export default function AdminDashboard() {
                                                         </div>
                                                         <div className="col-span-2 flex items-center gap-2">
                                                             <span
-                                                                className="inline-flex items-center gap-1.5 px-2 h-5 rounded-full font-geistmono text-[10px] uppercase font-medium"
+                                                                className="inline-flex items-center gap-1.5 px-2 h-5 rounded-full whitespace-nowrap font-geistmono text-[10px] uppercase font-medium"
                                                                 style={{ background: `${stage.color}1f`, color: stage.color }}
                                                             >
                                                                 <span className="w-1 h-1 rounded-full" style={{ background: stage.color }} />
@@ -2336,14 +2341,14 @@ export default function AdminDashboard() {
                                                         </div>
                                                         <div className="flex flex-wrap items-center gap-2">
                                                             <span
-                                                                className="inline-flex items-center gap-1.5 px-2 h-5 rounded-full font-geistmono text-[10px] uppercase font-medium"
+                                                                className="inline-flex items-center gap-1.5 px-2 h-5 rounded-full whitespace-nowrap font-geistmono text-[10px] uppercase font-medium"
                                                                 style={{ background: `${stage.color}1f`, color: stage.color }}
                                                             >
                                                                 <span className="w-1 h-1 rounded-full" style={{ background: stage.color }} />
                                                                 {stage.label}
                                                             </span>
                                                             <span
-                                                                className="inline-flex px-2 h-5 items-center rounded-full font-geistmono text-[10px] uppercase font-medium"
+                                                                className="inline-flex px-2 h-5 items-center rounded-full whitespace-nowrap font-geistmono text-[10px] uppercase font-medium"
                                                                 style={feature.is_new_request
                                                                     ? { background: 'rgba(222,29,141,0.12)', color: '#de1d8d' }
                                                                     : { background: 'rgba(10,114,239,0.12)', color: '#3a8dff' }}
@@ -2621,34 +2626,34 @@ export default function AdminDashboard() {
                                                     <div className="flex-1 min-w-0 basis-[60%] sm:basis-auto">
                                                         <div className="flex items-center gap-2 mb-1 flex-wrap">
                                                             <span
-                                                                className="inline-flex items-center px-2 h-5 rounded-full font-geistmono text-[10px] uppercase font-medium tracking-[0.02em]"
+                                                                className="inline-flex items-center px-2 h-5 rounded-full whitespace-nowrap font-geistmono text-[10px] uppercase font-medium tracking-[0.02em]"
                                                                 style={{ background: `${stageColor}1f`, color: stageColor }}
                                                             >
                                                                 {meta.label}
                                                             </span>
                                                             {isHidden && (
-                                                                <span className="inline-flex items-center gap-1 px-2 h-5 rounded-full font-geistmono text-[10px] uppercase font-medium text-[#737373]" style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}>
+                                                                <span className="inline-flex items-center gap-1 px-2 h-5 rounded-full whitespace-nowrap font-geistmono text-[10px] uppercase font-medium text-[#737373]" style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}>
                                                                     <EyeOff size={9} />
                                                                     Hidden
                                                                 </span>
                                                             )}
                                                             {log.action_type === 'payment_received' && log.metadata?.paidAmount != null && (
-                                                                <span className="inline-flex items-center px-2 h-5 rounded-full font-geistmono text-[10px] uppercase font-medium tabular-nums" style={{ background: 'rgba(255,91,79,0.12)', color: '#ff5b4f' }}>
+                                                                <span className="inline-flex items-center px-2 h-5 rounded-full whitespace-nowrap font-geistmono text-[10px] uppercase font-medium tabular-nums" style={{ background: 'rgba(255,91,79,0.12)', color: '#ff5b4f' }}>
                                                                     +₹{Number(log.metadata.paidAmount - (log.metadata.oldPaidAmount || 0)).toLocaleString('en-IN')}
                                                                 </span>
                                                             )}
                                                             {log.action_type === 'feature_added' && log.metadata?.amount > 0 && (
-                                                                <span className="inline-flex items-center px-2 h-5 rounded-full font-geistmono text-[10px] uppercase font-medium tabular-nums" style={{ background: 'rgba(10,114,239,0.12)', color: '#3a8dff' }}>
+                                                                <span className="inline-flex items-center px-2 h-5 rounded-full whitespace-nowrap font-geistmono text-[10px] uppercase font-medium tabular-nums" style={{ background: 'rgba(10,114,239,0.12)', color: '#3a8dff' }}>
                                                                     ₹{Number(log.metadata.amount).toLocaleString('en-IN')}
                                                                 </span>
                                                             )}
                                                             {log.action_type === 'feature_updated' && log.metadata?.oldAmount !== undefined && log.metadata?.amount !== log.metadata?.oldAmount && (
-                                                                <span className="inline-flex items-center gap-1 px-2 h-5 rounded-full font-geistmono text-[10px] uppercase font-medium tabular-nums" style={{ background: 'rgba(255,164,43,0.12)', color: '#ffa42b' }}>
+                                                                <span className="inline-flex items-center gap-1 px-2 h-5 rounded-full whitespace-nowrap font-geistmono text-[10px] uppercase font-medium tabular-nums" style={{ background: 'rgba(255,164,43,0.12)', color: '#ffa42b' }}>
                                                                     ₹{Number(log.metadata.oldAmount).toLocaleString('en-IN')}<ArrowRight size={9} />₹{Number(log.metadata.amount).toLocaleString('en-IN')}
                                                                 </span>
                                                             )}
                                                             {log.action_type === 'rate_confirmed' && log.metadata?.amount > 0 && (
-                                                                <span className="inline-flex items-center px-2 h-5 rounded-full font-geistmono text-[10px] uppercase font-medium tabular-nums" style={{ background: 'rgba(255,91,79,0.12)', color: '#ff5b4f' }}>
+                                                                <span className="inline-flex items-center px-2 h-5 rounded-full whitespace-nowrap font-geistmono text-[10px] uppercase font-medium tabular-nums" style={{ background: 'rgba(255,91,79,0.12)', color: '#ff5b4f' }}>
                                                                     ₹{Number(log.metadata.amount).toLocaleString('en-IN')}
                                                                 </span>
                                                             )}
@@ -2696,7 +2701,7 @@ export default function AdminDashboard() {
 
                                                     <div className="w-full sm:w-auto sm:shrink-0 flex items-center sm:flex-col sm:items-end gap-2 justify-end pl-11 sm:pl-0 mt-1 sm:mt-0">
                                                         {isSent && (
-                                                            <span className="inline-flex items-center gap-1 px-2 h-5 rounded-full font-geistmono text-[10px] uppercase font-medium shrink-0" style={{ background: 'rgba(10,114,239,0.12)', color: '#3a8dff' }}>
+                                                            <span className="inline-flex items-center gap-1 px-2 h-5 rounded-full whitespace-nowrap font-geistmono text-[10px] uppercase font-medium shrink-0" style={{ background: 'rgba(10,114,239,0.12)', color: '#3a8dff' }}>
                                                                 <MailCheck size={9} />
                                                                 <span className="hidden sm:inline">Sent · {getRelativeTime(log.notified_at!)}</span>
                                                                 <span className="sm:hidden">Sent</span>
@@ -2898,7 +2903,7 @@ export default function AdminDashboard() {
                                                         role="switch"
                                                         aria-checked={formData.payment_confirmed !== false}
                                                         onClick={() => setFormData({ ...formData, payment_confirmed: !formData.payment_confirmed })}
-                                                        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none ${
+                                                        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full whitespace-nowrap transition-colors duration-200 focus:outline-none ${
                                                             formData.payment_confirmed !== false ? 'bg-[#0a72ef]' : 'bg-[#262626]'
                                                         }`}
                                                     >
