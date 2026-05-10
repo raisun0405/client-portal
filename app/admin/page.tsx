@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabaseAdmin } from '@/lib/supabase';
+import { ADMIN_HOST, PUBLIC_ORIGIN } from '@/lib/hosts';
 import { ShieldCheck, Loader2, Lock, Mail, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -64,7 +65,13 @@ export default function AdminLoginPage() {
             >
                 {/* Back button */}
                 <button
-                    onClick={() => router.push('/')}
+                    onClick={() => {
+                        if (typeof window !== 'undefined' && window.location.hostname === ADMIN_HOST) {
+                            window.location.href = PUBLIC_ORIGIN;
+                        } else {
+                            router.push('/');
+                        }
+                    }}
                     className="flex items-center gap-2 text-slate-400 hover:text-slate-700 text-sm font-medium mb-6 transition-colors group"
                 >
                     <ArrowLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { loginClient, getClientSession } from './actions';
+import { ADMIN_ORIGIN, PUBLIC_HOST } from '@/lib/hosts';
 import { KeyRound, ArrowRight, Loader2, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -41,7 +42,11 @@ export default function LoginPage() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.shiftKey && e.key === 'A') {
         e.preventDefault();
-        router.push('/admin');
+        if (window.location.hostname === PUBLIC_HOST) {
+          window.location.href = `${ADMIN_ORIGIN}/admin`;
+        } else {
+          router.push('/admin');
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
