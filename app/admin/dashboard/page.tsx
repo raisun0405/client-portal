@@ -40,6 +40,12 @@ type Project = {
     description: string;
     status: string;
     status_override?: string | null;
+    billing_mode?: string | null;
+    package_fee?: number | null;
+    package_status?: string | null;
+    package_started_on?: string | null;
+    package_anchor_day?: number | null;
+    package_cadence?: string | null;
     links: { title: string; url: string }[];
     created_at: string;
 };
@@ -55,6 +61,7 @@ type Feature = {
     payment_status: string;
     is_new_request: boolean;
     payment_confirmed: boolean;
+    coverage?: string | null;
     created_at: string;
 };
 
@@ -158,14 +165,14 @@ export default function AdminDashboard() {
 
         // Fetch all projects and features in parallel for aggregate stats
         const [{ data: projectsData }, { data: featuresData }] = await Promise.all([
-            supabaseAdmin.from('projects').select('id, client_id, status, status_override'),
-            supabaseAdmin.from('features').select('project_id, amount, paid_amount, status, payment_confirmed'),
+            supabaseAdmin.from('projects').select('id, client_id, status, status_override, billing_mode'),
+            supabaseAdmin.from('features').select('project_id, amount, paid_amount, status, payment_confirmed, coverage'),
         ]);
 
-        const projectsByClient = new Map<string, { id: string; status: string; status_override?: string | null }[]>();
+        const projectsByClient = new Map<string, { id: string; status: string; status_override?: string | null; billing_mode?: string | null }[]>();
         (projectsData || []).forEach((p: any) => {
             if (!projectsByClient.has(p.client_id)) projectsByClient.set(p.client_id, []);
-            projectsByClient.get(p.client_id)!.push({ id: p.id, status: p.status, status_override: p.status_override });
+            projectsByClient.get(p.client_id)!.push({ id: p.id, status: p.status, status_override: p.status_override, billing_mode: p.billing_mode });
         });
 
         const featuresByProject = new Map<string, any[]>();
@@ -179,7 +186,7 @@ export default function AdminDashboard() {
             let totalValue = 0, paidValue = 0, totalFeatures = 0, completedFeatures = 0;
             clientProjects.forEach(p => {
                 const feats = featuresByProject.get(p.id) || [];
-                const s = computeProjectStats(feats);
+                const s = computeProjectStats(feats, { billingMode: p.billing_mode });
                 totalValue += s.total;
                 paidValue += s.paid;
                 totalFeatures += feats.length;
@@ -237,8 +244,9 @@ export default function AdminDashboard() {
             // 3. Calculate stats for each project
             const enhancedProjects: ProjectWithStats[] = projectsData.map(project => {
                 const projectFeatures = featuresData?.filter(f => f.project_id === project.id) || [];
-                // Only confirmed features count toward money (see lib/billing.ts)
-                const { total, paid } = computeProjectStats(projectFeatures);
+                // Only confirmed features count toward money; 'included' features are
+                // excluded on package projects (see lib/billing.ts)
+                const { total, paid } = computeProjectStats(projectFeatures, { billingMode: project.billing_mode });
 
                 // Progress Calculation
                 const totalFeatures = projectFeatures.length;
@@ -328,7 +336,8 @@ export default function AdminDashboard() {
             status: feature.status,
             payment_status: feature.payment_status,
             is_new_request: feature.is_new_request ? 'true' : 'false',
-            payment_confirmed: feature.payment_confirmed !== false
+            payment_confirmed: feature.payment_confirmed !== false,
+            coverage: feature.coverage || 'extra'
         });
         setEditingId(feature.id);
         setShowModal(true);
@@ -631,7 +640,8 @@ export default function AdminDashboard() {
             status: formData.status || 'Requested',
             payment_status: paymentStatus,
             is_new_request: formData.is_new_request === 'true',
-            payment_confirmed: isPaymentConfirmed
+            payment_confirmed: isPaymentConfirmed,
+            coverage: formData.coverage === 'included' ? 'included' : 'extra'
         };
 
         if (editingId) {
@@ -2934,6 +2944,23 @@ export default function AdminDashboard() {
                                                     <option value="true" className="bg-[#161616]">Yes · Extra request</option>
                                                 </select>
                                             </div>
+                                            {selectedProject?.billing_mode === 'package' && (
+                                                <div>
+                                                    <label className={labelCls}>Coverage</label>
+                                                    <select
+                                                        value={formData.coverage || 'extra'}
+                                                        className={`${inputCls} appearance-none bg-[#0a0a0a]`}
+                                                        style={inputStyle}
+                                                        onFocus={inputFocus}
+                                                        onBlur={inputBlur}
+                                                        onChange={e => setFormData({ ...formData, coverage: e.target.value })}
+                                                    >
+                                                        <option value="extra" className="bg-[#161616]">Extra · billed on top of the package</option>
+                                                        <option value="included" className="bg-[#161616]">Included · covered by the monthly fee</option>
+                                                    </select>
+                                                    <p className="text-[11px] text-[#737373] mt-1.5 font-geist">Shown only for package projects. &quot;Included&quot; features add no separate charge.</p>
+                                                </div>
+                                            )}
                                             <div>
                                                 <label className={labelCls}>Status</label>
                                                 <select
