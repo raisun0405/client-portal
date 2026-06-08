@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { fetchActivityLogs, type ActivityLog } from '@/lib/activityLogger';
+import { resolveProjectStatus, statusPillClasses, statusPillClassesBordered, type DisplayStatus } from '@/lib/projectStatus';
 import { getClientSession, logoutClient } from '../actions'; // Import server actions
 import { LayoutGrid, LogOut, FolderOpen, Loader2, X, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Calendar, ArrowRight, TrendingUp, Wallet, CheckCircle2, Clock, FileText, Zap, CreditCard, Link2, Trash2, RefreshCw, PackagePlus, Activity, Download, Pencil } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -18,6 +19,7 @@ type Project = {
     category: string;
     description: string;
     status: string;
+    status_override?: string | null;
     links: { title: string; url: string }[];
     created_at: string;
 };
@@ -41,6 +43,7 @@ type SortOrder = 'asc' | 'desc';
 
 // Enhanced Project type with calculated stats
 type ProjectWithStats = Project & {
+    displayStatus: DisplayStatus;
     stats: {
         total: number;
         paid: number;
@@ -201,6 +204,7 @@ export default function DashboardPage() {
                     return {
                         ...project,
                         links: project.links || [],
+                        displayStatus: resolveProjectStatus(project.status_override, projectFeatures),
                         stats: {
                             total,
                             paid,
@@ -672,8 +676,8 @@ export default function DashboardPage() {
                             const totalInvestment = projects.reduce((s, p) => s + p.stats.total, 0);
                             const totalPaid = projects.reduce((s, p) => s + p.stats.paid, 0);
                             const totalPending = projects.reduce((s, p) => s + p.stats.pending, 0);
-                            const completedProjects = projects.filter(p => p.status === 'Completed').length;
-                            const activeProjects = projects.filter(p => p.status !== 'Completed').length;
+                            const completedProjects = projects.filter(p => p.displayStatus === 'Completed').length;
+                            const activeProjects = projects.filter(p => p.displayStatus === 'In Progress' || p.displayStatus === 'Not Started').length;
                             const avgProgress = projects.length > 0 ? Math.round(projects.reduce((s, p) => s + p.stats.progress, 0) / projects.length) : 0;
                             const paymentPercent = totalInvestment > 0 ? Math.round((totalPaid / totalInvestment) * 100) : 0;
 
@@ -1025,9 +1029,8 @@ export default function DashboardPage() {
                                     <h3 className="text-lg font-semibold text-slate-900 mb-2 leading-snug">{project.description}</h3>
 
                                     <div className="flex items-center gap-3 mb-4">
-                                        <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${project.status === 'Completed' ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'
-                                            }`}>
-                                            {project.status}
+                                        <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${statusPillClasses(project.displayStatus)}`}>
+                                            {project.displayStatus}
                                         </span>
                                         <span className="inline-flex items-center gap-1 text-xs text-slate-400">
                                             <Calendar size={12} />
@@ -1093,9 +1096,8 @@ export default function DashboardPage() {
                                     <span className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 text-[10px] sm:text-xs font-bold tracking-wide uppercase border border-blue-100 whitespace-nowrap">
                                         {selectedProject.category}
                                     </span>
-                                    <span className={`px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold tracking-wide uppercase border whitespace-nowrap ${selectedProject.status === 'Completed' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'
-                                        }`}>
-                                        {selectedProject.status}
+                                    <span className={`px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold tracking-wide uppercase border whitespace-nowrap ${statusPillClassesBordered(selectedProject.displayStatus)}`}>
+                                        {selectedProject.displayStatus}
                                     </span>
                                 </div>
                                 <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight leading-tight wrap-break-word">{selectedProject.description}</h2>

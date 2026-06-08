@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logActivity, type ActivityLog } from '@/lib/activityLogger';
 import { sendNotification, sendDigestNotification } from '@/lib/notifications';
+import { deriveProjectStatus, resolveProjectStatus, type DisplayStatus } from '@/lib/projectStatus';
 import { Users, Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut, ArrowUp, ArrowDown, Calendar, Mail, MailCheck, Send, CheckCircle2, Clock, Zap, CreditCard, FileText, Link2, Activity, RefreshCw, PackagePlus, ArrowRight, EyeOff, Eye, Search, Copy, Check, Briefcase, TrendingUp, Hash, UserPlus, SlidersHorizontal, MoreHorizontal, ArrowUpRight, CircleDashed, Wallet, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -37,6 +38,7 @@ type Project = {
     category: string;
     description: string;
     status: string;
+    status_override?: string | null;
     links: { title: string; url: string }[];
     created_at: string;
 };
@@ -61,6 +63,7 @@ type SortOrder = 'asc' | 'desc';
 
 // Enhanced Project type with calculated stats
 type ProjectWithStats = Project & {
+    displayStatus: DisplayStatus;
     stats: {
         total: number;
         paid: number;
@@ -154,14 +157,14 @@ export default function AdminDashboard() {
 
         // Fetch all projects and features in parallel for aggregate stats
         const [{ data: projectsData }, { data: featuresData }] = await Promise.all([
-            supabaseAdmin.from('projects').select('id, client_id, status'),
+            supabaseAdmin.from('projects').select('id, client_id, status, status_override'),
             supabaseAdmin.from('features').select('project_id, amount, paid_amount, status, payment_confirmed'),
         ]);
 
-        const projectsByClient = new Map<string, { id: string; status: string }[]>();
+        const projectsByClient = new Map<string, { id: string; status: string; status_override?: string | null }[]>();
         (projectsData || []).forEach((p: any) => {
             if (!projectsByClient.has(p.client_id)) projectsByClient.set(p.client_id, []);
-            projectsByClient.get(p.client_id)!.push({ id: p.id, status: p.status });
+            projectsByClient.get(p.client_id)!.push({ id: p.id, status: p.status, status_override: p.status_override });
         });
 
         const featuresByProject = new Map<string, any[]>();
@@ -185,7 +188,9 @@ export default function AdminDashboard() {
                     if (f.status === 'Completed') completedFeatures += 1;
                 });
             });
-            const completedProjects = clientProjects.filter(p => p.status === 'Completed').length;
+            const completedProjects = clientProjects.filter(p =>
+                resolveProjectStatus(p.status_override, featuresByProject.get(p.id) || []) === 'Completed'
+            ).length;
             const progress = totalFeatures > 0 ? Math.round((completedFeatures / totalFeatures) * 100) : 0;
             return {
                 ...c,
@@ -248,6 +253,7 @@ export default function AdminDashboard() {
                 return {
                     ...project,
                     links: project.links || [],
+                    displayStatus: resolveProjectStatus(project.status_override, projectFeatures),
                     stats: {
                         total,
                         paid,
@@ -313,7 +319,7 @@ export default function AdminDashboard() {
     };
 
     const handleEditProject = (project: ProjectWithStats) => {
-        setFormData({ description: project.description, category: project.category, status: project.status });
+        setFormData({ description: project.description, category: project.category, status_override: project.status_override || '' });
         setEditingId(project.id);
         setShowModal(true);
     };
@@ -370,26 +376,33 @@ export default function AdminDashboard() {
     };
 
     const handleSaveProject = async () => {
+        // Project status is derived from features; the only manual lever is the
+        // override ('On Hold' / 'Cancelled'). Empty / 'Auto' clears the override.
+        const newOverride = (formData.status_override === 'On Hold' || formData.status_override === 'Cancelled')
+            ? formData.status_override
+            : null;
+
         if (editingId) {
             // UPDATE
             const oldProject = projects.find(p => p.id === editingId);
             const { error } = await supabaseAdmin.from('projects').update({
                 category: formData.category,
                 description: formData.description,
-                status: formData.status
+                status_override: newOverride
             }).eq('id', editingId);
             if (!error && selectedClient) {
                 fetchProjects(selectedClient.id);
                 // Log activity
                 if (oldProject) {
-                    const statusChanged = oldProject.status !== formData.status;
+                    const oldOverride = oldProject.status_override || null;
+                    const overrideChanged = oldOverride !== newOverride;
                     const nameChanged = oldProject.description !== formData.description;
                     const categoryChanged = oldProject.category !== formData.category;
-                    const isCompleted = formData.status === 'Completed' && oldProject.status !== 'Completed';
-                    
+                    const overrideLabel = (v: string | null) => v || 'Auto (follow features)';
+
                     const changes: string[] = [];
                     const structuredChanges: Record<string, { old: any; new: any }> = {};
-                    
+
                     if (nameChanged) {
                         changes.push(`Name: "${oldProject.description}" → "${formData.description}"`);
                         structuredChanges['Project Name'] = { old: oldProject.description, new: formData.description };
@@ -398,20 +411,16 @@ export default function AdminDashboard() {
                         changes.push(`Category: ${oldProject.category} → ${formData.category}`);
                         structuredChanges['Category'] = { old: oldProject.category, new: formData.category };
                     }
-                    if (statusChanged) {
-                        changes.push(`Status: ${oldProject.status} → ${formData.status}`);
-                        structuredChanges['Status'] = { old: oldProject.status, new: formData.status };
+                    if (overrideChanged) {
+                        changes.push(`Status: ${overrideLabel(oldOverride)} → ${overrideLabel(newOverride)}`);
+                        structuredChanges['Status'] = { old: overrideLabel(oldOverride), new: overrideLabel(newOverride) };
                     }
-                    
-                    let actionType: any = 'project_updated';
+
+                    const actionType = 'project_updated';
                     let title = 'Project Updated';
                     let desc = `"${formData.description}" was updated`;
-                    
-                    if (isCompleted) {
-                        actionType = 'project_completed';
-                        title = 'Project Completed';
-                        desc = `"${formData.description}" was marked as completed`;
-                    } else if (nameChanged && !statusChanged && !categoryChanged) {
+
+                    if (nameChanged && !overrideChanged && !categoryChanged) {
                         title = 'Project Renamed';
                         desc = `Project renamed from "${oldProject.description}" to "${formData.description}"`;
                     } else if (changes.length > 0) {
@@ -424,9 +433,9 @@ export default function AdminDashboard() {
                         actionType,
                         title,
                         description: desc,
-                        metadata: { 
-                            category: formData.category, 
-                            status: formData.status,
+                        metadata: {
+                            category: formData.category,
+                            statusOverride: newOverride,
                             changes: structuredChanges
                         },
                     });
@@ -440,14 +449,16 @@ export default function AdminDashboard() {
                 client_id: selectedClient?.id,
                 category: formData.category || 'General',
                 description: formData.description || 'New Project',
-                status: formData.status || 'In Progress',
+                status: 'Not Started',
+                status_override: newOverride,
                 links: []
             };
             const { data, error } = await supabaseAdmin.from('projects').insert([payload]).select();
             if (!error && data && selectedClient) {
                 const newProject: ProjectWithStats = {
                     ...data[0],
-                    stats: { total: 0, paid: 0, pending: 0, progress: 0 }
+                    displayStatus: resolveProjectStatus(newOverride, []),
+                    stats: { total: 0, paid: 0, pending: 0, progress: 0, totalFeatures: 0, completedFeatures: 0 }
                 };
                 setProjects([newProject, ...projects]);
                 // Log activity
@@ -582,6 +593,30 @@ export default function AdminDashboard() {
         }
     };
 
+    // Fire a "Project Completed" activity when a feature change makes EVERY feature
+    // of the project Completed (and it wasn't before). Skipped while a manual
+    // override (On Hold / Cancelled) is in effect.
+    const logProjectCompletedIfNeeded = async (
+        project: ProjectWithStats | null,
+        clientId: string | undefined,
+        featuresBefore: { status?: string | null }[],
+        featuresAfter: { status?: string | null }[]
+    ) => {
+        if (!project || !clientId || project.status_override) return;
+        const wasComplete = deriveProjectStatus(featuresBefore) === 'Completed';
+        const nowComplete = deriveProjectStatus(featuresAfter) === 'Completed';
+        if (nowComplete && !wasComplete) {
+            await logActivity({
+                clientId,
+                projectId: project.id,
+                actionType: 'project_completed',
+                title: 'Project Completed',
+                description: `"${project.description}" was completed — all features are done`,
+                metadata: { auto: true },
+            });
+        }
+    };
+
     const handleSaveFeature = async () => {
         const isPaymentConfirmed = formData.payment_confirmed !== false;
         const amount = isPaymentConfirmed ? (Number(formData.amount) || 0) : 0;
@@ -689,6 +724,13 @@ export default function AdminDashboard() {
                             changes: structuredChanges,
                         },
                     });
+
+                    await logProjectCompletedIfNeeded(
+                        selectedProject,
+                        selectedClient.id,
+                        features,
+                        features.map(f => f.id === editingId ? { ...f, status: payload.status } : f)
+                    );
                 }
             } else {
                 alert('Error: ' + error?.message);
@@ -718,6 +760,13 @@ export default function AdminDashboard() {
                         description: logDesc,
                         metadata: { feature: payload.description, amount: isPaymentConfirmed ? amount : null, paidAmount: 0, status: payload.status, isNewRequest: payload.is_new_request, paymentConfirmed: isPaymentConfirmed },
                     });
+
+                    await logProjectCompletedIfNeeded(
+                        selectedProject,
+                        selectedClient.id,
+                        features,
+                        [...features, { status: payload.status }]
+                    );
                 }
             } else {
                 alert('Error: ' + error?.message);
@@ -770,6 +819,13 @@ export default function AdminDashboard() {
                     description: `"${deletedItemDesc}" was removed from "${selectedProject.description}"`,
                     metadata: { deleted: true },
                 });
+
+                await logProjectCompletedIfNeeded(
+                    selectedProject,
+                    selectedClient.id,
+                    features,
+                    features.filter(f => f.id !== id)
+                );
             }
         }
     };
@@ -1471,7 +1527,7 @@ export default function AdminDashboard() {
                 {/* ========== PROJECTS VIEW ========== */}
                 {view === 'projects' && !loading && (() => {
                     const projectsCount = projects.length;
-                    const completedCount = projects.filter(p => p.status === 'Completed').length;
+                    const completedCount = projects.filter(p => p.displayStatus === 'Completed').length;
                     const activeCount = projectsCount - completedCount;
                     const totalValue = projects.reduce((a, p) => a + (p.stats?.total ?? 0), 0);
                     const totalPaid = projects.reduce((a, p) => a + (p.stats?.paid ?? 0), 0);
@@ -1665,10 +1721,13 @@ export default function AdminDashboard() {
                                 ) : (
                                     <div className="space-y-4">
                                         {projects.map((project, idx) => {
-                                            const isCompleted = project.status === 'Completed';
+                                            const ds = project.displayStatus;
+                                            const isCompleted = ds === 'Completed';
+                                            const isOnHold = ds === 'On Hold';
+                                            const isCancelled = ds === 'Cancelled';
                                             const progress = project.stats?.progress ?? 0;
-                                            const stageColor = isCompleted ? '#ff5b4f' : progress >= 50 ? '#de1d8d' : '#0a72ef';
-                                            const stageLabel = isCompleted ? 'Shipped' : progress >= 50 ? 'Preview' : 'Develop';
+                                            const stageColor = isCancelled ? '#737373' : isOnHold ? '#f59e0b' : isCompleted ? '#ff5b4f' : progress >= 50 ? '#de1d8d' : '#0a72ef';
+                                            const stageLabel = isCancelled ? 'Cancelled' : isOnHold ? 'On Hold' : isCompleted ? 'Shipped' : progress >= 50 ? 'Preview' : 'Develop';
                                             const projectIdx = String(idx + 1).padStart(2, '0');
                                             const total = project.stats?.total ?? 0;
                                             const paid = project.stats?.paid ?? 0;
@@ -2824,7 +2883,19 @@ export default function AdminDashboard() {
                                             </div>
                                             <div>
                                                 <label className={labelCls}>Status</label>
-                                                <input value={formData.status || ''} placeholder="In Progress" className={inputCls} style={inputStyle} onFocus={inputFocus} onBlur={inputBlur} onChange={e => setFormData({ ...formData, status: e.target.value })} />
+                                                <select
+                                                    value={formData.status_override || ''}
+                                                    className={`${inputCls} appearance-none bg-[#0a0a0a]`}
+                                                    style={inputStyle}
+                                                    onFocus={inputFocus}
+                                                    onBlur={inputBlur}
+                                                    onChange={e => setFormData({ ...formData, status_override: e.target.value })}
+                                                >
+                                                    <option value="" className="bg-[#161616]">Auto — follow feature progress</option>
+                                                    <option value="On Hold" className="bg-[#161616]">On Hold</option>
+                                                    <option value="Cancelled" className="bg-[#161616]">Cancelled</option>
+                                                </select>
+                                                <p className="text-[11px] text-[#737373] mt-1.5 font-geist">Status is set automatically from feature progress (Not Started → In Progress → Completed). Use an override only to pause or cancel.</p>
                                             </div>
                                         </>
                                     )}
