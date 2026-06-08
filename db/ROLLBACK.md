@@ -42,6 +42,7 @@ Commits so far on `feature/monthly-package`:
 | Migration | Forward | Reverse | Data lost on revert |
 |---|---|---|---|
 | `0001_status_override` | adds `projects.status_override` | `0001_status_override.down.sql` | only On Hold / Cancelled overrides; nothing else |
+| `0002_package_billing` *(written, NOT yet applied)* | adds package columns on `projects`, `features.coverage`, and the `billing_periods` + `package_migrations` tables | `0002_package_billing.down.sql` | package data only (periods, migration audit, package settings); per-feature data untouched. Run in-app "Undo migration" first to preserve any shifted projects. |
 
 ### To revert migration 0001 fully
 1. Revert the code: `git revert 90b3919` (or check out `main`).
