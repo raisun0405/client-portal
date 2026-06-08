@@ -6,6 +6,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { logActivity, type ActivityLog } from '@/lib/activityLogger';
 import { sendNotification, sendDigestNotification } from '@/lib/notifications';
 import { deriveProjectStatus, resolveProjectStatus, type DisplayStatus } from '@/lib/projectStatus';
+import { computeProjectStats } from '@/lib/billing';
 import { Users, Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut, ArrowUp, ArrowDown, Calendar, Mail, MailCheck, Send, CheckCircle2, Clock, Zap, CreditCard, FileText, Link2, Activity, RefreshCw, PackagePlus, ArrowRight, EyeOff, Eye, Search, Copy, Check, Briefcase, TrendingUp, Hash, UserPlus, SlidersHorizontal, MoreHorizontal, ArrowUpRight, CircleDashed, Wallet, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -178,15 +179,11 @@ export default function AdminDashboard() {
             let totalValue = 0, paidValue = 0, totalFeatures = 0, completedFeatures = 0;
             clientProjects.forEach(p => {
                 const feats = featuresByProject.get(p.id) || [];
-                feats.forEach((f: any) => {
-                    const isConfirmed = f.payment_confirmed !== false;
-                    if (isConfirmed) {
-                        totalValue += Number(f.amount) || 0;
-                        paidValue += Number(f.paid_amount) || 0;
-                    }
-                    totalFeatures += 1;
-                    if (f.status === 'Completed') completedFeatures += 1;
-                });
+                const s = computeProjectStats(feats);
+                totalValue += s.total;
+                paidValue += s.paid;
+                totalFeatures += feats.length;
+                completedFeatures += feats.filter((f: any) => f.status === 'Completed').length;
             });
             const completedProjects = clientProjects.filter(p =>
                 resolveProjectStatus(p.status_override, featuresByProject.get(p.id) || []) === 'Completed'
@@ -240,10 +237,8 @@ export default function AdminDashboard() {
             // 3. Calculate stats for each project
             const enhancedProjects: ProjectWithStats[] = projectsData.map(project => {
                 const projectFeatures = featuresData?.filter(f => f.project_id === project.id) || [];
-                // Only include confirmed features in financial calculations
-                const confirmedFeatures = projectFeatures.filter(f => f.payment_confirmed !== false);
-                const total = confirmedFeatures.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
-                const paid = confirmedFeatures.reduce((sum, f) => sum + (Number(f.paid_amount) || 0), 0);
+                // Only confirmed features count toward money (see lib/billing.ts)
+                const { total, paid } = computeProjectStats(projectFeatures);
 
                 // Progress Calculation
                 const totalFeatures = projectFeatures.length;

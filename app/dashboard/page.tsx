@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { fetchActivityLogs, type ActivityLog } from '@/lib/activityLogger';
 import { resolveProjectStatus, statusPillClasses, statusPillClassesBordered, type DisplayStatus } from '@/lib/projectStatus';
+import { computeProjectStats } from '@/lib/billing';
 import { getClientSession, logoutClient } from '../actions'; // Import server actions
 import { LayoutGrid, LogOut, FolderOpen, Loader2, X, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Calendar, ArrowRight, TrendingUp, Wallet, CheckCircle2, Clock, FileText, Zap, CreditCard, Link2, Trash2, RefreshCw, PackagePlus, Activity, Download, Pencil } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -191,10 +192,8 @@ export default function DashboardPage() {
                 // 3. Calculate stats for each project
                 const enhancedProjects: ProjectWithStats[] = projectsData.map(project => {
                     const projectFeatures = featuresData?.filter(f => f.project_id === project.id) || [];
-                    // Only include confirmed features in financial calculations
-                    const confirmedFeatures = projectFeatures.filter(f => f.payment_confirmed !== false);
-                    const total = confirmedFeatures.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
-                    const paid = confirmedFeatures.reduce((sum, f) => sum + (Number(f.paid_amount) || 0), 0);
+                    // Only confirmed features count toward money (see lib/billing.ts)
+                    const { total, paid } = computeProjectStats(projectFeatures);
 
                     // Progress Calculation
                     const totalFeatures = projectFeatures.length;
