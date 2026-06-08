@@ -21,12 +21,6 @@ type Project = {
     description: string;
     status: string;
     status_override?: string | null;
-    billing_mode?: string | null;
-    package_fee?: number | null;
-    package_status?: string | null;
-    package_started_on?: string | null;
-    package_anchor_day?: number | null;
-    package_cadence?: string | null;
     links: { title: string; url: string }[];
     created_at: string;
 };
@@ -41,7 +35,6 @@ type Feature = {
     payment_status: string;
     is_new_request: boolean;
     payment_confirmed: boolean;
-    coverage?: string | null;
     created_at: string;
 };
 
@@ -199,9 +192,8 @@ export default function DashboardPage() {
                 // 3. Calculate stats for each project
                 const enhancedProjects: ProjectWithStats[] = projectsData.map(project => {
                     const projectFeatures = featuresData?.filter(f => f.project_id === project.id) || [];
-                    // Only confirmed features count toward money; 'included' features are
-                    // excluded on package projects (see lib/billing.ts)
-                    const { total, paid } = computeProjectStats(projectFeatures, { billingMode: project.billing_mode });
+                    // Per-project feature money (see lib/billing.ts)
+                    const { total, paid } = computeProjectStats(projectFeatures);
 
                     // Progress Calculation
                     const totalFeatures = projectFeatures.length;

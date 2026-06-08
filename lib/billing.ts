@@ -10,13 +10,6 @@ type FeatureLike = {
     amount?: number | null;
     paid_amount?: number | null;
     payment_confirmed?: boolean | null;
-    coverage?: string | null;
-};
-
-type ProjectStatsOpts = {
-    // The parent project's billing_mode. Coverage is only applied for 'package'
-    // projects; per-feature projects ignore it entirely (unchanged behavior).
-    billingMode?: string | null;
 };
 
 export type ProjectStats = {
@@ -25,18 +18,13 @@ export type ProjectStats = {
     pending: number;
 };
 
-// Money rules:
-//  - Only payment-confirmed features count (unconfirmed are stored with amount 0
-//    anyway, so this is also a safety net).
-//  - On a PACKAGE project, 'included' features are covered by the monthly fee and
-//    contribute 0 to the separate feature totals. On per-feature projects the
-//    coverage flag is ignored, so existing projects are byte-for-byte unchanged.
-export function computeProjectStats(features: FeatureLike[] = [], opts: ProjectStatsOpts = {}): ProjectStats {
-    const isPackage = opts.billingMode === 'package';
-    const billable = features.filter(f =>
-        f.payment_confirmed !== false && !(isPackage && f.coverage === 'included')
-    );
-    const total = billable.reduce((s, f) => s + (Number(f.amount) || 0), 0);
-    const paid = billable.reduce((s, f) => s + (Number(f.paid_amount) || 0), 0);
+// Per-project feature money. Only payment-confirmed features count (unconfirmed
+// "rate pending" features are stored with amount 0 anyway, so this is also a
+// safety net). Used for per-feature clients; package clients bill via the
+// client-level retainer (billing_periods) instead.
+export function computeProjectStats(features: FeatureLike[] = []): ProjectStats {
+    const confirmed = features.filter(f => f.payment_confirmed !== false);
+    const total = confirmed.reduce((s, f) => s + (Number(f.amount) || 0), 0);
+    const paid = confirmed.reduce((s, f) => s + (Number(f.paid_amount) || 0), 0);
     return { total, paid, pending: total - paid };
 }
