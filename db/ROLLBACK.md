@@ -42,7 +42,10 @@ Commits so far on `feature/monthly-package`:
 | Migration | Forward | Reverse | Data lost on revert |
 |---|---|---|---|
 | `0001_status_override` | adds `projects.status_override` | `0001_status_override.down.sql` | only On Hold / Cancelled overrides; nothing else |
-| `0002_package_billing` *(written, NOT yet applied)* | adds package columns on `projects`, `features.coverage`, and the `billing_periods` + `package_migrations` tables | `0002_package_billing.down.sql` | package data only (periods, migration audit, package settings); per-feature data untouched. Run in-app "Undo migration" first to preserve any shifted projects. |
+| `0002_package_billing` *(applied, then SUPERSEDED by 0003)* | put the package on `projects` + `features.coverage` (wrong model — package is per-client) | `0002_package_billing.down.sql` | n/a — 0003 cleans this up; do not run 0002 separately |
+| `0003_client_package_billing` *(written, NOT yet applied)* | moves the package to `clients`, drops `features.coverage` + project package columns, rebuilds `billing_periods` / `package_migrations` keyed on `client_id` | `0003_client_package_billing.down.sql` | package data only; client/project/feature data untouched |
+
+> **0002 vs 0003:** 0002 was applied but the model was wrong (package is per-**client**, not per-project). 0003 supersedes it: its `.up` idempotently drops everything 0002 added and builds the correct client-level schema. Run **0003 up** (not 0002 down) — but only after the matching app code is deployed.
 
 ### To revert migration 0001 fully
 1. Revert the code: `git revert 90b3919` (or check out `main`).
