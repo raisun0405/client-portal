@@ -19,9 +19,12 @@ ALTER TABLE projects
     CHECK (package_cadence IN ('monthly','quarterly','annual')),
   ADD COLUMN package_status     text NOT NULL DEFAULT 'active'
     CHECK (package_status IN ('active','paused','ended')),
-  ADD COLUMN package_started_on date,
-  ADD COLUMN package_anchor_day int
-    CHECK (package_anchor_day BETWEEN 1 AND 28);
+  ADD COLUMN package_started_on date,         -- calendar start date (first billing date)
+  ADD COLUMN package_anchor_day int           -- day-of-month the bill recurs; NULL = derive from package_started_on
+    CHECK (package_anchor_day BETWEEN 1 AND 31);
+-- Months that lack the anchor day (e.g. day 31 in April, day 30 in Feb) bill on
+-- that month's LAST day; the intended day is restored in months that have it.
+-- This clamping is computed in code (the date helper), not stored.
 
 -- 2. features: coverage flag. Default 'extra' = bills exactly as today.
 --    Ignored entirely on per-feature projects.
