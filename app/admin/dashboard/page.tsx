@@ -7,6 +7,7 @@ import { logActivity, type ActivityLog } from '@/lib/activityLogger';
 import { sendNotification, sendDigestNotification } from '@/lib/notifications';
 import { deriveProjectStatus, resolveProjectStatus, type DisplayStatus } from '@/lib/projectStatus';
 import { computeProjectStats } from '@/lib/billing';
+import { packageSchedule } from '@/lib/packageDates';
 import { Users, Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut, ArrowUp, ArrowDown, Calendar, Mail, MailCheck, Send, CheckCircle2, Clock, Zap, CreditCard, FileText, Link2, Activity, RefreshCw, PackagePlus, ArrowRight, EyeOff, Eye, Search, Copy, Check, Briefcase, TrendingUp, Hash, UserPlus, SlidersHorizontal, MoreHorizontal, ArrowUpRight, CircleDashed, Wallet, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -108,6 +109,10 @@ export default function AdminDashboard() {
     // Form State
     const [showModal, setShowModal] = useState(false);
     const [formData, setFormData] = useState<any>({});
+
+    // Convert-to-Package modal (preview-first; writes nothing until confirmed)
+    const [packageProject, setPackageProject] = useState<ProjectWithStats | null>(null);
+    const [packageForm, setPackageForm] = useState<{ startDate: string; fee: string; disposition: string }>({ startDate: '', fee: '', disposition: 'writeoff' });
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editingLinkIndex, setEditingLinkIndex] = useState<number | null>(null);
     const [saving, setSaving] = useState(false);
@@ -325,6 +330,12 @@ export default function AdminDashboard() {
         setFormData({ description: project.description, category: project.category, status_override: project.status_override || '' });
         setEditingId(project.id);
         setShowModal(true);
+    };
+
+    const openPackageModal = (project: ProjectWithStats) => {
+        const today = new Date().toISOString().slice(0, 10);
+        setPackageProject(project);
+        setPackageForm({ startDate: today, fee: '', disposition: 'writeoff' });
     };
 
     const handleEditFeature = (feature: Feature) => {
@@ -1862,6 +1873,17 @@ export default function AdminDashboard() {
                                                             >
                                                                 <Trash2 size={13} strokeWidth={2} />
                                                             </button>
+                                                            {project.billing_mode !== 'package' && (
+                                                                <button
+                                                                    onClick={() => openPackageModal(project)}
+                                                                    aria-label="Convert to monthly package"
+                                                                    title="Convert to monthly package"
+                                                                    className="h-9 px-2.5 sm:h-8 rounded-md flex items-center justify-center gap-1.5 text-[#737373] hover:text-[#0a72ef] hover:bg-[#181818] transition-colors text-[12px] font-medium font-geist"
+                                                                >
+                                                                    <PackagePlus size={13} strokeWidth={2} />
+                                                                    Package
+                                                                </button>
+                                                            )}
                                                         </div>
                                                         <div className="flex items-center gap-2 order-1 sm:order-2">
                                                             <button
@@ -3048,6 +3070,89 @@ export default function AdminDashboard() {
                     );
                 })()}
             </AnimatePresence>
+
+            {/* ===== CONVERT TO MONTHLY PACKAGE (preview-first; writes nothing) ===== */}
+            {packageProject && (() => {
+                const today = new Date().toISOString().slice(0, 10);
+                const start = packageForm.startDate || today;
+                const fee = Number(packageForm.fee) || 0;
+                const disp = packageForm.disposition;
+                const before = packageProject.stats;
+                const sched = packageSchedule(start, null, 'monthly', today);
+                const fmt = (n: number) => `₹${(n || 0).toLocaleString('en-IN')}`;
+
+                let firstCharge = fee;
+                let balanceLine = '';
+                if (disp === 'writeoff') balanceLine = `Old pending ${fmt(before.pending)} → written off. Client owes ₹0 on past work.`;
+                else if (disp === 'settle') balanceLine = `Old pending ${fmt(before.pending)} collected now, then the monthly fee begins.`;
+                else if (disp === 'roll_into_first') { firstCharge = fee + before.pending; balanceLine = `Old pending ${fmt(before.pending)} rolled into the first invoice.`; }
+                else balanceLine = `Old pending ${fmt(before.pending)} stays as a separate balance, alongside the monthly fee.`;
+
+                const close = () => setPackageProject(null);
+
+                const inputCls = "w-full h-10 px-3 rounded-md bg-transparent text-[14px] text-white placeholder:text-[#525252] outline-none transition-shadow font-geist";
+                const inputStyle: React.CSSProperties = { boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' };
+                const inputFocus = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => { e.currentTarget.style.boxShadow = 'rgba(10,114,239,0.6) 0px 0px 0px 1px, rgba(10,114,239,0.20) 0px 0px 0px 3px'; };
+                const inputBlur = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => { e.currentTarget.style.boxShadow = 'rgba(255,255,255,0.10) 0px 0px 0px 1px'; };
+                const labelCls = "block font-geistmono text-[10px] font-medium uppercase text-[#737373] tracking-[0.04em] mb-2";
+
+                return (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={close}>
+                        <div className="w-full max-w-lg rounded-xl bg-[#0a0a0a] overflow-hidden" style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }} onClick={e => e.stopPropagation()}>
+                            <div className="px-6 py-5 flex items-center justify-between" style={{ boxShadow: 'rgba(255,255,255,0.08) 0px -1px 0px inset' }}>
+                                <div className="min-w-0">
+                                    <p className="font-geistmono text-[10px] uppercase text-[#0a72ef] font-medium">Convert to Monthly Package</p>
+                                    <h3 className="text-white text-[16px] font-semibold font-geist mt-0.5 truncate">{packageProject.description}</h3>
+                                </div>
+                                <button onClick={close} aria-label="Close" className="h-8 w-8 shrink-0 rounded-md flex items-center justify-center text-[#737373] hover:text-white hover:bg-[#181818]"><X size={16} /></button>
+                            </div>
+
+                            <div className="px-6 py-5 flex flex-col gap-4">
+                                <div>
+                                    <label className={labelCls}>Start / first billing date</label>
+                                    <input type="date" value={packageForm.startDate} className={inputCls} style={{ ...inputStyle, colorScheme: 'dark' }} onFocus={inputFocus} onBlur={inputBlur} onChange={e => setPackageForm({ ...packageForm, startDate: e.target.value })} />
+                                </div>
+                                <div>
+                                    <label className={labelCls}>Monthly fee (₹)</label>
+                                    <input type="number" min="0" value={packageForm.fee} placeholder="5000" className={inputCls} style={inputStyle} onFocus={inputFocus} onBlur={inputBlur} onChange={e => setPackageForm({ ...packageForm, fee: e.target.value })} />
+                                </div>
+                                <div>
+                                    <label className={labelCls}>Existing pending balance</label>
+                                    <select value={packageForm.disposition} className={`${inputCls} appearance-none bg-[#0a0a0a]`} style={inputStyle} onFocus={inputFocus} onBlur={inputBlur} onChange={e => setPackageForm({ ...packageForm, disposition: e.target.value })}>
+                                        <option value="writeoff" className="bg-[#161616]">Write off · forgive the old balance</option>
+                                        <option value="settle" className="bg-[#161616]">Settle now · collect it</option>
+                                        <option value="roll_into_first" className="bg-[#161616]">Roll into first invoice</option>
+                                        <option value="keep_one_time" className="bg-[#161616]">Keep as a separate one-time balance</option>
+                                    </select>
+                                </div>
+
+                                <div className="rounded-lg p-4 flex flex-col gap-3" style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px', background: '#0d0d0d' }}>
+                                    <p className="font-geistmono text-[10px] uppercase text-[#737373] font-medium">Preview · nothing is saved yet</p>
+                                    <div className="grid grid-cols-3 gap-2 text-center">
+                                        <div><p className="text-[10px] text-[#737373] uppercase">Total</p><p className="text-white text-[14px] font-semibold tabular-nums">{fmt(before.total)}</p></div>
+                                        <div><p className="text-[10px] text-[#737373] uppercase">Paid</p><p className="text-[#ff5b4f] text-[14px] font-semibold tabular-nums">{fmt(before.paid)}</p></div>
+                                        <div><p className="text-[10px] text-[#737373] uppercase">Pending</p><p className="text-[#de1d8d] text-[14px] font-semibold tabular-nums">{fmt(before.pending)}</p></div>
+                                    </div>
+                                    <div className="h-px bg-[#222]" />
+                                    <p className="text-[#a1a1a1] text-[12.5px] font-geist leading-relaxed">{balanceLine}</p>
+                                    <ul className="text-[12.5px] text-[#a1a1a1] font-geist flex flex-col gap-1">
+                                        <li>Monthly fee: <span className="text-white font-semibold">{fmt(fee)}</span></li>
+                                        <li>First charge: <span className="text-white font-semibold">{fmt(firstCharge)}</span> on <span className="text-white">{start}</span></li>
+                                        <li>Next charge after that: <span className="text-white">{sched.nextChargeDate}</span></li>
+                                        {sched.currentPeriod && <li>Current period: <span className="text-white">{sched.currentPeriod.start} → {sched.currentPeriod.end}</span></li>}
+                                        {sched.duePeriodStarts.length > 1 && <li className="text-[#de1d8d]">{sched.duePeriodStarts.length} periods already due since the start date.</li>}
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <div className="px-6 py-4 flex items-center gap-2" style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 1px 0px inset' }}>
+                                <button onClick={close} className="h-10 px-4 rounded-md text-[#a1a1a1] hover:text-white hover:bg-[#181818] text-[13px] font-medium font-geist" style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}>Cancel</button>
+                                <button disabled title="Confirm is enabled in the next step" className="flex-1 h-10 px-4 rounded-md bg-white text-[#0a0a0a] text-[13px] font-medium font-geist opacity-50 cursor-not-allowed">Confirm conversion (enabled next step)</button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
         </div>
     );
 }
