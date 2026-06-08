@@ -4,10 +4,9 @@
 -- projects. The fee covers everything, so there is NO per-feature 'coverage'
 -- concept. This supersedes 0002 (which put the package on projects).
 --
--- Status: NOT YET APPLIED.
--- ORDER: deploy the matching client-level app code FIRST (it must stop writing
--- features.coverage and projects.billing_mode before those columns are dropped),
--- then run this. Safe otherwise: no package data exists yet.
+-- Status: APPLIED 2026-06-09 (via Supabase MCP, after the client-level app code
+-- landed in commit 27cd87e). No package data existed, so the drops/rebuilds were
+-- lossless. Supersedes 0002.
 
 -- 1. Remove the project-level package columns from 0002 (unused).
 ALTER TABLE projects
