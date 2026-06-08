@@ -113,6 +113,7 @@ export default function AdminDashboard() {
     // Convert-client-to-Package modal (preview-first; writes nothing until confirmed)
     const [packageClient, setPackageClient] = useState<ClientWithStats | null>(null);
     const [packageForm, setPackageForm] = useState<{ startDate: string; fee: string; disposition: string }>({ startDate: '', fee: '', disposition: 'writeoff' });
+    const [packageSaving, setPackageSaving] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editingLinkIndex, setEditingLinkIndex] = useState<number | null>(null);
     const [saving, setSaving] = useState(false);
@@ -329,6 +330,160 @@ export default function AdminDashboard() {
         const today = new Date().toISOString().slice(0, 10);
         setPackageClient(client);
         setPackageForm({ startDate: today, fee: '', disposition: 'writeoff' });
+    };
+
+    // Commit a client -> monthly package. Writes the before_state undo record FIRST,
+    // so the whole thing is reversible via handleUndoPackage.
+    const handleConfirmPackage = async () => {
+        if (!packageClient) return;
+        const client = packageClient;
+        const fee = Number(packageForm.fee) || 0;
+        const startDate = packageForm.startDate;
+        const disp = packageForm.disposition;
+        if (!startDate || fee <= 0) { alert('Please set a start date and a monthly fee.'); return; }
+        setPackageSaving(true);
+        try {
+            // 1. The client's pending confirmed features (across ALL their projects)
+            const { data: projs } = await supabaseAdmin.from('projects').select('id').eq('client_id', client.id);
+            const projectIds = (projs || []).map((p: any) => p.id);
+            let pendingFeats: any[] = [];
+            if (projectIds.length > 0) {
+                const { data: feats } = await supabaseAdmin
+                    .from('features')
+                    .select('id, amount, paid_amount, payment_status, payment_confirmed')
+                    .in('project_id', projectIds);
+                pendingFeats = (feats || []).filter((f: any) => f.payment_confirmed !== false && (Number(f.amount) || 0) > (Number(f.paid_amount) || 0));
+            }
+            const pendingSnapshot = pendingFeats.reduce((s, f) => s + ((Number(f.amount) || 0) - (Number(f.paid_amount) || 0)), 0);
+
+            // 2. before_state undo buffer
+            const beforeState = {
+                client: {
+                    billing_mode: client.billing_mode || 'per_feature',
+                    package_fee: client.package_fee ?? 0,
+                    package_status: client.package_status ?? 'active',
+                    package_started_on: client.package_started_on ?? null,
+                    package_anchor_day: client.package_anchor_day ?? null,
+                    package_cadence: client.package_cadence ?? 'monthly',
+                },
+                features: pendingFeats.map(f => ({ id: f.id, amount: f.amount, paid_amount: f.paid_amount, payment_status: f.payment_status })),
+            };
+
+            // 3. Write the undo record FIRST
+            const { error: migErr } = await supabaseAdmin.from('package_migrations').insert([{
+                client_id: client.id,
+                status: 'committed',
+                pending_disposition: disp,
+                pending_snapshot: pendingSnapshot,
+                affected_feature_ids: pendingFeats.map(f => f.id),
+                before_state: beforeState,
+            }]);
+            if (migErr) throw new Error(migErr.message);
+
+            // 4. Apply the disposition to the pending features
+            //    writeoff / settle / roll_into_first all clear the pending (mark paid);
+            //    keep_one_time leaves them outstanding.
+            if (disp !== 'keep_one_time') {
+                for (const f of pendingFeats) {
+                    await supabaseAdmin.from('features').update({ paid_amount: f.amount, payment_status: 'Paid' }).eq('id', f.id);
+                }
+            }
+
+            // 5. Flip the client to package mode (anchor day = start date's day-of-month)
+            const anchorDay = Number(startDate.split('-')[2]);
+            const { error: cliErr } = await supabaseAdmin.from('clients').update({
+                billing_mode: 'package',
+                package_fee: fee,
+                package_status: 'active',
+                package_started_on: startDate,
+                package_anchor_day: anchorDay,
+                package_cadence: 'monthly',
+            }).eq('id', client.id);
+            if (cliErr) throw new Error(cliErr.message);
+
+            // 6. First billing period
+            const sched = packageSchedule(startDate, anchorDay, 'monthly', startDate);
+            const firstFee = disp === 'roll_into_first' ? fee + pendingSnapshot : fee;
+            await supabaseAdmin.from('billing_periods').insert([{
+                client_id: client.id,
+                period_start: startDate,
+                period_end: sched.currentPeriod ? sched.currentPeriod.end : startDate,
+                fee_amount: firstFee,
+                paid_amount: 0,
+                payment_status: 'Pending',
+                origin: 'manual',
+                note: disp === 'roll_into_first' && pendingSnapshot > 0 ? `Includes carried-over balance of ₹${pendingSnapshot.toLocaleString('en-IN')}` : null,
+            }]);
+
+            // 7. Activity log (client-level)
+            const dispLabel = disp === 'writeoff' ? 'written off' : disp === 'settle' ? 'settled' : disp === 'roll_into_first' ? 'rolled into the first invoice' : 'kept as a one-time balance';
+            await logActivity({
+                clientId: client.id,
+                projectId: null,
+                actionType: 'package_started',
+                title: 'Switched to Monthly Package',
+                description: `${client.name} is now on a ₹${fee.toLocaleString('en-IN')}/month package${pendingSnapshot > 0 ? ` — pending ₹${pendingSnapshot.toLocaleString('en-IN')} ${dispLabel}` : ''}`,
+                metadata: { amount: fee, monthlyFee: fee, pendingBefore: pendingSnapshot, disposition: disp },
+            });
+
+            setPackageClient(null);
+            fetchClients();
+        } catch (err: any) {
+            alert('Conversion failed: ' + (err?.message || 'unknown error'));
+        } finally {
+            setPackageSaving(false);
+        }
+    };
+
+    // Reverse the most recent package conversion for a client (replays before_state).
+    const handleUndoPackage = async (client: ClientWithStats) => {
+        if (!confirm(`Undo the package conversion for ${client.name}? This restores their per-feature billing and any written-off balances.`)) return;
+        setPackageSaving(true);
+        try {
+            const { data: migs } = await supabaseAdmin
+                .from('package_migrations')
+                .select('*')
+                .eq('client_id', client.id)
+                .eq('status', 'committed')
+                .order('performed_at', { ascending: false })
+                .limit(1);
+            const mig = migs && migs[0];
+            if (!mig) { alert('No package conversion found to undo.'); setPackageSaving(false); return; }
+
+            const before = mig.before_state || {};
+            // Restore each affected feature's original money state
+            for (const f of (before.features || [])) {
+                await supabaseAdmin.from('features').update({ paid_amount: f.paid_amount, payment_status: f.payment_status }).eq('id', f.id);
+            }
+            // Restore the client's prior billing fields
+            const c = before.client || {};
+            await supabaseAdmin.from('clients').update({
+                billing_mode: c.billing_mode || 'per_feature',
+                package_fee: c.package_fee ?? 0,
+                package_status: c.package_status ?? 'active',
+                package_started_on: c.package_started_on ?? null,
+                package_anchor_day: c.package_anchor_day ?? null,
+                package_cadence: c.package_cadence ?? 'monthly',
+            }).eq('id', client.id);
+            // Remove unpaid billing periods created by the conversion (never delete paid ones)
+            await supabaseAdmin.from('billing_periods').delete().eq('client_id', client.id).eq('paid_amount', 0);
+            // Mark the migration reverted
+            await supabaseAdmin.from('package_migrations').update({ status: 'reverted', reverted_at: new Date().toISOString() }).eq('id', mig.id);
+
+            await logActivity({
+                clientId: client.id,
+                projectId: null,
+                actionType: 'package_reverted',
+                title: 'Package Conversion Undone',
+                description: `${client.name} reverted to per-feature billing`,
+                metadata: {},
+            });
+            fetchClients();
+        } catch (err: any) {
+            alert('Undo failed: ' + (err?.message || 'unknown error'));
+        } finally {
+            setPackageSaving(false);
+        }
     };
 
     const handleEditProject = (project: ProjectWithStats) => {
@@ -1507,7 +1662,7 @@ export default function AdminDashboard() {
                                                                     <Activity size={13} />
                                                                     Activity log
                                                                 </button>
-                                                                {client.billing_mode !== 'package' && (
+                                                                {client.billing_mode !== 'package' ? (
                                                                     <button
                                                                         role="menuitem"
                                                                         onClick={() => { setOpenMenuId(null); openPackageModal(client); }}
@@ -1515,6 +1670,15 @@ export default function AdminDashboard() {
                                                                     >
                                                                         <PackagePlus size={13} />
                                                                         Convert to package
+                                                                    </button>
+                                                                ) : (
+                                                                    <button
+                                                                        role="menuitem"
+                                                                        onClick={() => { setOpenMenuId(null); handleUndoPackage(client); }}
+                                                                        className="w-full flex items-center gap-2.5 px-2.5 py-2 text-[13px] text-[#a1a1a1] hover:text-white rounded hover:bg-[#222] transition-colors font-geist"
+                                                                    >
+                                                                        <RefreshCw size={13} />
+                                                                        Undo package
                                                                     </button>
                                                                 )}
                                                                 <div className="h-px my-1" style={{ background: 'rgba(255,255,255,0.08)' }} />
@@ -3130,8 +3294,8 @@ export default function AdminDashboard() {
                             </div>
 
                             <div className="px-6 py-4 flex items-center gap-2" style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 1px 0px inset' }}>
-                                <button onClick={close} className="h-10 px-4 rounded-md text-[#a1a1a1] hover:text-white hover:bg-[#181818] text-[13px] font-medium font-geist" style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}>Cancel</button>
-                                <button disabled title="Confirm is enabled together with Undo in the next step" className="flex-1 h-10 px-4 rounded-md bg-white text-[#0a0a0a] text-[13px] font-medium font-geist opacity-50 cursor-not-allowed">Confirm conversion (enabled next step)</button>
+                                <button onClick={close} disabled={packageSaving} className="h-10 px-4 rounded-md text-[#a1a1a1] hover:text-white hover:bg-[#181818] text-[13px] font-medium font-geist disabled:opacity-50" style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}>Cancel</button>
+                                <button onClick={handleConfirmPackage} disabled={packageSaving || fee <= 0 || !start} className="flex-1 h-10 px-4 rounded-md bg-white hover:bg-[#ededed] text-[#0a0a0a] text-[13px] font-medium font-geist disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5">{packageSaving ? <><Loader2 size={13} className="animate-spin" /> Converting…</> : 'Confirm conversion'}</button>
                             </div>
                         </div>
                     </div>
