@@ -13,6 +13,13 @@
 
 export type Cadence = 'monthly' | 'quarterly' | 'annual';
 
+// Today's date as a LOCAL 'YYYY-MM-DD' string. Avoids the UTC off-by-one that
+// `new Date().toISOString().slice(0,10)` causes for IST users in the early hours.
+export function todayLocalISO(): string {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 export type Period = { start: string; end: string };
 
 export type PackageSchedule = {

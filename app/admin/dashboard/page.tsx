@@ -7,7 +7,7 @@ import { logActivity, type ActivityLog } from '@/lib/activityLogger';
 import { sendNotification, sendDigestNotification } from '@/lib/notifications';
 import { deriveProjectStatus, resolveProjectStatus, type DisplayStatus } from '@/lib/projectStatus';
 import { computeProjectStats } from '@/lib/billing';
-import { packageSchedule, type Cadence } from '@/lib/packageDates';
+import { packageSchedule, todayLocalISO, type Cadence } from '@/lib/packageDates';
 import { Users, Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut, ArrowUp, ArrowDown, Calendar, Mail, MailCheck, Send, CheckCircle2, Clock, Zap, CreditCard, FileText, Link2, Activity, RefreshCw, PackagePlus, ArrowRight, EyeOff, Eye, Search, Copy, Check, Briefcase, TrendingUp, Hash, UserPlus, SlidersHorizontal, MoreHorizontal, ArrowUpRight, CircleDashed, Wallet, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -131,6 +131,7 @@ export default function AdminDashboard() {
     const [managePackageClient, setManagePackageClient] = useState<ClientWithStats | null>(null);
     const [managePeriods, setManagePeriods] = useState<BillingPeriod[]>([]);
     const [periodPayInputs, setPeriodPayInputs] = useState<Record<string, string>>({});
+    const [periodsLoading, setPeriodsLoading] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editingLinkIndex, setEditingLinkIndex] = useState<number | null>(null);
     const [saving, setSaving] = useState(false);
@@ -344,7 +345,7 @@ export default function AdminDashboard() {
     };
 
     const openPackageModal = (client: ClientWithStats) => {
-        const today = new Date().toISOString().slice(0, 10);
+        const today = todayLocalISO();
         setPackageClient(client);
         setPackageForm({ startDate: today, fee: '', disposition: 'writeoff' });
     };
@@ -360,6 +361,13 @@ export default function AdminDashboard() {
         if (!startDate || fee <= 0) { alert('Please set a start date and a monthly fee.'); return; }
         setPackageSaving(true);
         try {
+            // Guard against double-conversion (e.g. a stale second tab): re-read live billing_mode.
+            const { data: fresh } = await supabaseAdmin.from('clients').select('billing_mode').eq('id', client.id).single();
+            if (fresh?.billing_mode === 'package') {
+                alert('This client is already on a monthly package.');
+                return;
+            }
+
             // 1. The client's pending confirmed features (across ALL their projects)
             const { data: projs } = await supabaseAdmin.from('projects').select('id').eq('client_id', client.id);
             const projectIds = (projs || []).map((p: any) => p.id);
@@ -457,6 +465,18 @@ export default function AdminDashboard() {
         if (!confirm(`Undo the package conversion for ${client.name}? This restores their per-feature billing and any written-off balances.`)) return;
         setPackageSaving(true);
         try {
+            // Block undo if any billing period has a recorded payment — undoing would
+            // orphan/lose that payment history. Admin must zero it out first.
+            const { data: paidPeriods } = await supabaseAdmin
+                .from('billing_periods')
+                .select('id')
+                .eq('client_id', client.id)
+                .gt('paid_amount', 0);
+            if (paidPeriods && paidPeriods.length > 0) {
+                alert('This package has recorded payments, so it can’t be undone automatically. Zero out those payments in "Manage package" first, or keep the package.');
+                return;
+            }
+
             const { data: migs } = await supabaseAdmin
                 .from('package_migrations')
                 .select('*')
@@ -482,8 +502,9 @@ export default function AdminDashboard() {
                 package_anchor_day: c.package_anchor_day ?? null,
                 package_cadence: c.package_cadence ?? 'monthly',
             }).eq('id', client.id);
-            // Remove unpaid billing periods created by the conversion (never delete paid ones)
-            await supabaseAdmin.from('billing_periods').delete().eq('client_id', client.id).eq('paid_amount', 0);
+            // Remove this client's package billing periods. Safe: we verified above
+            // that none have a recorded payment, so no payment history is lost.
+            await supabaseAdmin.from('billing_periods').delete().eq('client_id', client.id);
             // Mark the migration reverted
             await supabaseAdmin.from('package_migrations').update({ status: 'reverted', reverted_at: new Date().toISOString() }).eq('id', mig.id);
 
@@ -504,11 +525,13 @@ export default function AdminDashboard() {
     };
 
     const fetchClientPeriods = async (clientId: string) => {
+        setPeriodsLoading(true);
         const { data } = await supabaseAdmin.from('billing_periods').select('*').eq('client_id', clientId).order('period_start', { ascending: false });
         setManagePeriods((data as BillingPeriod[]) || []);
         const inputs: Record<string, string> = {};
         (data || []).forEach((p: any) => { inputs[p.id] = String(p.paid_amount ?? ''); });
         setPeriodPayInputs(inputs);
+        setPeriodsLoading(false);
     };
 
     const openManagePackage = (client: ClientWithStats) => {
@@ -1212,6 +1235,8 @@ export default function AdminDashboard() {
             case 'link_updated': return { icon: <Pencil size={14} />, color: 'bg-indigo-500', bgLight: 'bg-indigo-50', textColor: 'text-indigo-600', label: 'Link Updated' };
             case 'link_removed': return { icon: <Trash2 size={14} />, color: 'bg-rose-500', bgLight: 'bg-rose-50', textColor: 'text-rose-600', label: 'Link Removed' };
             case 'status_changed': return { icon: <RefreshCw size={14} />, color: 'bg-teal-500', bgLight: 'bg-teal-50', textColor: 'text-teal-600', label: 'Status Changed' };
+            case 'package_started': return { icon: <CreditCard size={14} />, color: 'bg-violet-500', bgLight: 'bg-violet-50', textColor: 'text-violet-600', label: 'Monthly Package' };
+            case 'package_reverted': return { icon: <RefreshCw size={14} />, color: 'bg-slate-500', bgLight: 'bg-slate-50', textColor: 'text-slate-600', label: 'Package Ended' };
             default: return { icon: <Activity size={14} />, color: 'bg-slate-400', bgLight: 'bg-slate-50', textColor: 'text-slate-500', label: 'Activity' };
         }
     };
@@ -3336,7 +3361,7 @@ export default function AdminDashboard() {
 
             {/* ===== CONVERT CLIENT TO MONTHLY PACKAGE (preview-first; writes nothing) ===== */}
             {packageClient && (() => {
-                const today = new Date().toISOString().slice(0, 10);
+                const today = todayLocalISO();
                 const start = packageForm.startDate || today;
                 const fee = Number(packageForm.fee) || 0;
                 const disp = packageForm.disposition;
@@ -3433,7 +3458,7 @@ export default function AdminDashboard() {
                 const inputStyle: React.CSSProperties = { boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' };
 
                 // Detect periods that are already due but not yet generated.
-                const mToday = new Date().toISOString().slice(0, 10);
+                const mToday = todayLocalISO();
                 const mAnchor = client.package_anchor_day ?? (client.package_started_on ? Number(client.package_started_on.split('-')[2]) : 1);
                 const dueStarts = client.package_started_on
                     ? packageSchedule(client.package_started_on, mAnchor, (client.package_cadence || 'monthly') as Cadence, mToday).duePeriodStarts
@@ -3456,17 +3481,17 @@ export default function AdminDashboard() {
                                 <span className="font-geistmono text-[10px] uppercase text-[#737373] font-medium">{managePeriods.length} billing period{managePeriods.length === 1 ? '' : 's'}</span>
                                 <button
                                     onClick={() => generateNextPeriod(client)}
-                                    disabled={packageSaving}
+                                    disabled={packageSaving || periodsLoading}
                                     className="h-8 px-3 rounded-md flex items-center gap-1.5 text-[12px] font-medium font-geist text-[#0a0a0a] bg-white hover:bg-[#ededed] disabled:opacity-50"
                                 >
                                     <Plus size={13} /> Generate next period
                                 </button>
                             </div>
 
-                            {missingStarts.length > 0 && (
+                            {!periodsLoading && missingStarts.length > 0 && (
                                 <div className="mx-6 mt-3 rounded-lg p-3 flex items-center justify-between gap-3 shrink-0" style={{ boxShadow: 'rgba(245,158,11,0.4) 0px 0px 0px 1px', background: 'rgba(245,158,11,0.08)' }}>
                                     <span className="text-[12.5px] text-amber-300 font-geist">{missingStarts.length} due period{missingStarts.length === 1 ? '' : 's'} not yet generated.</span>
-                                    <button onClick={() => generateMissingPeriods(client, missingStarts)} disabled={packageSaving} className="h-8 px-3 rounded-md text-[12px] font-medium font-geist text-[#0a0a0a] bg-amber-400 hover:bg-amber-300 disabled:opacity-50 whitespace-nowrap">Generate {missingStarts.length}</button>
+                                    <button onClick={() => generateMissingPeriods(client, missingStarts)} disabled={packageSaving || periodsLoading} className="h-8 px-3 rounded-md text-[12px] font-medium font-geist text-[#0a0a0a] bg-amber-400 hover:bg-amber-300 disabled:opacity-50 whitespace-nowrap">Generate {missingStarts.length}</button>
                                 </div>
                             )}
 

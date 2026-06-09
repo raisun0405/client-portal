@@ -185,6 +185,8 @@ function generateDigestEmailHTML(logs: ActivityLog[], clientName: string, projec
         project_completed: { bg: '#ECFDF5', text: '#047857', dot: '#10B981' },
         link_added: { bg: '#EEF2FF', text: '#4338CA', dot: '#6366F1' },
         status_changed: { bg: '#F0FDFA', text: '#0F766E', dot: '#14B8A6' },
+        package_started: { bg: '#EDE9FE', text: '#6D28D9', dot: '#8B5CF6' },
+        package_reverted: { bg: '#F1F5F9', text: '#475569', dot: '#64748B' },
     };
 
     const timelineItems = logs.map((log) => {

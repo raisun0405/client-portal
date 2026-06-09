@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { fetchActivityLogs, type ActivityLog } from '@/lib/activityLogger';
 import { resolveProjectStatus, statusPillClasses, statusPillClassesBordered, type DisplayStatus } from '@/lib/projectStatus';
 import { computeProjectStats } from '@/lib/billing';
-import { packageSchedule, type Cadence } from '@/lib/packageDates';
+import { packageSchedule, todayLocalISO, type Cadence } from '@/lib/packageDates';
 import { getClientSession, logoutClient } from '../actions'; // Import server actions
 import { LayoutGrid, LogOut, FolderOpen, Loader2, X, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Calendar, ArrowRight, TrendingUp, Wallet, CheckCircle2, Clock, FileText, Zap, CreditCard, Link2, Trash2, RefreshCw, PackagePlus, Activity, Download, Pencil } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -381,6 +381,8 @@ export default function DashboardPage() {
             status_changed: 'Status Changed',
             rate_confirmed: 'Rate Confirmed',
             rate_pending: 'Rate Pending',
+            package_started: 'Monthly Package',
+            package_reverted: 'Package Ended',
         };
         return labels[actionType] || 'Activity';
     };
@@ -402,6 +404,8 @@ export default function DashboardPage() {
             status_changed: '#14b8a6',
             rate_confirmed: '#22c55e',
             rate_pending: '#f97316',
+            package_started: '#8b5cf6',
+            package_reverted: '#64748b',
         };
         return colors[actionType] || '#94a3b8';
     };
@@ -720,7 +724,7 @@ export default function DashboardPage() {
                     </div>
                 )}
 
-                {projects.length === 0 && !loading ? (
+                {projects.length === 0 && !loading && packageInfo?.billing_mode !== 'package' ? (
                     <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-slate-300">
                         <p className="text-slate-400">No projects found for this account.</p>
                     </div>
@@ -728,7 +732,7 @@ export default function DashboardPage() {
                     <>
                         {/* ========== MONTHLY PACKAGE BANNER ========== */}
                         {packageInfo?.billing_mode === 'package' && packageInfo.package_started_on && (() => {
-                            const today = new Date().toISOString().slice(0, 10);
+                            const today = todayLocalISO();
                             const fee = Number(packageInfo.package_fee) || 0;
                             const sched = packageSchedule(packageInfo.package_started_on, packageInfo.package_anchor_day, (packageInfo.package_cadence || 'monthly') as Cadence, today);
                             const fmtDate = (iso?: string | null) => iso ? new Date(iso + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
