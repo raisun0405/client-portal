@@ -847,9 +847,10 @@ export default function DashboardPage() {
                                     transition={{ duration: 0.5 }}
                                     className="mb-10"
                                 >
-                                    {/* Summary Stat Cards (money cards hidden for package clients) */}
-                                    <div className={`grid ${isPackage ? 'grid-cols-1' : 'grid-cols-2 sm:grid-cols-4'} gap-3 sm:gap-4 mb-6`}>
-                                        {!isPackage && (<>
+                                    {/* Summary Stat Cards — hidden entirely for package clients (their
+                                        project status is in the Overall Progress card below) */}
+                                    {!isPackage && (
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
                                         <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
                                             <div className="flex items-center gap-2 mb-2">
                                                 <div className="p-1.5 bg-blue-50 rounded-lg"><Wallet size={14} className="text-blue-600" /></div>
@@ -871,7 +872,6 @@ export default function DashboardPage() {
                                             </div>
                                             <p className="text-lg sm:text-2xl font-bold text-amber-600 tracking-tight">₹{totalPending.toLocaleString()}</p>
                                         </div>
-                                        </>)}
                                         <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
                                             <div className="flex items-center gap-2 mb-2">
                                                 <div className="p-1.5 bg-violet-50 rounded-lg"><CheckCircle2 size={14} className="text-violet-600" /></div>
@@ -883,9 +883,10 @@ export default function DashboardPage() {
                                             </p>
                                         </div>
                                     </div>
+                                    )}
 
-                                    {/* Charts Row */}
-                                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
+                                    {/* Charts Row — single full-width column for package clients */}
+                                    <div className={isPackage ? '' : 'grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6'}>
                                         {/* Donut Chart - Payment Overview (hidden for package clients) */}
                                         {!isPackage && (
                                         <div className="lg:col-span-2 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm">
@@ -979,7 +980,7 @@ export default function DashboardPage() {
                                         )}
 
                                         {/* Activity Log Timeline */}
-                                        <div ref={activityRef} className={`${isPackage ? 'lg:col-span-5' : 'lg:col-span-3'} bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm scroll-mt-20`}>
+                                        <div ref={activityRef} className={`${isPackage ? '' : 'lg:col-span-3'} bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm scroll-mt-20`}>
                                             <div className="flex items-center justify-between mb-4">
                                                 <div>
                                                     <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Activity Log</h3>
