@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { fetchActivityLogs, type ActivityLog } from '@/lib/activityLogger';
 import { resolveProjectStatus, statusPillClasses, statusPillClassesBordered, type DisplayStatus } from '@/lib/projectStatus';
 import { computeProjectStats } from '@/lib/billing';
+import { packageSchedule, type Cadence } from '@/lib/packageDates';
 import { getClientSession, logoutClient } from '../actions'; // Import server actions
 import { LayoutGrid, LogOut, FolderOpen, Loader2, X, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Calendar, ArrowRight, TrendingUp, Wallet, CheckCircle2, Clock, FileText, Zap, CreditCard, Link2, Trash2, RefreshCw, PackagePlus, Activity, Download, Pencil } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -38,6 +39,25 @@ type Feature = {
     created_at: string;
 };
 
+// Client-level monthly package (retainer)
+type PackageInfo = {
+    billing_mode?: string | null;
+    package_fee?: number | null;
+    package_cadence?: string | null;
+    package_status?: string | null;
+    package_started_on?: string | null;
+    package_anchor_day?: number | null;
+};
+type BillingPeriod = {
+    id: string;
+    period_start: string;
+    period_end: string;
+    fee_amount: number;
+    paid_amount: number;
+    payment_status: string;
+    note?: string | null;
+};
+
 // Sorting types
 type SortField = 'amount' | 'status' | 'created_at';
 type SortOrder = 'asc' | 'desc';
@@ -56,6 +76,8 @@ type ProjectWithStats = Project & {
 export default function DashboardPage() {
     const router = useRouter();
     const [client, setClient] = useState<any>(null);
+    const [packageInfo, setPackageInfo] = useState<PackageInfo | null>(null);
+    const [billingPeriods, setBillingPeriods] = useState<BillingPeriod[]>([]);
     const [projects, setProjects] = useState<ProjectWithStats[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null); // New error state
@@ -108,9 +130,29 @@ export default function DashboardPage() {
         return () => observer.disconnect();
     }, [loading]);
 
+    // Load the client's package (retainer) info + billing periods.
+    const fetchPackageInfo = async (clientId: string) => {
+        const { data: c } = await supabase
+            .from('clients')
+            .select('billing_mode, package_fee, package_cadence, package_status, package_started_on, package_anchor_day')
+            .eq('id', clientId)
+            .single();
+        setPackageInfo(c || null);
+        const { data: bps } = await supabase
+            .from('billing_periods')
+            .select('*')
+            .eq('client_id', clientId)
+            .order('period_start', { ascending: false });
+        setBillingPeriods(bps || []);
+    };
+
     // Memoize fetch functions so real-time handlers can call them
     const fetchProjectsForClient = useCallback((clientId: string) => {
         fetchProjects(clientId);
+    }, []);
+
+    const loadPackageInfoForClient = useCallback((clientId: string) => {
+        fetchPackageInfo(clientId);
     }, []);
 
     const loadActivityLogsForClient = useCallback((clientId: string) => {
@@ -127,6 +169,7 @@ export default function DashboardPage() {
                 }
                 setClient(session);
                 fetchProjects(session.id);
+                fetchPackageInfo(session.id);
                 loadActivityLogs(session.id);
             } catch (err) {
                 console.error("Session verification failed", err);
@@ -151,7 +194,17 @@ export default function DashboardPage() {
             .on(
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'features' },
-                () => { fetchProjectsForClient(clientId); }
+                () => { fetchProjectsForClient(clientId); loadPackageInfoForClient(clientId); }
+            )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'billing_periods', filter: `client_id=eq.${clientId}` },
+                () => { loadPackageInfoForClient(clientId); }
+            )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'clients', filter: `id=eq.${clientId}` },
+                () => { loadPackageInfoForClient(clientId); }
             )
             .on(
                 'postgres_changes',
@@ -163,7 +216,7 @@ export default function DashboardPage() {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [client?.id, fetchProjectsForClient, loadActivityLogsForClient]);
+    }, [client?.id, fetchProjectsForClient, loadActivityLogsForClient, loadPackageInfoForClient]);
 
     const fetchProjects = async (clientId: string) => {
         setLoading(true);
@@ -669,6 +722,64 @@ export default function DashboardPage() {
                     </div>
                 ) : !loading && (
                     <>
+                        {/* ========== MONTHLY PACKAGE BANNER ========== */}
+                        {packageInfo?.billing_mode === 'package' && packageInfo.package_started_on && (() => {
+                            const today = new Date().toISOString().slice(0, 10);
+                            const fee = Number(packageInfo.package_fee) || 0;
+                            const sched = packageSchedule(packageInfo.package_started_on, packageInfo.package_anchor_day, (packageInfo.package_cadence || 'monthly') as Cadence, today);
+                            const fmtDate = (iso?: string | null) => iso ? new Date(iso + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+                            const currentBP = billingPeriods.find(bp => bp.period_start === sched.currentPeriod?.start);
+                            const status = currentBP?.payment_status || 'Pending';
+                            const badge = status === 'Paid' ? 'bg-emerald-50 text-emerald-700' : status === 'Partial' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700';
+                            return (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 12 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="mb-8 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm"
+                                >
+                                    <div className="flex flex-wrap items-start justify-between gap-4 mb-5">
+                                        <div>
+                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-violet-50 text-violet-700 text-[11px] font-bold uppercase tracking-wide">
+                                                <CreditCard size={12} /> Monthly Package
+                                            </span>
+                                            <p className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight mt-2">
+                                                ₹{fee.toLocaleString('en-IN')}<span className="text-sm font-medium text-slate-400"> / month</span>
+                                            </p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Next charge</p>
+                                            <p className="text-sm font-bold text-slate-700 mt-0.5">{fmtDate(sched.nextChargeDate)}</p>
+                                        </div>
+                                    </div>
+                                    {sched.currentPeriod && (
+                                        <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 flex flex-wrap items-center justify-between gap-3">
+                                            <div>
+                                                <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">This period</p>
+                                                <p className="text-sm font-semibold text-slate-700 mt-0.5">{fmtDate(sched.currentPeriod.start)} – {fmtDate(sched.currentPeriod.end)}</p>
+                                            </div>
+                                            <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold ${badge}`}>{status}</span>
+                                        </div>
+                                    )}
+                                    {billingPeriods.length > 0 && (
+                                        <div className="mt-4">
+                                            <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-2">Recent invoices</p>
+                                            <div className="flex flex-col gap-1.5">
+                                                {billingPeriods.slice(0, 4).map(bp => (
+                                                    <div key={bp.id} className="flex items-center justify-between text-xs">
+                                                        <span className="text-slate-500">{fmtDate(bp.period_start)} – {fmtDate(bp.period_end)}</span>
+                                                        <span className="flex items-center gap-2">
+                                                            <span className="font-semibold text-slate-700 tabular-nums">₹{(Number(bp.fee_amount) || 0).toLocaleString('en-IN')}</span>
+                                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${bp.payment_status === 'Paid' ? 'bg-emerald-100 text-emerald-700' : bp.payment_status === 'Partial' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>{bp.payment_status}</span>
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </motion.div>
+                            );
+                        })()}
+
                         {/* ========== ANALYTICS DASHBOARD ========== */}
                         {projects.length > 0 && (() => {
                             // Compute aggregate stats
