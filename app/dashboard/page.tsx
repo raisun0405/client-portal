@@ -78,6 +78,10 @@ export default function DashboardPage() {
     const [client, setClient] = useState<any>(null);
     const [packageInfo, setPackageInfo] = useState<PackageInfo | null>(null);
     const [billingPeriods, setBillingPeriods] = useState<BillingPeriod[]>([]);
+    // Features/projects whose pending balance was actually absorbed by the package
+    // at conversion — only these show "covered under monthly package".
+    const [coveredFeatureIds, setCoveredFeatureIds] = useState<Set<string>>(new Set());
+    const [coveredProjectIds, setCoveredProjectIds] = useState<Set<string>>(new Set());
     const [projects, setProjects] = useState<ProjectWithStats[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null); // New error state
@@ -144,6 +148,30 @@ export default function DashboardPage() {
             .eq('client_id', clientId)
             .order('period_start', { ascending: false });
         setBillingPeriods(bps || []);
+
+        // Only the features whose pending was absorbed at conversion are "covered".
+        // (keep_one_time leaves them as a separate balance, so don't mark those.)
+        if (c?.billing_mode === 'package') {
+            const { data: migs } = await supabase
+                .from('package_migrations')
+                .select('affected_feature_ids, pending_disposition')
+                .eq('client_id', clientId)
+                .eq('status', 'committed')
+                .order('performed_at', { ascending: false })
+                .limit(1);
+            const mig = migs && migs[0];
+            const ids: string[] = (mig && mig.pending_disposition !== 'keep_one_time') ? (mig.affected_feature_ids || []) : [];
+            setCoveredFeatureIds(new Set(ids));
+            if (ids.length > 0) {
+                const { data: feats } = await supabase.from('features').select('id, project_id').in('id', ids);
+                setCoveredProjectIds(new Set((feats || []).map((f: any) => f.project_id)));
+            } else {
+                setCoveredProjectIds(new Set());
+            }
+        } else {
+            setCoveredFeatureIds(new Set());
+            setCoveredProjectIds(new Set());
+        }
     };
 
     // Memoize fetch functions so real-time handlers can call them
@@ -1174,7 +1202,7 @@ export default function DashboardPage() {
                                     </div>
 
                                     {/* Financial Table — or package coverage note */}
-                                    {packageInfo?.billing_mode === 'package' ? (
+                                    {coveredProjectIds.has(project.id) ? (
                                         <div className="border border-violet-100 bg-violet-50/60 rounded-lg px-4 py-3 flex items-center gap-2">
                                             <CreditCard size={14} className="text-violet-500 shrink-0" />
                                             <span className="text-xs font-semibold text-violet-700">Covered under monthly package</span>
@@ -1437,7 +1465,7 @@ export default function DashboardPage() {
                                                                 </span>
                                                             </td>
                                                             <td className="px-6 py-4">
-                                                                {packageInfo?.billing_mode === 'package' ? (
+                                                                {coveredFeatureIds.has(feature.id) ? (
                                                                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-violet-50 text-violet-600 border border-violet-200">
                                                                         <CreditCard size={12} /> Under package
                                                                     </span>
@@ -1451,7 +1479,7 @@ export default function DashboardPage() {
                                                                 )}
                                                             </td>
                                                             <td className="px-6 py-4 text-right">
-                                                                {packageInfo?.billing_mode === 'package' ? (
+                                                                {coveredFeatureIds.has(feature.id) ? (
                                                                     <span className="text-xs text-violet-400 italic">included</span>
                                                                 ) : feature.payment_confirmed === false ? (
                                                                     <span className="text-xs text-slate-400 italic">—</span>
@@ -1503,7 +1531,7 @@ export default function DashboardPage() {
                                                                 {feature.status}
                                                             </span>
                                                         </div>
-                                                        {packageInfo?.billing_mode === 'package' ? (
+                                                        {coveredFeatureIds.has(feature.id) ? (
                                                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-violet-50 text-violet-600 border border-violet-200">
                                                                 <CreditCard size={10} /> Under package
                                                             </span>
@@ -1529,7 +1557,7 @@ export default function DashboardPage() {
                                                             )}
                                                         </div>
                                                         <div className="text-right">
-                                                            {packageInfo?.billing_mode === 'package' ? (
+                                                            {coveredFeatureIds.has(feature.id) ? (
                                                                 <span className="text-xs text-violet-400 italic">included</span>
                                                             ) : feature.payment_confirmed === false ? (
                                                                 <span className="text-xs text-slate-400 italic">—</span>
