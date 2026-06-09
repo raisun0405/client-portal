@@ -1173,25 +1173,32 @@ export default function DashboardPage() {
                                         </div>
                                     </div>
 
-                                    {/* Financial Table */}
-                                    <div className="border border-slate-100 rounded-lg overflow-hidden">
-                                        <table className="w-full text-center text-xs">
-                                            <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-100">
-                                                <tr>
-                                                    <th className="py-2 border-r border-slate-100">Total</th>
-                                                    <th className="py-2 border-r border-slate-100">Paid</th>
-                                                    <th className="py-2">Pending</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="bg-white text-slate-900 font-semibold">
-                                                <tr>
-                                                    <td className="py-2 border-r border-slate-100">₹{project.stats.total}</td>
-                                                    <td className="py-2 border-r border-slate-100 text-green-600">₹{project.stats.paid}</td>
-                                                    <td className="py-2 text-amber-600">₹{project.stats.pending}</td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                    {/* Financial Table — or package coverage note */}
+                                    {packageInfo?.billing_mode === 'package' ? (
+                                        <div className="border border-violet-100 bg-violet-50/60 rounded-lg px-4 py-3 flex items-center gap-2">
+                                            <CreditCard size={14} className="text-violet-500 shrink-0" />
+                                            <span className="text-xs font-semibold text-violet-700">Covered under monthly package</span>
+                                        </div>
+                                    ) : (
+                                        <div className="border border-slate-100 rounded-lg overflow-hidden">
+                                            <table className="w-full text-center text-xs">
+                                                <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-100">
+                                                    <tr>
+                                                        <th className="py-2 border-r border-slate-100">Total</th>
+                                                        <th className="py-2 border-r border-slate-100">Paid</th>
+                                                        <th className="py-2">Pending</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="bg-white text-slate-900 font-semibold">
+                                                    <tr>
+                                                        <td className="py-2 border-r border-slate-100">₹{project.stats.total}</td>
+                                                        <td className="py-2 border-r border-slate-100 text-green-600">₹{project.stats.paid}</td>
+                                                        <td className="py-2 text-amber-600">₹{project.stats.pending}</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
                                 </motion.div>
                             ))}
                         </div>
@@ -1430,7 +1437,11 @@ export default function DashboardPage() {
                                                                 </span>
                                                             </td>
                                                             <td className="px-6 py-4">
-                                                                {feature.payment_confirmed === false ? (
+                                                                {packageInfo?.billing_mode === 'package' ? (
+                                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-violet-50 text-violet-600 border border-violet-200">
+                                                                        <CreditCard size={12} /> Under package
+                                                                    </span>
+                                                                ) : feature.payment_confirmed === false ? (
                                                                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-orange-50 text-orange-600 border border-orange-200">
                                                                         <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
                                                                         Rate Pending
@@ -1440,7 +1451,9 @@ export default function DashboardPage() {
                                                                 )}
                                                             </td>
                                                             <td className="px-6 py-4 text-right">
-                                                                {feature.payment_confirmed === false ? (
+                                                                {packageInfo?.billing_mode === 'package' ? (
+                                                                    <span className="text-xs text-violet-400 italic">included</span>
+                                                                ) : feature.payment_confirmed === false ? (
                                                                     <span className="text-xs text-slate-400 italic">—</span>
                                                                 ) : (
                                                                     <div className="flex flex-col items-end gap-1">
@@ -1490,7 +1503,11 @@ export default function DashboardPage() {
                                                                 {feature.status}
                                                             </span>
                                                         </div>
-                                                        {feature.payment_confirmed === false ? (
+                                                        {packageInfo?.billing_mode === 'package' ? (
+                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-violet-50 text-violet-600 border border-violet-200">
+                                                                <CreditCard size={10} /> Under package
+                                                            </span>
+                                                        ) : feature.payment_confirmed === false ? (
                                                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-orange-50 text-orange-600 border border-orange-200">
                                                                 <span className="w-1 h-1 rounded-full bg-orange-400 animate-pulse" />
                                                                 Rate Pending
@@ -1512,7 +1529,9 @@ export default function DashboardPage() {
                                                             )}
                                                         </div>
                                                         <div className="text-right">
-                                                            {feature.payment_confirmed === false ? (
+                                                            {packageInfo?.billing_mode === 'package' ? (
+                                                                <span className="text-xs text-violet-400 italic">included</span>
+                                                            ) : feature.payment_confirmed === false ? (
                                                                 <span className="text-xs text-slate-400 italic">—</span>
                                                             ) : (
                                                                 <>
