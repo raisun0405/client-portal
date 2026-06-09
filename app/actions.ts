@@ -37,7 +37,11 @@ export async function loginClient(accessKey: string, rememberMe: boolean): Promi
         const sessionData = encodeURIComponent(JSON.stringify({
             id: data.id,
             name: data.name,
-            access_key: data.access_key
+            access_key: data.access_key,
+            // Stored so the portal can pick the correct loading skeleton instantly
+            // (per-feature vs package) without waiting on a live query. Live
+            // packageInfo still overrides this once it loads.
+            billing_mode: data.billing_mode ?? null
         }));
 
         const cookieOptions: any = {

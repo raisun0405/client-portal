@@ -657,7 +657,10 @@ export default function DashboardPage() {
                 {/* Skeleton Loading State */}
                 {loading && projects.length === 0 && (
                     <div className="animate-fade-in">
-                        {packageInfo?.billing_mode === 'package' ? (
+                        {/* Use live packageInfo once loaded; before that, fall back to the
+                            billing_mode stored in the session cookie so the right skeleton
+                            paints instantly with no race against the projects query. */}
+                        {(packageInfo ? packageInfo.billing_mode === 'package' : client?.billing_mode === 'package') ? (
                             <>
                                 {/* Skeleton Retainer Card (matches the Monthly Package card) */}
                                 <div className="mb-8 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm">
