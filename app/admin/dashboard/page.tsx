@@ -3406,7 +3406,7 @@ export default function AdminDashboard() {
                             <div className="px-6 py-5 flex flex-col gap-4">
                                 <div>
                                     <label className={labelCls}>Start / first billing date</label>
-                                    <input type="date" value={packageForm.startDate} className={inputCls} style={{ ...inputStyle, colorScheme: 'dark' }} onFocus={inputFocus} onBlur={inputBlur} onChange={e => setPackageForm({ ...packageForm, startDate: e.target.value })} />
+                                    <input type="date" value={packageForm.startDate} className={inputCls} style={{ ...inputStyle, colorScheme: 'dark' }} onFocus={e => { inputFocus(e); try { (e.currentTarget as any).showPicker?.(); } catch { /* not user-activated */ } }} onClick={e => { try { (e.currentTarget as any).showPicker?.(); } catch { /* */ } }} onBlur={inputBlur} onChange={e => setPackageForm({ ...packageForm, startDate: e.target.value })} />
                                 </div>
                                 <div>
                                     <label className={labelCls}>Monthly fee (₹)</label>
