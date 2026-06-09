@@ -627,7 +627,7 @@ export default function DashboardPage() {
     return (
         <div className="min-h-screen bg-slate-50">
             {/* Header */}
-            <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-10 px-6 py-4 flex justify-between items-center">
+            <header className="bg-white/95 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 px-6 py-4 flex justify-between items-center">
                 <Link href="/" className="flex items-center gap-3 group">
                     <div className="bg-blue-100/50 p-1 rounded-xl text-blue-600 transition-colors group-hover:bg-blue-100">
                         <img
@@ -769,6 +769,8 @@ export default function DashboardPage() {
                             const nextChargeFor = fmtMonth(coveragePeriod(sched.nextChargeDate, cadence).start);
                             const latest = billingPeriods[0]; // ordered desc by period_start
                             const badgeFor = (s: string) => s === 'Paid' ? 'bg-emerald-50 text-emerald-700' : s === 'Partial' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700';
+                            const doneCount = projects.filter(p => p.displayStatus === 'Completed').length;
+                            const donePct = projects.length ? Math.round(projects.reduce((s, p) => s + p.stats.progress, 0) / projects.length) : 0;
                             return (
                                 <motion.div
                                     initial={{ opacity: 0, y: 12 }}
@@ -790,6 +792,17 @@ export default function DashboardPage() {
                                             <p className="text-[11px] text-slate-400 mt-0.5">for {nextChargeFor}</p>
                                         </div>
                                     </div>
+                                    {projects.length > 0 && (
+                                        <div className="mb-4 pb-4 border-b border-slate-100">
+                                            <div className="flex items-center justify-between mb-1.5">
+                                                <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Projects</span>
+                                                <span className="text-xs font-semibold text-slate-600">{doneCount}/{projects.length} done · {donePct}%</span>
+                                            </div>
+                                            <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                                                <div className="h-full rounded-full bg-blue-500 transition-all duration-700" style={{ width: `${donePct}%` }} />
+                                            </div>
+                                        </div>
+                                    )}
                                     {latest && (
                                         <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 flex flex-wrap items-center justify-between gap-3">
                                             <div>
@@ -1126,7 +1139,8 @@ export default function DashboardPage() {
                                         </div>
                                     </div>
 
-                                    {/* Overall Progress Bar */}
+                                    {/* Overall Progress Bar — hidden for package clients (shown in the retainer card) */}
+                                    {!isPackage && (
                                     <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm mt-4 sm:mt-6">
                                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
                                             <div>
@@ -1156,6 +1170,7 @@ export default function DashboardPage() {
                                             <span className="text-blue-600 font-medium">{activeProjects} in progress</span>
                                         </div>
                                     </div>
+                                    )}
                                 </motion.div>
                             );
                         })()}
