@@ -655,6 +655,62 @@ export default function DashboardPage() {
                 {/* Skeleton Loading State */}
                 {loading && projects.length === 0 && (
                     <div className="animate-fade-in">
+                        {client?.billing_mode === 'package' ? (
+                            <>
+                                {/* Skeleton Retainer Card (matches the Monthly Package card) */}
+                                <div className="mb-8 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm">
+                                    <div className="flex items-start justify-between gap-4 mb-5">
+                                        <div>
+                                            <div className="skeleton h-5 w-32 rounded-full mb-3" />
+                                            <div className="skeleton h-8 w-44 rounded-lg" />
+                                        </div>
+                                        <div className="flex flex-col items-end">
+                                            <div className="skeleton h-2.5 w-20 rounded-md mb-2" />
+                                            <div className="skeleton h-4 w-28 rounded-md" />
+                                        </div>
+                                    </div>
+                                    {/* Projects progress */}
+                                    <div className="mb-4 pb-4 border-b border-slate-100">
+                                        <div className="flex justify-between mb-2">
+                                            <div className="skeleton h-2.5 w-16 rounded-md" />
+                                            <div className="skeleton h-2.5 w-24 rounded-md" />
+                                        </div>
+                                        <div className="skeleton h-2 w-full rounded-full" />
+                                    </div>
+                                    {/* Latest invoice */}
+                                    <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 flex items-center justify-between gap-3">
+                                        <div className="space-y-2">
+                                            <div className="skeleton h-2.5 w-20 rounded-md" />
+                                            <div className="skeleton h-6 w-24 rounded-md" />
+                                            <div className="skeleton h-2.5 w-16 rounded-md" />
+                                        </div>
+                                        <div className="skeleton h-6 w-16 rounded-full" />
+                                    </div>
+                                </div>
+
+                                {/* Skeleton Activity Log (full-width for package clients) */}
+                                <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm mb-10">
+                                    <div className="skeleton h-3 w-24 rounded-md mb-2" />
+                                    <div className="skeleton h-2.5 w-56 rounded-md mb-6" />
+                                    <div className="space-y-4">
+                                        {[...Array(4)].map((_, i) => (
+                                            <div key={i} className="flex items-start gap-3">
+                                                <div className="skeleton w-[30px] h-[30px] rounded-full shrink-0" />
+                                                <div className="flex-1 space-y-1.5">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="skeleton h-3 w-16 rounded-md" />
+                                                        <div className="skeleton h-2.5 w-10 rounded-md" />
+                                                    </div>
+                                                    <div className="skeleton h-3 w-3/4 rounded-md" />
+                                                    <div className="skeleton h-2.5 w-1/2 rounded-md" />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </>
+                        ) : (
+                            <>
                         {/* Skeleton Stat Cards */}
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
                             {[...Array(4)].map((_, i) => (
@@ -729,6 +785,8 @@ export default function DashboardPage() {
                             </div>
                             <div className="skeleton h-4 w-full rounded-full" />
                         </div>
+                            </>
+                        )}
 
                         {/* Skeleton Project Cards */}
                         <div className="mb-6">
