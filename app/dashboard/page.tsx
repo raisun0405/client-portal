@@ -1288,8 +1288,10 @@ export default function DashboardPage() {
                                         </div>
                                     </div>
 
-                                    {/* Financial Table — or package coverage note */}
-                                    {coveredProjectIds.has(project.id) ? (
+                                    {/* Financial Table — or package coverage note.
+                                        For a package client, a project with no real billing (total ₹0,
+                                        e.g. new rate-pending work) is covered by the retainer, not a ₹0 table. */}
+                                    {(coveredProjectIds.has(project.id) || (packageInfo?.billing_mode === 'package' && project.stats.total === 0)) ? (
                                         <div className="border border-violet-100 bg-violet-50/60 rounded-lg px-4 py-3 flex items-center gap-2">
                                             <CreditCard size={14} className="text-violet-500 shrink-0" />
                                             <span className="text-xs font-semibold text-violet-700">Covered under monthly package</span>
@@ -1552,7 +1554,7 @@ export default function DashboardPage() {
                                                                 </span>
                                                             </td>
                                                             <td className="px-6 py-4">
-                                                                {coveredFeatureIds.has(feature.id) ? (
+                                                                {(coveredFeatureIds.has(feature.id) || (packageInfo?.billing_mode === 'package' && !feature.payment_confirmed)) ? (
                                                                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-violet-50 text-violet-600 border border-violet-200">
                                                                         <CreditCard size={12} /> Under package
                                                                     </span>
@@ -1566,7 +1568,7 @@ export default function DashboardPage() {
                                                                 )}
                                                             </td>
                                                             <td className="px-6 py-4 text-right">
-                                                                {coveredFeatureIds.has(feature.id) ? (
+                                                                {(coveredFeatureIds.has(feature.id) || (packageInfo?.billing_mode === 'package' && !feature.payment_confirmed)) ? (
                                                                     <span className="text-xs text-violet-400 italic">included</span>
                                                                 ) : feature.payment_confirmed === false ? (
                                                                     <span className="text-xs text-slate-400 italic">—</span>
@@ -1618,7 +1620,7 @@ export default function DashboardPage() {
                                                                 {feature.status}
                                                             </span>
                                                         </div>
-                                                        {coveredFeatureIds.has(feature.id) ? (
+                                                        {(coveredFeatureIds.has(feature.id) || (packageInfo?.billing_mode === 'package' && !feature.payment_confirmed)) ? (
                                                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-violet-50 text-violet-600 border border-violet-200">
                                                                 <CreditCard size={10} /> Under package
                                                             </span>
@@ -1644,7 +1646,7 @@ export default function DashboardPage() {
                                                             )}
                                                         </div>
                                                         <div className="text-right">
-                                                            {coveredFeatureIds.has(feature.id) ? (
+                                                            {(coveredFeatureIds.has(feature.id) || (packageInfo?.billing_mode === 'package' && !feature.payment_confirmed)) ? (
                                                                 <span className="text-xs text-violet-400 italic">included</span>
                                                             ) : feature.payment_confirmed === false ? (
                                                                 <span className="text-xs text-slate-400 italic">—</span>
