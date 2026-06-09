@@ -827,6 +827,9 @@ export default function DashboardPage() {
                             const totalPending = projects.reduce((s, p) => s + p.stats.pending, 0);
                             const completedProjects = projects.filter(p => p.displayStatus === 'Completed').length;
                             const activeProjects = projects.filter(p => p.displayStatus === 'In Progress' || p.displayStatus === 'Not Started').length;
+                            // Package clients are billed via the retainer card above, so the per-feature
+                            // money cards + donut are hidden for them (kept: Projects, Progress, Activity).
+                            const isPackage = packageInfo?.billing_mode === 'package';
                             const avgProgress = projects.length > 0 ? Math.round(projects.reduce((s, p) => s + p.stats.progress, 0) / projects.length) : 0;
                             const paymentPercent = totalInvestment > 0 ? Math.round((totalPaid / totalInvestment) * 100) : 0;
 
@@ -844,8 +847,9 @@ export default function DashboardPage() {
                                     transition={{ duration: 0.5 }}
                                     className="mb-10"
                                 >
-                                    {/* Summary Stat Cards */}
-                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
+                                    {/* Summary Stat Cards (money cards hidden for package clients) */}
+                                    <div className={`grid ${isPackage ? 'grid-cols-1' : 'grid-cols-2 sm:grid-cols-4'} gap-3 sm:gap-4 mb-6`}>
+                                        {!isPackage && (<>
                                         <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
                                             <div className="flex items-center gap-2 mb-2">
                                                 <div className="p-1.5 bg-blue-50 rounded-lg"><Wallet size={14} className="text-blue-600" /></div>
@@ -867,6 +871,7 @@ export default function DashboardPage() {
                                             </div>
                                             <p className="text-lg sm:text-2xl font-bold text-amber-600 tracking-tight">₹{totalPending.toLocaleString()}</p>
                                         </div>
+                                        </>)}
                                         <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
                                             <div className="flex items-center gap-2 mb-2">
                                                 <div className="p-1.5 bg-violet-50 rounded-lg"><CheckCircle2 size={14} className="text-violet-600" /></div>
@@ -881,7 +886,8 @@ export default function DashboardPage() {
 
                                     {/* Charts Row */}
                                     <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
-                                        {/* Donut Chart - Payment Overview */}
+                                        {/* Donut Chart - Payment Overview (hidden for package clients) */}
+                                        {!isPackage && (
                                         <div className="lg:col-span-2 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm">
                                             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Payment Overview</h3>
                                             <p className="text-[11px] text-slate-400 mb-4">{paymentPercent}% of total value has been paid</p>
@@ -970,9 +976,10 @@ export default function DashboardPage() {
                                                 </div>
                                             </div>
                                         </div>
+                                        )}
 
                                         {/* Activity Log Timeline */}
-                                        <div ref={activityRef} className="lg:col-span-3 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm scroll-mt-20">
+                                        <div ref={activityRef} className={`${isPackage ? 'lg:col-span-5' : 'lg:col-span-3'} bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm scroll-mt-20`}>
                                             <div className="flex items-center justify-between mb-4">
                                                 <div>
                                                     <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Activity Log</h3>
