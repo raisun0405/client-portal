@@ -8,6 +8,8 @@ import { sendNotification, sendDigestNotification } from '@/lib/notifications';
 import { deriveProjectStatus, resolveProjectStatus, type DisplayStatus } from '@/lib/projectStatus';
 import { computeProjectStats } from '@/lib/billing';
 import { packageSchedule, todayLocalISO, coveragePeriod, shiftDaysISO, shiftMonthsISO, type Cadence } from '@/lib/packageDates';
+import { Select } from '@/components/Select';
+import { DatePicker } from '@/components/DatePicker';
 import { Users, Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut, ArrowUp, ArrowDown, Calendar, Mail, MailCheck, Send, CheckCircle2, Clock, Zap, CreditCard, FileText, Link2, Activity, RefreshCw, PackagePlus, ArrowRight, EyeOff, Eye, Search, Copy, Check, Briefcase, TrendingUp, Hash, UserPlus, SlidersHorizontal, MoreHorizontal, ArrowUpRight, CircleDashed, Wallet, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -3218,18 +3220,15 @@ export default function AdminDashboard() {
                                             </div>
                                             <div>
                                                 <label className={labelCls}>Status</label>
-                                                <select
+                                                <Select
                                                     value={formData.status_override || ''}
-                                                    className={`${inputCls} appearance-none bg-[#0a0a0a]`}
-                                                    style={inputStyle}
-                                                    onFocus={inputFocus}
-                                                    onBlur={inputBlur}
-                                                    onChange={e => setFormData({ ...formData, status_override: e.target.value })}
-                                                >
-                                                    <option value="" className="bg-[#161616]">Auto — follow feature progress</option>
-                                                    <option value="On Hold" className="bg-[#161616]">On Hold</option>
-                                                    <option value="Cancelled" className="bg-[#161616]">Cancelled</option>
-                                                </select>
+                                                    onChange={v => setFormData({ ...formData, status_override: v })}
+                                                    options={[
+                                                        { value: '', label: 'Auto — follow feature progress' },
+                                                        { value: 'On Hold', label: 'On Hold' },
+                                                        { value: 'Cancelled', label: 'Cancelled' },
+                                                    ]}
+                                                />
                                                 <p className="text-[11px] text-[#737373] mt-1.5 font-geist">Status is set automatically from feature progress (Not Started → In Progress → Completed). Use an override only to pause or cancel.</p>
                                             </div>
                                         </>
@@ -3262,32 +3261,22 @@ export default function AdminDashboard() {
                                             </div>
                                             <div>
                                                 <label className={labelCls}>Type</label>
-                                                <select
+                                                <Select
                                                     value={formData.is_new_request || 'false'}
-                                                    className={`${inputCls} appearance-none bg-[#0a0a0a]`}
-                                                    style={inputStyle}
-                                                    onFocus={inputFocus}
-                                                    onBlur={inputBlur}
-                                                    onChange={e => setFormData({ ...formData, is_new_request: e.target.value })}
-                                                >
-                                                    <option value="false" className="bg-[#161616]">No · Core feature</option>
-                                                    <option value="true" className="bg-[#161616]">Yes · Extra request</option>
-                                                </select>
+                                                    onChange={v => setFormData({ ...formData, is_new_request: v })}
+                                                    options={[
+                                                        { value: 'false', label: 'No · Core feature' },
+                                                        { value: 'true', label: 'Yes · Extra request' },
+                                                    ]}
+                                                />
                                             </div>
                                             <div>
                                                 <label className={labelCls}>Status</label>
-                                                <select
-                                                    className={`${inputCls} appearance-none bg-[#0a0a0a]`}
-                                                    style={inputStyle}
-                                                    onFocus={inputFocus}
-                                                    onBlur={inputBlur}
-                                                    onChange={e => setFormData({ ...formData, status: e.target.value })}
+                                                <Select
                                                     value={formData.status || 'Requested'}
-                                                >
-                                                    {['Requested', 'Approved', 'Working', 'Updating', 'Completed'].map(s => (
-                                                        <option key={s} value={s} className="bg-[#161616]">{s}</option>
-                                                    ))}
-                                                </select>
+                                                    onChange={v => setFormData({ ...formData, status: v })}
+                                                    options={['Requested', 'Approved', 'Working', 'Updating', 'Completed'].map(s => ({ value: s, label: s }))}
+                                                />
                                             </div>
 
                                             {/* Payment Confirmed Toggle */}
@@ -3406,7 +3395,7 @@ export default function AdminDashboard() {
                             <div className="px-6 py-5 flex flex-col gap-4">
                                 <div>
                                     <label className={labelCls}>Start / first billing date</label>
-                                    <input type="date" value={packageForm.startDate} className={inputCls} style={{ ...inputStyle, colorScheme: 'dark' }} onFocus={e => { inputFocus(e); try { (e.currentTarget as any).showPicker?.(); } catch { /* not user-activated */ } }} onClick={e => { try { (e.currentTarget as any).showPicker?.(); } catch { /* */ } }} onBlur={inputBlur} onChange={e => setPackageForm({ ...packageForm, startDate: e.target.value })} />
+                                    <DatePicker value={packageForm.startDate} onChange={v => setPackageForm({ ...packageForm, startDate: v })} />
                                 </div>
                                 <div>
                                     <label className={labelCls}>Monthly fee (₹)</label>
@@ -3414,12 +3403,16 @@ export default function AdminDashboard() {
                                 </div>
                                 <div>
                                     <label className={labelCls}>Existing pending balance</label>
-                                    <select value={packageForm.disposition} className={`${inputCls} appearance-none bg-[#0a0a0a]`} style={inputStyle} onFocus={inputFocus} onBlur={inputBlur} onChange={e => setPackageForm({ ...packageForm, disposition: e.target.value })}>
-                                        <option value="writeoff" className="bg-[#161616]">Write off · forgive the old balance</option>
-                                        <option value="settle" className="bg-[#161616]">Settle now · collect it</option>
-                                        <option value="roll_into_first" className="bg-[#161616]">Roll into first invoice</option>
-                                        <option value="keep_one_time" className="bg-[#161616]">Keep as a separate one-time balance</option>
-                                    </select>
+                                    <Select
+                                        value={packageForm.disposition}
+                                        onChange={v => setPackageForm({ ...packageForm, disposition: v })}
+                                        options={[
+                                            { value: 'writeoff', label: 'Write off · forgive the old balance' },
+                                            { value: 'settle', label: 'Settle now · collect it' },
+                                            { value: 'roll_into_first', label: 'Roll into first invoice' },
+                                            { value: 'keep_one_time', label: 'Keep as a separate one-time balance' },
+                                        ]}
+                                    />
                                 </div>
 
                                 <div className="rounded-lg p-4 flex flex-col gap-3" style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px', background: '#0d0d0d' }}>
