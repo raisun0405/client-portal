@@ -805,18 +805,19 @@ export default function DashboardPage() {
                                     )}
                                     {latest && (
                                         <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 flex flex-wrap items-center justify-between gap-3">
-                                            <div>
-                                                <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Latest invoice</p>
-                                                <p className="text-sm font-semibold text-slate-700 mt-0.5">{fmtMonth(latest.period_start)} · ₹{(Number(latest.fee_amount) || 0).toLocaleString('en-IN')}</p>
+                                            <div className="min-w-0">
+                                                <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1">Latest invoice</p>
+                                                <p className="text-xl font-bold text-slate-900 leading-none tracking-tight">₹{(Number(latest.fee_amount) || 0).toLocaleString('en-IN')}</p>
+                                                <p className="text-[11px] text-slate-500 mt-1.5">for {fmtMonth(latest.period_start)}</p>
                                             </div>
-                                            <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold ${badgeFor(latest.payment_status)}`}>{latest.payment_status}</span>
+                                            <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${badgeFor(latest.payment_status)}`}>{latest.payment_status}</span>
                                         </div>
                                     )}
-                                    {billingPeriods.length > 0 && (
-                                        <div className="mt-4">
-                                            <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-2">Invoices (each covers the prior month)</p>
+                                    {billingPeriods.length > 1 && (
+                                        <div className="mt-4 pt-4 border-t border-slate-100">
+                                            <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-2">Earlier invoices</p>
                                             <div className="flex flex-col gap-1.5">
-                                                {billingPeriods.slice(0, 5).map(bp => (
+                                                {billingPeriods.slice(1, 6).map(bp => (
                                                     <div key={bp.id} className="flex items-center justify-between text-xs">
                                                         <span className="text-slate-500">{fmtMonth(bp.period_start)}</span>
                                                         <span className="flex items-center gap-2">
