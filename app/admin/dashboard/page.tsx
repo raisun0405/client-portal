@@ -7,7 +7,7 @@ import { logActivity, type ActivityLog } from '@/lib/activityLogger';
 import { sendNotification, sendDigestNotification } from '@/lib/notifications';
 import { deriveProjectStatus, resolveProjectStatus, type DisplayStatus } from '@/lib/projectStatus';
 import { computeProjectStats } from '@/lib/billing';
-import { packageSchedule } from '@/lib/packageDates';
+import { packageSchedule, type Cadence } from '@/lib/packageDates';
 import { Users, Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut, ArrowUp, ArrowDown, Calendar, Mail, MailCheck, Send, CheckCircle2, Clock, Zap, CreditCard, FileText, Link2, Activity, RefreshCw, PackagePlus, ArrowRight, EyeOff, Eye, Search, Copy, Check, Briefcase, TrendingUp, Hash, UserPlus, SlidersHorizontal, MoreHorizontal, ArrowUpRight, CircleDashed, Wallet, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -563,6 +563,29 @@ export default function AdminDashboard() {
             await fetchClientPeriods(client.id);
         } catch (err: any) {
             alert('Could not generate period: ' + (err?.message || 'unknown error'));
+        } finally {
+            setPackageSaving(false);
+        }
+    };
+
+    // Create every billing period that is already due but not yet generated.
+    const generateMissingPeriods = async (client: ClientWithStats, missingStarts: string[]) => {
+        if (!client.package_started_on || missingStarts.length === 0) return;
+        const anchor = client.package_anchor_day ?? Number(client.package_started_on.split('-')[2]);
+        const cadence = (client.package_cadence || 'monthly') as any;
+        setPackageSaving(true);
+        try {
+            for (const start of missingStarts) {
+                const end = packageSchedule(start, anchor, cadence, start).currentPeriod?.end || start;
+                const { error } = await supabaseAdmin.from('billing_periods').insert([{
+                    client_id: client.id, period_start: start, period_end: end,
+                    fee_amount: Number(client.package_fee) || 0, paid_amount: 0, payment_status: 'Pending', origin: 'auto',
+                }]);
+                if (error && !/duplicate|unique/i.test(error.message)) throw new Error(error.message);
+            }
+            await fetchClientPeriods(client.id);
+        } catch (err: any) {
+            alert('Could not generate periods: ' + (err?.message || 'unknown error'));
         } finally {
             setPackageSaving(false);
         }
@@ -1617,6 +1640,11 @@ export default function AdminDashboard() {
                                                                 <h3 className="text-white font-semibold truncate text-[15px] font-geist" style={{ letterSpacing: '-0.3px' }}>
                                                                     {client.name}
                                                                 </h3>
+                                                                {client.billing_mode === 'package' && (
+                                                                    <span className="inline-flex items-center gap-1 px-1.5 h-4 rounded-full bg-violet-500/15 text-violet-300 font-geistmono text-[9px] uppercase font-medium shrink-0" title="Monthly package client">
+                                                                        <CreditCard size={9} /> Package
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                             <p className="text-[#737373] text-[12px] truncate font-geist mt-0.5 flex items-center gap-2">
                                                                 <span className="truncate">
@@ -3404,6 +3432,15 @@ export default function AdminDashboard() {
                 const badgeFor = (s: string) => s === 'Paid' ? 'bg-emerald-500/15 text-emerald-400' : s === 'Partial' ? 'bg-blue-500/15 text-blue-400' : 'bg-amber-500/15 text-amber-400';
                 const inputStyle: React.CSSProperties = { boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' };
 
+                // Detect periods that are already due but not yet generated.
+                const mToday = new Date().toISOString().slice(0, 10);
+                const mAnchor = client.package_anchor_day ?? (client.package_started_on ? Number(client.package_started_on.split('-')[2]) : 1);
+                const dueStarts = client.package_started_on
+                    ? packageSchedule(client.package_started_on, mAnchor, (client.package_cadence || 'monthly') as Cadence, mToday).duePeriodStarts
+                    : [];
+                const existingStarts = new Set(managePeriods.map(p => p.period_start));
+                const missingStarts = dueStarts.filter(s => !existingStarts.has(s));
+
                 return (
                     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={close}>
                         <div className="w-full max-w-xl rounded-xl bg-[#0a0a0a] overflow-hidden flex flex-col max-h-[85vh]" style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }} onClick={e => e.stopPropagation()}>
@@ -3425,6 +3462,13 @@ export default function AdminDashboard() {
                                     <Plus size={13} /> Generate next period
                                 </button>
                             </div>
+
+                            {missingStarts.length > 0 && (
+                                <div className="mx-6 mt-3 rounded-lg p-3 flex items-center justify-between gap-3 shrink-0" style={{ boxShadow: 'rgba(245,158,11,0.4) 0px 0px 0px 1px', background: 'rgba(245,158,11,0.08)' }}>
+                                    <span className="text-[12.5px] text-amber-300 font-geist">{missingStarts.length} due period{missingStarts.length === 1 ? '' : 's'} not yet generated.</span>
+                                    <button onClick={() => generateMissingPeriods(client, missingStarts)} disabled={packageSaving} className="h-8 px-3 rounded-md text-[12px] font-medium font-geist text-[#0a0a0a] bg-amber-400 hover:bg-amber-300 disabled:opacity-50 whitespace-nowrap">Generate {missingStarts.length}</button>
+                                </div>
+                            )}
 
                             <div className="px-6 py-4 overflow-y-auto flex flex-col gap-3">
                                 {managePeriods.length === 0 && (

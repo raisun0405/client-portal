@@ -355,6 +355,10 @@ export default function DashboardPage() {
                 return { icon: <CheckCircle2 size={16} />, color: 'bg-green-500', bgLight: 'bg-green-50', textColor: 'text-green-600', label: 'Rate Confirmed' };
             case 'rate_pending':
                 return { icon: <Clock size={16} />, color: 'bg-orange-500', bgLight: 'bg-orange-50', textColor: 'text-orange-600', label: 'Rate Pending' };
+            case 'package_started':
+                return { icon: <CreditCard size={16} />, color: 'bg-violet-500', bgLight: 'bg-violet-50', textColor: 'text-violet-600', label: 'Monthly Package' };
+            case 'package_reverted':
+                return { icon: <RefreshCw size={16} />, color: 'bg-slate-500', bgLight: 'bg-slate-50', textColor: 'text-slate-600', label: 'Package Ended' };
             default:
                 return { icon: <Activity size={16} />, color: 'bg-slate-400', bgLight: 'bg-slate-50', textColor: 'text-slate-500', label: 'Activity' };
         }

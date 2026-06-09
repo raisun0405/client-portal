@@ -42,6 +42,8 @@ function generateSingleActivityEmailHTML(log: ActivityLog, clientName: string, p
         project_completed: { bg: '#ECFDF5', text: '#047857', accent: '#10B981' },
         link_added: { bg: '#EEF2FF', text: '#4338CA', accent: '#6366F1' },
         status_changed: { bg: '#F0FDFA', text: '#0F766E', accent: '#14B8A6' },
+        package_started: { bg: '#EDE9FE', text: '#6D28D9', accent: '#8B5CF6' },
+        package_reverted: { bg: '#F1F5F9', text: '#475569', accent: '#64748B' },
     };
 
     const colors = actionColors[log.action_type] || { bg: '#F1F5F9', text: '#475569', accent: '#64748B' };
