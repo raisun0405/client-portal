@@ -66,6 +66,18 @@ type Feature = {
     created_at: string;
 };
 
+type BillingPeriod = {
+    id: string;
+    client_id: string;
+    period_start: string;
+    period_end: string;
+    fee_amount: number;
+    paid_amount: number;
+    payment_status: string;
+    origin?: string;
+    note?: string | null;
+};
+
 // Sorting types
 type SortField = 'amount' | 'status' | 'created_at';
 type SortOrder = 'asc' | 'desc';
@@ -114,6 +126,11 @@ export default function AdminDashboard() {
     const [packageClient, setPackageClient] = useState<ClientWithStats | null>(null);
     const [packageForm, setPackageForm] = useState<{ startDate: string; fee: string; disposition: string }>({ startDate: '', fee: '', disposition: 'writeoff' });
     const [packageSaving, setPackageSaving] = useState(false);
+
+    // Manage-package modal (record monthly payments, generate periods)
+    const [managePackageClient, setManagePackageClient] = useState<ClientWithStats | null>(null);
+    const [managePeriods, setManagePeriods] = useState<BillingPeriod[]>([]);
+    const [periodPayInputs, setPeriodPayInputs] = useState<Record<string, string>>({});
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editingLinkIndex, setEditingLinkIndex] = useState<number | null>(null);
     const [saving, setSaving] = useState(false);
@@ -481,6 +498,71 @@ export default function AdminDashboard() {
             fetchClients();
         } catch (err: any) {
             alert('Undo failed: ' + (err?.message || 'unknown error'));
+        } finally {
+            setPackageSaving(false);
+        }
+    };
+
+    const fetchClientPeriods = async (clientId: string) => {
+        const { data } = await supabaseAdmin.from('billing_periods').select('*').eq('client_id', clientId).order('period_start', { ascending: false });
+        setManagePeriods((data as BillingPeriod[]) || []);
+        const inputs: Record<string, string> = {};
+        (data || []).forEach((p: any) => { inputs[p.id] = String(p.paid_amount ?? ''); });
+        setPeriodPayInputs(inputs);
+    };
+
+    const openManagePackage = (client: ClientWithStats) => {
+        setManagePackageClient(client);
+        setManagePeriods([]);
+        fetchClientPeriods(client.id);
+    };
+
+    // Record (set) the amount paid for a billing period and recompute its status.
+    const recordPeriodPayment = async (period: BillingPeriod) => {
+        if (!managePackageClient) return;
+        const newPaid = Number(periodPayInputs[period.id]) || 0;
+        const fee = Number(period.fee_amount) || 0;
+        const oldPaid = Number(period.paid_amount) || 0;
+        const status = (fee > 0 && newPaid >= fee) ? 'Paid' : newPaid > 0 ? 'Partial' : 'Pending';
+        setPackageSaving(true);
+        try {
+            const { error } = await supabaseAdmin.from('billing_periods').update({ paid_amount: newPaid, payment_status: status }).eq('id', period.id);
+            if (error) throw new Error(error.message);
+            await logActivity({
+                clientId: managePackageClient.id,
+                projectId: null,
+                actionType: 'payment_received',
+                title: newPaid > oldPaid ? `Package Payment — ₹${(newPaid - oldPaid).toLocaleString('en-IN')}` : 'Package Payment Updated',
+                description: `${period.period_start} – ${period.period_end}: ₹${newPaid.toLocaleString('en-IN')} of ₹${fee.toLocaleString('en-IN')} (${status})`,
+                metadata: { amount: fee, paidAmount: newPaid, oldPaidAmount: oldPaid },
+            });
+            await fetchClientPeriods(managePackageClient.id);
+            fetchClients();
+        } catch (err: any) {
+            alert('Could not record payment: ' + (err?.message || 'unknown error'));
+        } finally {
+            setPackageSaving(false);
+        }
+    };
+
+    // Create the next consecutive billing period for a package client.
+    const generateNextPeriod = async (client: ClientWithStats) => {
+        if (!client.package_started_on) return;
+        const anchor = client.package_anchor_day ?? Number(client.package_started_on.split('-')[2]);
+        const cadence = (client.package_cadence || 'monthly') as any;
+        const latestStart = managePeriods.length ? managePeriods[0].period_start : client.package_started_on;
+        const nextStart = packageSchedule(latestStart, anchor, cadence, latestStart).nextChargeDate;
+        const nextEnd = packageSchedule(nextStart, anchor, cadence, nextStart).currentPeriod?.end || nextStart;
+        setPackageSaving(true);
+        try {
+            const { error } = await supabaseAdmin.from('billing_periods').insert([{
+                client_id: client.id, period_start: nextStart, period_end: nextEnd,
+                fee_amount: Number(client.package_fee) || 0, paid_amount: 0, payment_status: 'Pending', origin: 'manual',
+            }]);
+            if (error && !/duplicate|unique/i.test(error.message)) throw new Error(error.message);
+            await fetchClientPeriods(client.id);
+        } catch (err: any) {
+            alert('Could not generate period: ' + (err?.message || 'unknown error'));
         } finally {
             setPackageSaving(false);
         }
@@ -1672,14 +1754,24 @@ export default function AdminDashboard() {
                                                                         Convert to package
                                                                     </button>
                                                                 ) : (
-                                                                    <button
-                                                                        role="menuitem"
-                                                                        onClick={() => { setOpenMenuId(null); handleUndoPackage(client); }}
-                                                                        className="w-full flex items-center gap-2.5 px-2.5 py-2 text-[13px] text-[#a1a1a1] hover:text-white rounded hover:bg-[#222] transition-colors font-geist"
-                                                                    >
-                                                                        <RefreshCw size={13} />
-                                                                        Undo package
-                                                                    </button>
+                                                                    <>
+                                                                        <button
+                                                                            role="menuitem"
+                                                                            onClick={() => { setOpenMenuId(null); openManagePackage(client); }}
+                                                                            className="w-full flex items-center gap-2.5 px-2.5 py-2 text-[13px] text-[#a1a1a1] hover:text-[#0a72ef] rounded hover:bg-[#222] transition-colors font-geist"
+                                                                        >
+                                                                            <CreditCard size={13} />
+                                                                            Manage package
+                                                                        </button>
+                                                                        <button
+                                                                            role="menuitem"
+                                                                            onClick={() => { setOpenMenuId(null); handleUndoPackage(client); }}
+                                                                            className="w-full flex items-center gap-2.5 px-2.5 py-2 text-[13px] text-[#a1a1a1] hover:text-white rounded hover:bg-[#222] transition-colors font-geist"
+                                                                        >
+                                                                            <RefreshCw size={13} />
+                                                                            Undo package
+                                                                        </button>
+                                                                    </>
                                                                 )}
                                                                 <div className="h-px my-1" style={{ background: 'rgba(255,255,255,0.08)' }} />
                                                                 <button
@@ -3296,6 +3388,83 @@ export default function AdminDashboard() {
                             <div className="px-6 py-4 flex items-center gap-2" style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 1px 0px inset' }}>
                                 <button onClick={close} disabled={packageSaving} className="h-10 px-4 rounded-md text-[#a1a1a1] hover:text-white hover:bg-[#181818] text-[13px] font-medium font-geist disabled:opacity-50" style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}>Cancel</button>
                                 <button onClick={handleConfirmPackage} disabled={packageSaving || fee <= 0 || !start} className="flex-1 h-10 px-4 rounded-md bg-white hover:bg-[#ededed] text-[#0a0a0a] text-[13px] font-medium font-geist disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5">{packageSaving ? <><Loader2 size={13} className="animate-spin" /> Converting…</> : 'Confirm conversion'}</button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
+
+            {/* ===== MANAGE PACKAGE (record monthly payments, generate periods) ===== */}
+            {managePackageClient && (() => {
+                const client = managePackageClient;
+                const fee = Number(client.package_fee) || 0;
+                const fmt = (n: number) => `₹${(n || 0).toLocaleString('en-IN')}`;
+                const fmtDate = (iso?: string | null) => iso ? new Date(iso + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+                const close = () => setManagePackageClient(null);
+                const badgeFor = (s: string) => s === 'Paid' ? 'bg-emerald-500/15 text-emerald-400' : s === 'Partial' ? 'bg-blue-500/15 text-blue-400' : 'bg-amber-500/15 text-amber-400';
+                const inputStyle: React.CSSProperties = { boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' };
+
+                return (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={close}>
+                        <div className="w-full max-w-xl rounded-xl bg-[#0a0a0a] overflow-hidden flex flex-col max-h-[85vh]" style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }} onClick={e => e.stopPropagation()}>
+                            <div className="px-6 py-5 flex items-center justify-between shrink-0" style={{ boxShadow: 'rgba(255,255,255,0.08) 0px -1px 0px inset' }}>
+                                <div className="min-w-0">
+                                    <p className="font-geistmono text-[10px] uppercase text-[#0a72ef] font-medium">Manage Package</p>
+                                    <h3 className="text-white text-[16px] font-semibold font-geist mt-0.5 truncate">{client.name} · {fmt(fee)}/mo</h3>
+                                </div>
+                                <button onClick={close} aria-label="Close" className="h-8 w-8 shrink-0 rounded-md flex items-center justify-center text-[#737373] hover:text-white hover:bg-[#181818]"><X size={16} /></button>
+                            </div>
+
+                            <div className="px-6 py-4 flex items-center justify-between shrink-0" style={{ boxShadow: 'rgba(255,255,255,0.08) 0px -1px 0px inset' }}>
+                                <span className="font-geistmono text-[10px] uppercase text-[#737373] font-medium">{managePeriods.length} billing period{managePeriods.length === 1 ? '' : 's'}</span>
+                                <button
+                                    onClick={() => generateNextPeriod(client)}
+                                    disabled={packageSaving}
+                                    className="h-8 px-3 rounded-md flex items-center gap-1.5 text-[12px] font-medium font-geist text-[#0a0a0a] bg-white hover:bg-[#ededed] disabled:opacity-50"
+                                >
+                                    <Plus size={13} /> Generate next period
+                                </button>
+                            </div>
+
+                            <div className="px-6 py-4 overflow-y-auto flex flex-col gap-3">
+                                {managePeriods.length === 0 && (
+                                    <p className="text-[13px] text-[#737373] font-geist text-center py-6">No billing periods yet. Click &quot;Generate next period&quot; to create one.</p>
+                                )}
+                                {managePeriods.map(p => (
+                                    <div key={p.id} className="rounded-lg p-4 flex flex-col gap-3" style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px', background: '#0d0d0d' }}>
+                                        <div className="flex items-center justify-between gap-2">
+                                            <div className="min-w-0">
+                                                <p className="text-white text-[13px] font-semibold font-geist">{fmtDate(p.period_start)} – {fmtDate(p.period_end)}</p>
+                                                {p.note && <p className="text-[11px] text-[#737373] font-geist mt-0.5">{p.note}</p>}
+                                            </div>
+                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${badgeFor(p.payment_status)}`}>{p.payment_status}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[11px] text-[#737373] font-geistmono whitespace-nowrap">Paid of {fmt(Number(p.fee_amount) || 0)}</span>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                value={periodPayInputs[p.id] ?? ''}
+                                                onChange={e => setPeriodPayInputs({ ...periodPayInputs, [p.id]: e.target.value })}
+                                                className="flex-1 h-9 px-3 rounded-md bg-transparent text-[13px] text-white outline-none font-geist"
+                                                style={inputStyle}
+                                                placeholder="0"
+                                            />
+                                            <button
+                                                onClick={() => recordPeriodPayment(p)}
+                                                disabled={packageSaving}
+                                                className="h-9 px-3 rounded-md text-[12px] font-medium font-geist text-white hover:bg-[#181818] disabled:opacity-50"
+                                                style={inputStyle}
+                                            >
+                                                Save
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="px-6 py-4 shrink-0 flex justify-end" style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 1px 0px inset' }}>
+                                <button onClick={close} className="h-10 px-4 rounded-md text-[#a1a1a1] hover:text-white hover:bg-[#181818] text-[13px] font-medium font-geist" style={inputStyle}>Done</button>
                             </div>
                         </div>
                     </div>
