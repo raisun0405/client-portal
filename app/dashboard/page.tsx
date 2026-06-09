@@ -196,8 +196,10 @@ export default function DashboardPage() {
                     return;
                 }
                 setClient(session);
-                fetchProjects(session.id);
+                // Fetch package info FIRST so the loading skeleton can switch to the
+                // package layout before the heavier projects query resolves.
                 fetchPackageInfo(session.id);
+                fetchProjects(session.id);
                 loadActivityLogs(session.id);
             } catch (err) {
                 console.error("Session verification failed", err);
@@ -655,7 +657,7 @@ export default function DashboardPage() {
                 {/* Skeleton Loading State */}
                 {loading && projects.length === 0 && (
                     <div className="animate-fade-in">
-                        {client?.billing_mode === 'package' ? (
+                        {packageInfo?.billing_mode === 'package' ? (
                             <>
                                 {/* Skeleton Retainer Card (matches the Monthly Package card) */}
                                 <div className="mb-8 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm">
