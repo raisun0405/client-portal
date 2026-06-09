@@ -7,7 +7,7 @@ import { logActivity, type ActivityLog } from '@/lib/activityLogger';
 import { sendNotification, sendDigestNotification } from '@/lib/notifications';
 import { deriveProjectStatus, resolveProjectStatus, type DisplayStatus } from '@/lib/projectStatus';
 import { computeProjectStats } from '@/lib/billing';
-import { packageSchedule, todayLocalISO, type Cadence } from '@/lib/packageDates';
+import { packageSchedule, todayLocalISO, coveragePeriod, shiftDaysISO, shiftMonthsISO, type Cadence } from '@/lib/packageDates';
 import { Users, Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut, ArrowUp, ArrowDown, Calendar, Mail, MailCheck, Send, CheckCircle2, Clock, Zap, CreditCard, FileText, Link2, Activity, RefreshCw, PackagePlus, ArrowRight, EyeOff, Eye, Search, Copy, Check, Briefcase, TrendingUp, Hash, UserPlus, SlidersHorizontal, MoreHorizontal, ArrowUpRight, CircleDashed, Wallet, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -426,13 +426,13 @@ export default function AdminDashboard() {
             }).eq('id', client.id);
             if (cliErr) throw new Error(cliErr.message);
 
-            // 6. First billing period
-            const sched = packageSchedule(startDate, anchorDay, 'monthly', startDate);
+            // 6. First billing period — billed on startDate, covers the PRIOR month (arrears)
+            const cov = coveragePeriod(startDate, 'monthly');
             const firstFee = disp === 'roll_into_first' ? fee + pendingSnapshot : fee;
             await supabaseAdmin.from('billing_periods').insert([{
                 client_id: client.id,
-                period_start: startDate,
-                period_end: sched.currentPeriod ? sched.currentPeriod.end : startDate,
+                period_start: cov.start,
+                period_end: cov.end,
                 fee_amount: firstFee,
                 paid_amount: 0,
                 payment_status: 'Pending',
@@ -568,14 +568,19 @@ export default function AdminDashboard() {
         }
     };
 
-    // Create the next consecutive billing period for a package client.
+    // Create the next consecutive billing period for a package client (arrears).
     const generateNextPeriod = async (client: ClientWithStats) => {
         if (!client.package_started_on) return;
-        const anchor = client.package_anchor_day ?? Number(client.package_started_on.split('-')[2]);
-        const cadence = (client.package_cadence || 'monthly') as any;
-        const latestStart = managePeriods.length ? managePeriods[0].period_start : client.package_started_on;
-        const nextStart = packageSchedule(latestStart, anchor, cadence, latestStart).nextChargeDate;
-        const nextEnd = packageSchedule(nextStart, anchor, cadence, nextStart).currentPeriod?.end || nextStart;
+        const cadence = (client.package_cadence || 'monthly') as Cadence;
+        let nextStart: string, nextEnd: string;
+        if (managePeriods.length) {
+            // Next coverage month starts the day after the latest one ends.
+            nextStart = shiftDaysISO(managePeriods[0].period_end, 1);
+            nextEnd = shiftDaysISO(shiftMonthsISO(nextStart, 1), -1);
+        } else {
+            const cov = coveragePeriod(client.package_started_on, cadence);
+            nextStart = cov.start; nextEnd = cov.end;
+        }
         setPackageSaving(true);
         try {
             const { error } = await supabaseAdmin.from('billing_periods').insert([{
@@ -594,12 +599,10 @@ export default function AdminDashboard() {
     // Create every billing period that is already due but not yet generated.
     const generateMissingPeriods = async (client: ClientWithStats, missingStarts: string[]) => {
         if (!client.package_started_on || missingStarts.length === 0) return;
-        const anchor = client.package_anchor_day ?? Number(client.package_started_on.split('-')[2]);
-        const cadence = (client.package_cadence || 'monthly') as any;
         setPackageSaving(true);
         try {
             for (const start of missingStarts) {
-                const end = packageSchedule(start, anchor, cadence, start).currentPeriod?.end || start;
+                const end = shiftDaysISO(shiftMonthsISO(start, 1), -1);
                 const { error } = await supabaseAdmin.from('billing_periods').insert([{
                     client_id: client.id, period_start: start, period_end: end,
                     fee_amount: Number(client.package_fee) || 0, paid_amount: 0, payment_status: 'Pending', origin: 'auto',
@@ -3430,10 +3433,9 @@ export default function AdminDashboard() {
                                     <p className="text-[#a1a1a1] text-[12.5px] font-geist leading-relaxed">{balanceLine}</p>
                                     <ul className="text-[12.5px] text-[#a1a1a1] font-geist flex flex-col gap-1">
                                         <li>Monthly fee: <span className="text-white font-semibold">{fmt(fee)}</span></li>
-                                        <li>First charge: <span className="text-white font-semibold">{fmt(firstCharge)}</span> on <span className="text-white">{start}</span></li>
-                                        <li>Next charge after that: <span className="text-white">{sched.nextChargeDate}</span></li>
-                                        {sched.currentPeriod && <li>Current period: <span className="text-white">{sched.currentPeriod.start} → {sched.currentPeriod.end}</span></li>}
-                                        {sched.duePeriodStarts.length > 1 && <li className="text-[#de1d8d]">{sched.duePeriodStarts.length} periods already due since the start date.</li>}
+                                        <li>First charge: <span className="text-white font-semibold">{fmt(firstCharge)}</span> on <span className="text-white">{start}</span> · for <span className="text-white">{new Date(coveragePeriod(start, 'monthly').start + 'T00:00:00').toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</span></li>
+                                        <li>Then <span className="text-white font-semibold">{fmt(fee)}</span> on <span className="text-white">{sched.nextChargeDate}</span> · for <span className="text-white">{new Date(coveragePeriod(sched.nextChargeDate, 'monthly').start + 'T00:00:00').toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</span></li>
+                                        {sched.duePeriodStarts.length > 1 && <li className="text-[#de1d8d]">{sched.duePeriodStarts.length} months already due — bill them in Manage package.</li>}
                                     </ul>
                                 </div>
                             </div>
@@ -3460,11 +3462,14 @@ export default function AdminDashboard() {
                 // Detect periods that are already due but not yet generated.
                 const mToday = todayLocalISO();
                 const mAnchor = client.package_anchor_day ?? (client.package_started_on ? Number(client.package_started_on.split('-')[2]) : 1);
-                const dueStarts = client.package_started_on
+                const dueBillingDates = client.package_started_on
                     ? packageSchedule(client.package_started_on, mAnchor, (client.package_cadence || 'monthly') as Cadence, mToday).duePeriodStarts
                     : [];
                 const existingStarts = new Set(managePeriods.map(p => p.period_start));
-                const missingStarts = dueStarts.filter(s => !existingStarts.has(s));
+                // Each due billing date covers the prior month (arrears); compare those.
+                const missingStarts = dueBillingDates
+                    .map(d => coveragePeriod(d, (client.package_cadence || 'monthly') as Cadence).start)
+                    .filter(s => !existingStarts.has(s));
 
                 return (
                     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={close}>

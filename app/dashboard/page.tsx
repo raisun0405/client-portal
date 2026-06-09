@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { fetchActivityLogs, type ActivityLog } from '@/lib/activityLogger';
 import { resolveProjectStatus, statusPillClasses, statusPillClassesBordered, type DisplayStatus } from '@/lib/projectStatus';
 import { computeProjectStats } from '@/lib/billing';
-import { packageSchedule, todayLocalISO, type Cadence } from '@/lib/packageDates';
+import { packageSchedule, todayLocalISO, coveragePeriod, type Cadence } from '@/lib/packageDates';
 import { getClientSession, logoutClient } from '../actions'; // Import server actions
 import { LayoutGrid, LogOut, FolderOpen, Loader2, X, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Calendar, ArrowRight, TrendingUp, Wallet, CheckCircle2, Clock, FileText, Zap, CreditCard, Link2, Trash2, RefreshCw, PackagePlus, Activity, Download, Pencil } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -734,11 +734,13 @@ export default function DashboardPage() {
                         {packageInfo?.billing_mode === 'package' && packageInfo.package_started_on && (() => {
                             const today = todayLocalISO();
                             const fee = Number(packageInfo.package_fee) || 0;
-                            const sched = packageSchedule(packageInfo.package_started_on, packageInfo.package_anchor_day, (packageInfo.package_cadence || 'monthly') as Cadence, today);
+                            const cadence = (packageInfo.package_cadence || 'monthly') as Cadence;
+                            const sched = packageSchedule(packageInfo.package_started_on, packageInfo.package_anchor_day, cadence, today);
+                            const fmtMonth = (iso?: string | null) => iso ? new Date(iso + 'T00:00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }) : '—';
                             const fmtDate = (iso?: string | null) => iso ? new Date(iso + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
-                            const currentBP = billingPeriods.find(bp => bp.period_start === sched.currentPeriod?.start);
-                            const status = currentBP?.payment_status || 'Pending';
-                            const badge = status === 'Paid' ? 'bg-emerald-50 text-emerald-700' : status === 'Partial' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700';
+                            const nextChargeFor = fmtMonth(coveragePeriod(sched.nextChargeDate, cadence).start);
+                            const latest = billingPeriods[0]; // ordered desc by period_start
+                            const badgeFor = (s: string) => s === 'Paid' ? 'bg-emerald-50 text-emerald-700' : s === 'Partial' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700';
                             return (
                                 <motion.div
                                     initial={{ opacity: 0, y: 12 }}
@@ -757,24 +759,25 @@ export default function DashboardPage() {
                                         <div className="text-right">
                                             <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Next charge</p>
                                             <p className="text-sm font-bold text-slate-700 mt-0.5">{fmtDate(sched.nextChargeDate)}</p>
+                                            <p className="text-[11px] text-slate-400 mt-0.5">for {nextChargeFor}</p>
                                         </div>
                                     </div>
-                                    {sched.currentPeriod && (
+                                    {latest && (
                                         <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 flex flex-wrap items-center justify-between gap-3">
                                             <div>
-                                                <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">This period</p>
-                                                <p className="text-sm font-semibold text-slate-700 mt-0.5">{fmtDate(sched.currentPeriod.start)} – {fmtDate(sched.currentPeriod.end)}</p>
+                                                <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Latest invoice</p>
+                                                <p className="text-sm font-semibold text-slate-700 mt-0.5">{fmtMonth(latest.period_start)} · ₹{(Number(latest.fee_amount) || 0).toLocaleString('en-IN')}</p>
                                             </div>
-                                            <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold ${badge}`}>{status}</span>
+                                            <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold ${badgeFor(latest.payment_status)}`}>{latest.payment_status}</span>
                                         </div>
                                     )}
                                     {billingPeriods.length > 0 && (
                                         <div className="mt-4">
-                                            <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-2">Recent invoices</p>
+                                            <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-2">Invoices (each covers the prior month)</p>
                                             <div className="flex flex-col gap-1.5">
-                                                {billingPeriods.slice(0, 4).map(bp => (
+                                                {billingPeriods.slice(0, 5).map(bp => (
                                                     <div key={bp.id} className="flex items-center justify-between text-xs">
-                                                        <span className="text-slate-500">{fmtDate(bp.period_start)} – {fmtDate(bp.period_end)}</span>
+                                                        <span className="text-slate-500">{fmtMonth(bp.period_start)}</span>
                                                         <span className="flex items-center gap-2">
                                                             <span className="font-semibold text-slate-700 tabular-nums">₹{(Number(bp.fee_amount) || 0).toLocaleString('en-IN')}</span>
                                                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${bp.payment_status === 'Paid' ? 'bg-emerald-100 text-emerald-700' : bp.payment_status === 'Partial' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>{bp.payment_status}</span>

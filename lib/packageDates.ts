@@ -106,3 +106,25 @@ export function packageSchedule(
         duePeriodStarts,
     };
 }
+
+// ---- Arrears helpers ----
+// A charge BILLED on a date covers the PRIOR cadence period (arrears): billed
+// 1 Jun -> covers [1 May, 31 May]. These power invoice coverage labels.
+
+export function shiftDaysISO(isoDate: string, days: number): string {
+    return addDays(isoDate, days);
+}
+
+export function shiftMonthsISO(isoDate: string, months: number): string {
+    const { y, m, d } = parse(isoDate);
+    const t = addMonths(y, m, months);
+    return iso(t.y, t.m, Math.min(d, daysInMonth(t.y, t.m)));
+}
+
+// The cadence period a charge billed on `billingDate` covers, in arrears.
+export function coveragePeriod(billingDate: string, cadence: Cadence = 'monthly'): Period {
+    return {
+        start: shiftMonthsISO(billingDate, -CADENCE_MONTHS[cadence]),
+        end: shiftDaysISO(billingDate, -1),
+    };
+}
