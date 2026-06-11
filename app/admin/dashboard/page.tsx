@@ -10,7 +10,7 @@ import { computeProjectStats } from '@/lib/billing';
 import { packageSchedule, todayLocalISO, coveragePeriod, shiftDaysISO, shiftMonthsISO, type Cadence } from '@/lib/packageDates';
 import { Select } from '@/components/Select';
 import { DatePicker } from '@/components/DatePicker';
-import { Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut, ArrowUp, ArrowDown, Mail, MailCheck, Send, CheckCircle2, Clock, Zap, CreditCard, FileText, Link2, Activity, RefreshCw, PackagePlus, ArrowRight, EyeOff, Eye, Search, Copy, Check, UserPlus, MoreHorizontal, ArrowUpRight, ChevronDown, Home, Folder, Pin, PinOff } from 'lucide-react';
+import { Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut, ArrowUp, ArrowDown, Mail, MailCheck, Send, CheckCircle2, Clock, Zap, CreditCard, FileText, Link2, Activity, RefreshCw, PackagePlus, ArrowRight, EyeOff, Eye, Search, Copy, Check, UserPlus, MoreHorizontal, ArrowUpRight, ChevronDown, Home, Folder } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Hanken_Grotesk, JetBrains_Mono } from 'next/font/google';
 
@@ -136,6 +136,23 @@ function WarmAvatar({ name, size = 44 }: { name: string; size?: number }) {
         >
             {(name || '?').charAt(0).toUpperCase()}
         </div>
+    );
+}
+
+// Angled-thumbtack "pinned" affordance — an outline tack (Streamline "Pin 1",
+// stripped of its <desc>/ids/xmlns metadata) drawn as two stroked paths: the
+// tack head + shaft, and the needle. Stroke is driven by `color` (defaults to
+// the inherited text color) and weighted up so it stays crisp at small sizes.
+// Replaces lucide's chunky pushpin (which read like the 📌 emoji).
+function PinIcon({ size = 14, color = 'currentColor', className }: { size?: number; color?: string; className?: string }) {
+    return (
+        <svg
+            width={size} height={size} viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true"
+            stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
+        >
+            <path d="m17.0001 12 4.5 -2.5 -7 -7 -2.5 4.5L3.5 10.5l10 10 3.5001 -8.5Z" />
+            <path d="m1.5 22.5 7 -7" />
+        </svg>
     );
 }
 
@@ -1712,7 +1729,7 @@ export default function AdminDashboard() {
                                                             <WarmAvatar name={client.name} size={44} />
                                                             <div className="min-w-0">
                                                                 <div className="flex items-center gap-2 min-w-0">
-                                                                    {client.pinned && <Pin size={13} className="shrink-0" style={{ color: T.accent }} fill={T.accent} />}
+                                                                    {client.pinned && <PinIcon size={13} color={T.accent} className="shrink-0" />}
                                                                     <h3 className="font-bold truncate" style={{ fontSize: 15.5, color: T.ink }}>{client.name}</h3>
                                                                     {isPkg && (
                                                                         <span className="shrink-0 font-extrabold uppercase rounded-full" style={{ fontSize: 10, letterSpacing: '0.06em', color: T.accent, border: `1px solid ${T.accent}`, padding: '1px 8px' }} title="Monthly package client">
@@ -1823,7 +1840,7 @@ export default function AdminDashboard() {
                                                                 style={{ boxShadow: `0 0 0 1px ${T.border}, 0 16px 40px -8px rgba(26,29,37,0.25)` }}
                                                             >
                                                                 {[
-                                                                    { icon: client.pinned ? <PinOff size={14} /> : <Pin size={14} />, label: client.pinned ? 'Unpin from top' : 'Pin to top', fn: () => togglePin(client) },
+                                                                    { icon: <PinIcon size={14} />, label: client.pinned ? 'Unpin from top' : 'Pin to top', fn: () => togglePin(client) },
                                                                     { icon: <FolderPlus size={14} />, label: 'Projects', fn: () => handleClientSelect(client) },
                                                                     { icon: <Activity size={14} />, label: 'Activity log', fn: () => handleViewActivity(client) },
                                                                     ...(client.billing_mode !== 'package'
