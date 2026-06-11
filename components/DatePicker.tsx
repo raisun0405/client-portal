@@ -6,16 +6,16 @@ import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-// Warm-editorial palette (Inspo Option C) — admin shell only.
+// Cool-slate palette (Inspo Option C) — admin shell only.
 const C = {
-    ink: '#1C1A17',
-    dark: '#16140F',
-    muted: '#8A857C',
-    faint: '#B5B0A6',
-    border: '#E9E5DD',
-    hoverBg: '#F6F4F0',
-    accent: '#E8552E',
-    label: '#A29A86',
+    ink: '#1C2128',
+    dark: '#1A1D25',
+    muted: '#6E7686',
+    faint: '#A8AEBC',
+    border: '#E4E7ED',
+    hoverBg: '#F1F3F7',
+    accent: '#EE4D2D',
+    label: '#959DAD',
 };
 
 function toISO(y: number, m: number, d: number): string {
@@ -62,7 +62,7 @@ export function DatePicker({ value, onChange, placeholder }: { value: string; on
                 aria-haspopup="dialog"
                 aria-expanded={open}
                 className="w-full h-10 px-3.5 rounded-xl bg-white text-[14px] flex items-center justify-between gap-2 transition-shadow outline-none"
-                style={{ boxShadow: open ? `0 0 0 1px ${C.accent}, 0 0 0 3px rgba(232,85,46,0.15)` : `0 0 0 1px ${C.border}` }}
+                style={{ boxShadow: open ? `0 0 0 1px ${C.accent}, 0 0 0 3px rgba(238,77,45,0.15)` : `0 0 0 1px ${C.border}` }}
             >
                 <span style={{ color: sel ? C.ink : C.faint }}>{display}</span>
                 <Calendar size={14} className="shrink-0" style={{ color: C.muted }} />
@@ -71,7 +71,7 @@ export function DatePicker({ value, onChange, placeholder }: { value: string; on
                 <div
                     role="dialog"
                     className="absolute z-[70] top-full mt-1.5 w-[268px] rounded-xl bg-white p-3"
-                    style={{ boxShadow: `0 0 0 1px ${C.border}, 0 16px 40px -8px rgba(22,20,15,0.25)` }}
+                    style={{ boxShadow: `0 0 0 1px ${C.border}, 0 16px 40px -8px rgba(26,29,37,0.25)` }}
                 >
                     <div className="flex items-center justify-between mb-2">
                         <button type="button" onClick={prevMonth} aria-label="Previous month" className="h-8 w-8 rounded-full flex items-center justify-center transition-colors" style={{ color: C.muted }} onMouseEnter={e => { e.currentTarget.style.background = C.hoverBg; e.currentTarget.style.color = C.ink; }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = C.muted; }}><ChevronLeft size={15} /></button>
@@ -100,7 +100,7 @@ export function DatePicker({ value, onChange, placeholder }: { value: string; on
                                         ? { background: C.dark, color: '#fff', fontWeight: 700 }
                                         : isToday
                                             ? { color: C.accent, fontWeight: 700 }
-                                            : { color: '#5B5448' }}
+                                            : { color: '#4A515E' }}
                                     onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = C.hoverBg; }}
                                     onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
                                 >

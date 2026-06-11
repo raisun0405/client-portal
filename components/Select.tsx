@@ -5,14 +5,14 @@ import { ChevronDown, Check } from 'lucide-react';
 
 export type SelectOption = { value: string; label: string };
 
-// Warm-editorial custom dropdown (Inspo Option C palette) — admin shell only.
+// Cool-slate custom dropdown (Inspo Option C palette) — admin shell only.
 const C = {
-    ink: '#1C1A17',
-    muted: '#8A857C',
-    faint: '#B5B0A6',
-    border: '#E9E5DD',
-    hoverBg: '#F6F4F0',
-    accent: '#E8552E',
+    ink: '#1C2128',
+    muted: '#6E7686',
+    faint: '#A8AEBC',
+    border: '#E4E7ED',
+    hoverBg: '#F1F3F7',
+    accent: '#EE4D2D',
 };
 
 export function Select({
@@ -62,7 +62,7 @@ export function Select({
                 aria-haspopup="listbox"
                 aria-expanded={open}
                 className="w-full h-10 px-3.5 rounded-xl bg-white text-[14px] flex items-center justify-between gap-2 transition-shadow outline-none disabled:opacity-50"
-                style={{ boxShadow: open ? `0 0 0 1px ${C.accent}, 0 0 0 3px rgba(232,85,46,0.15)` : `0 0 0 1px ${C.border}` }}
+                style={{ boxShadow: open ? `0 0 0 1px ${C.accent}, 0 0 0 3px rgba(238,77,45,0.15)` : `0 0 0 1px ${C.border}` }}
             >
                 <span className="truncate" style={{ color: selected ? C.ink : C.faint }}>{selected ? selected.label : (placeholder || 'Select…')}</span>
                 <ChevronDown size={15} className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} style={{ color: C.muted }} />
@@ -71,7 +71,7 @@ export function Select({
                 <div
                     role="listbox"
                     className={`absolute z-[70] w-full rounded-xl bg-white p-1.5 max-h-60 overflow-y-auto ${flipUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5'}`}
-                    style={{ boxShadow: `0 0 0 1px ${C.border}, 0 16px 40px -8px rgba(22,20,15,0.25)` }}
+                    style={{ boxShadow: `0 0 0 1px ${C.border}, 0 16px 40px -8px rgba(26,29,37,0.25)` }}
                 >
                     {options.map(o => (
                         <button
@@ -81,7 +81,7 @@ export function Select({
                             aria-selected={o.value === value}
                             onClick={() => { onChange(o.value); setOpen(false); }}
                             className="w-full flex items-center justify-between gap-2 text-left px-3 py-2 text-[13px] rounded-lg transition-colors"
-                            style={o.value === value ? { background: C.hoverBg, color: C.ink, fontWeight: 700 } : { color: '#5B5448' }}
+                            style={o.value === value ? { background: C.hoverBg, color: C.ink, fontWeight: 700 } : { color: '#4A515E' }}
                             onMouseEnter={e => { if (o.value !== value) e.currentTarget.style.background = C.hoverBg; }}
                             onMouseLeave={e => { if (o.value !== value) e.currentTarget.style.background = 'transparent'; }}
                         >

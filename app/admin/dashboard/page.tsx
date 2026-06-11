@@ -102,28 +102,28 @@ type ProjectWithStats = Project & {
     };
 };
 
-// ===== Warm Editorial design tokens (Inspo/shared.jsx · Option C) =====
+// ===== Cool Slate design tokens (Inspo Option C layout · reference palette) =====
 const T = {
-    bg: '#F1EDE5',          // beige canvas
+    bg: '#EEF1F5',          // beige canvas
     card: '#FFFFFF',
-    ink: '#1C1A17',
-    dark: '#16140F',        // dark hero card / SHIP pill / active rail
-    muted: '#8A857C',
-    faint: '#B5B0A6',
-    border: '#E9E5DD',
-    borderSoft: '#EFECE5',
-    hairline: '#DDD6C6',    // editorial row separators
-    railBorder: '#E2DCCF',
-    label: '#A29A86',       // small-caps section labels
-    accent: '#E8552E',
-    accentSoft: '#FBEAE3',
+    ink: '#1C2128',
+    dark: '#1A1D25',        // dark hero card / SHIP pill / active rail
+    muted: '#6E7686',
+    faint: '#A8AEBC',
+    border: '#E4E7ED',
+    borderSoft: '#EDEFF3',
+    hairline: '#DFE3EA',    // editorial row separators
+    railBorder: '#DCE0E8',
+    label: '#959DAD',       // small-caps section labels
+    accent: '#EE4D2D',
+    accentSoft: '#FCE9E4',
     green: '#1F8A5B',
     greenSoft: '#E4F2EB',
     amber: '#A86B2D',
     amberSoft: '#F7EDD8',
 };
 
-const AVATAR_HUES = ['#E8552E', '#16140F', '#A86B2D', '#5B5448'];
+const AVATAR_HUES = ['#EE4D2D', '#1A1D25', '#5B7CB5', '#4A515E'];
 const hueFor = (name: string) => AVATAR_HUES[(name || ' ').split('').reduce((a, ch) => a + ch.charCodeAt(0), 0) % AVATAR_HUES.length];
 
 function WarmAvatar({ name, size = 44 }: { name: string; size?: number }) {
@@ -140,18 +140,18 @@ function WarmAvatar({ name, size = 44 }: { name: string; size?: number }) {
 // Stage pill tones — REAL statuses, Option C pill anatomy (soft bg, dot, small caps).
 type PillTone = { bg: string; fg: string; dot: string };
 const PROJECT_STAGE: Record<string, PillTone> = {
-    'Not Started': { bg: '#F0EEE8', fg: '#6E6759', dot: '#A89F8D' },
-    'In Progress': { bg: '#FBEAE3', fg: '#E8552E', dot: '#E8552E' },
-    'Completed': { bg: '#16140F', fg: '#FFFFFF', dot: '#FFFFFF' },
+    'Not Started': { bg: '#EAEDF2', fg: '#5E6675', dot: '#A0A7B4' },
+    'In Progress': { bg: '#FCE9E4', fg: '#EE4D2D', dot: '#EE4D2D' },
+    'Completed': { bg: '#1A1D25', fg: '#FFFFFF', dot: '#FFFFFF' },
     'On Hold': { bg: '#F7EDD8', fg: '#A86B2D', dot: '#A86B2D' },
-    'Cancelled': { bg: '#EFECE5', fg: '#8A857C', dot: '#B5B0A6' },
+    'Cancelled': { bg: '#EDEFF3', fg: '#6E7686', dot: '#A8AEBC' },
 };
 const FEATURE_STAGE: Record<string, PillTone> = {
-    Requested: { bg: '#F0EEE8', fg: '#6E6759', dot: '#A89F8D' },
-    Approved: { bg: '#EFECE5', fg: '#5B5448', dot: '#5B5448' },
-    Working: { bg: '#FBEAE3', fg: '#E8552E', dot: '#E8552E' },
-    Updating: { bg: '#FBEAE3', fg: '#E8552E', dot: '#E8552E' },
-    Completed: { bg: '#16140F', fg: '#FFFFFF', dot: '#FFFFFF' },
+    Requested: { bg: '#EAEDF2', fg: '#5E6675', dot: '#A0A7B4' },
+    Approved: { bg: '#EDEFF3', fg: '#4A515E', dot: '#4A515E' },
+    Working: { bg: '#FCE9E4', fg: '#EE4D2D', dot: '#EE4D2D' },
+    Updating: { bg: '#FCE9E4', fg: '#EE4D2D', dot: '#EE4D2D' },
+    Completed: { bg: '#1A1D25', fg: '#FFFFFF', dot: '#FFFFFF' },
 };
 
 function StagePill({ label, tone, size = 'md' }: { label: string; tone: PillTone; size?: 'sm' | 'md' }) {
@@ -180,7 +180,7 @@ function SectionHead({ title, meta, right }: { title: string; meta?: string; rig
 function EmptyBlock({ icon, title, sub }: { icon: React.ReactNode; title: string; sub: string }) {
     return (
         <div className="py-16 px-6 text-center" style={{ borderBottom: `1px solid ${T.hairline}` }}>
-            <div className="inline-grid place-items-center w-12 h-12 rounded-2xl mb-4" style={{ background: '#F0EEE8', color: '#6E6759' }}>{icon}</div>
+            <div className="inline-grid place-items-center w-12 h-12 rounded-2xl mb-4" style={{ background: '#EAEDF2', color: '#5E6675' }}>{icon}</div>
             <p className="font-extrabold" style={{ fontSize: 19, letterSpacing: '-0.02em', color: T.ink }}>{title}</p>
             <p className="text-[13.5px] mt-1.5 max-w-sm mx-auto" style={{ color: T.muted }}>{sub}</p>
         </div>
@@ -195,7 +195,7 @@ function DarkPanel({ heading, pct, collected, outstanding }: { heading: string; 
             <div className="flex items-baseline">
                 <div className="text-[11.5px] font-extrabold uppercase" style={{ letterSpacing: '0.14em', color: 'rgba(255,255,255,0.4)' }}>{heading}</div>
                 <div className="ml-auto flex gap-1.5">
-                    {[T.accent, '#FFFFFF', '#6E6759'].map((h, i) => <span key={i} className="w-1.5 h-1.5 rounded-full" style={{ background: h }} />)}
+                    {[T.accent, '#FFFFFF', '#5E6675'].map((h, i) => <span key={i} className="w-1.5 h-1.5 rounded-full" style={{ background: h }} />)}
                 </div>
             </div>
             <div className="flex flex-col lg:flex-row lg:items-end gap-8 lg:gap-14 mt-7">
@@ -233,8 +233,8 @@ function RailBtn({ icon: Icon, active, disabled, onClick, title }: { icon: React
             title={title}
             aria-label={title}
             className="w-11 h-11 rounded-[14px] grid place-items-center transition-colors disabled:opacity-35 disabled:cursor-not-allowed"
-            style={active ? { background: T.dark, color: '#fff' } : { color: '#9A937F' }}
-            onMouseEnter={e => { if (!active && !disabled) e.currentTarget.style.background = 'rgba(22,20,15,0.06)'; }}
+            style={active ? { background: T.dark, color: '#fff' } : { color: '#828A99' }}
+            onMouseEnter={e => { if (!active && !disabled) e.currentTarget.style.background = 'rgba(26,29,37,0.06)'; }}
             onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent'; }}
         >
             <Icon size={19} strokeWidth={1.8} />
@@ -246,7 +246,7 @@ function RailBtn({ icon: Icon, active, disabled, onClick, title }: { icon: React
 const wLabelCls = 'block text-[10.5px] font-extrabold uppercase tracking-[0.12em] mb-2';
 const wInputCls = 'w-full h-10 px-3.5 rounded-xl bg-white text-[14px] outline-none transition-shadow';
 const wInputStyle: React.CSSProperties = { boxShadow: `0 0 0 1px ${T.border}`, color: T.ink };
-const wFocus = (e: React.FocusEvent<HTMLInputElement>) => { e.currentTarget.style.boxShadow = `0 0 0 1px ${T.accent}, 0 0 0 3px rgba(232,85,46,0.15)`; };
+const wFocus = (e: React.FocusEvent<HTMLInputElement>) => { e.currentTarget.style.boxShadow = `0 0 0 1px ${T.accent}, 0 0 0 3px rgba(238,77,45,0.15)`; };
 const wBlur = (e: React.FocusEvent<HTMLInputElement>) => { e.currentTarget.style.boxShadow = `0 0 0 1px ${T.border}`; };
 
 export default function AdminDashboard() {
@@ -1430,16 +1430,16 @@ export default function AdminDashboard() {
 
     return (
         <div className={`${hankenFont.variable} ${jbMonoFont.variable} warm-root font-hanken min-h-screen antialiased`} style={{ background: T.bg, color: T.ink }}>
-            {/* Warm Editorial canvas (Inspo Option C) — Hanken Grotesk + JetBrains Mono */}
+            {/* Cool Slate canvas (reference palette) — Hanken Grotesk + JetBrains Mono */}
             <style>{`
                 .font-hanken { font-family: var(--font-hanken), 'Hanken Grotesk', system-ui, sans-serif; }
                 .font-jbmono { font-family: var(--font-jbmono), 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace; font-feature-settings: "tnum"; }
                 /* Override globals.css body bg so overscroll doesn't flash the portal's slate */
-                html, body { background-color: #F1EDE5 !important; overscroll-behavior: none; }
-                .warm-root ::selection { background: rgba(232,85,46,0.22); }
-                .warm-root .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(28,26,23,0.16); }
-                .warm-root .custom-scrollbar { scrollbar-width: thin; scrollbar-color: rgba(28,26,23,0.16) transparent; }
-                .warm-root input[type='checkbox'] { accent-color: #E8552E; }
+                html, body { background-color: #EEF1F5 !important; overscroll-behavior: none; }
+                .warm-root ::selection { background: rgba(238,77,45,0.22); }
+                .warm-root .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(28,33,40,0.16); }
+                .warm-root .custom-scrollbar { scrollbar-width: thin; scrollbar-color: rgba(28,33,40,0.16) transparent; }
+                .warm-root input[type='checkbox'] { accent-color: #EE4D2D; }
                 .warm-root input[type=number]::-webkit-outer-spin-button, .warm-root input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
             `}</style>
 
@@ -1465,7 +1465,7 @@ export default function AdminDashboard() {
                 </nav>
                 <div className="mt-auto flex flex-col items-center gap-3">
                     <RailBtn icon={LogOut} title="Sign out" onClick={signOut} />
-                    <div className="w-10 h-10 rounded-full grid place-items-center text-white font-bold text-[15px] select-none" style={{ background: '#5B5448' }}>R</div>
+                    <div className="w-10 h-10 rounded-full grid place-items-center text-white font-bold text-[15px] select-none" style={{ background: '#4A515E' }}>R</div>
                 </div>
             </aside>
 
@@ -1479,7 +1479,7 @@ export default function AdminDashboard() {
                             onClick={signOut}
                             aria-label="Sign out"
                             className="ml-auto w-9 h-9 rounded-full grid place-items-center transition-colors"
-                            style={{ border: `1px solid ${T.hairline}`, color: '#857D69' }}
+                            style={{ border: `1px solid ${T.hairline}`, color: '#6E7686' }}
                         >
                             <LogOut size={14} strokeWidth={2} />
                         </button>
@@ -1543,7 +1543,7 @@ export default function AdminDashboard() {
 
                         const searchPill = (
                             <div className="flex items-center gap-2.5 rounded-full h-11 px-4.5 min-w-0" style={{ border: `1px solid ${T.hairline}`, paddingLeft: 18, paddingRight: 14 }}>
-                                <Search size={15} style={{ color: '#9A937F' }} strokeWidth={2} />
+                                <Search size={15} style={{ color: '#828A99' }} strokeWidth={2} />
                                 <input
                                     type="text"
                                     name="client_search"
@@ -1551,13 +1551,13 @@ export default function AdminDashboard() {
                                     spellCheck={false}
                                     data-form-type="other"
                                     placeholder="Search clients…"
-                                    className="bg-transparent outline-none text-[13.5px] w-full min-w-0 placeholder:text-[#9A937F]"
+                                    className="bg-transparent outline-none text-[13.5px] w-full min-w-0 placeholder:text-[#828A99]"
                                     style={{ color: T.ink }}
                                     value={clientSearch}
                                     onChange={(e) => setClientSearch(e.target.value)}
                                 />
                                 {clientSearch && (
-                                    <button type="button" onClick={() => setClientSearch('')} aria-label="Clear search" className="shrink-0 grid place-items-center w-5 h-5 rounded-full transition-colors hover:bg-[rgba(22,20,15,0.08)]" style={{ color: '#9A937F' }}>
+                                    <button type="button" onClick={() => setClientSearch('')} aria-label="Clear search" className="shrink-0 grid place-items-center w-5 h-5 rounded-full transition-colors hover:bg-[rgba(26,29,37,0.08)]" style={{ color: '#828A99' }}>
                                         <X size={11} strokeWidth={2.5} />
                                     </button>
                                 )}
@@ -1587,12 +1587,12 @@ export default function AdminDashboard() {
                                 <div className="flex flex-wrap items-end gap-x-10 gap-y-8 mt-10 mb-9">
                                     {totalClients === 0 ? (
                                         <h1 className="font-extrabold" style={{ fontSize: 'clamp(40px, 5.2vw, 74px)', letterSpacing: '-0.045em', lineHeight: 0.98, margin: 0 }}>
-                                            Empty<br /><span style={{ color: '#B9B19C' }}>portfolio.</span>
+                                            Empty<br /><span style={{ color: '#AAB1BE' }}>portfolio.</span>
                                         </h1>
                                     ) : (
                                         <h1 className="font-extrabold tabular-nums" style={{ fontSize: 'clamp(40px, 5.2vw, 74px)', letterSpacing: '-0.045em', lineHeight: 0.98, margin: 0 }}>
                                             {fmtINR(totalValue)}<br />
-                                            <span style={{ color: '#B9B19C' }}>in contracted work.</span>
+                                            <span style={{ color: '#AAB1BE' }}>in contracted work.</span>
                                         </h1>
                                     )}
                                     {totalClients > 0 && (
@@ -1638,8 +1638,8 @@ export default function AdminDashboard() {
                                                         onClick={() => setSortOpen(o => !o)}
                                                         aria-expanded={sortOpen}
                                                         aria-haspopup="listbox"
-                                                        className="flex items-center gap-2 text-[13px] font-bold transition-colors hover:text-[#1C1A17]"
-                                                        style={{ color: '#857D69' }}
+                                                        className="flex items-center gap-2 text-[13px] font-bold transition-colors hover:text-[#1C2128]"
+                                                        style={{ color: '#6E7686' }}
                                                     >
                                                         {sortLabels[clientSort]}
                                                         <ChevronDown size={14} strokeWidth={2.2} className={`transition-transform ${sortOpen ? 'rotate-180' : ''}`} />
@@ -1649,15 +1649,15 @@ export default function AdminDashboard() {
                                                             initial={{ opacity: 0, y: -4 }}
                                                             animate={{ opacity: 1, y: 0 }}
                                                             className="absolute right-0 top-full mt-2 w-52 rounded-xl z-50 overflow-hidden p-1.5 bg-white"
-                                                            style={{ boxShadow: `0 0 0 1px ${T.border}, 0 16px 40px -8px rgba(22,20,15,0.25)` }}
+                                                            style={{ boxShadow: `0 0 0 1px ${T.border}, 0 16px 40px -8px rgba(26,29,37,0.25)` }}
                                                         >
                                                             {(['recent', 'name', 'projects', 'value'] as ClientSortField[]).map(key => (
                                                                 <button
                                                                     key={key}
                                                                     onClick={() => { setClientSort(key); setSortOpen(false); }}
                                                                     className="w-full flex items-center justify-between text-left px-3 py-2 text-[13px] rounded-lg transition-colors"
-                                                                    style={clientSort === key ? { background: '#F6F4F0', color: T.ink, fontWeight: 700 } : { color: '#5B5448' }}
-                                                                    onMouseEnter={e => { if (clientSort !== key) e.currentTarget.style.background = '#F6F4F0'; }}
+                                                                    style={clientSort === key ? { background: '#F1F3F7', color: T.ink, fontWeight: 700 } : { color: '#4A515E' }}
+                                                                    onMouseEnter={e => { if (clientSort !== key) e.currentTarget.style.background = '#F1F3F7'; }}
                                                                     onMouseLeave={e => { if (clientSort !== key) e.currentTarget.style.background = 'transparent'; }}
                                                                 >
                                                                     {sortLabels[key]}
@@ -1703,7 +1703,7 @@ export default function AdminDashboard() {
                                                                         </span>
                                                                     )}
                                                                 </div>
-                                                                <div className="text-[12.5px] truncate mt-0.5" style={{ color: '#9A937F' }}>
+                                                                <div className="text-[12.5px] truncate mt-0.5" style={{ color: '#828A99' }}>
                                                                     {client.email || <span style={{ color: T.accent }}>No email on file</span>}
                                                                 </div>
                                                             </div>
@@ -1721,8 +1721,8 @@ export default function AdminDashboard() {
                                                                 aria-label="Open actions menu"
                                                                 aria-expanded={openMenuId === client.id}
                                                                 aria-haspopup="menu"
-                                                                className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(22,20,15,0.06)]"
-                                                                style={{ color: '#857D69' }}
+                                                                className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(26,29,37,0.06)]"
+                                                                style={{ color: '#6E7686' }}
                                                             >
                                                                 <MoreHorizontal size={16} />
                                                             </button>
@@ -1733,10 +1733,10 @@ export default function AdminDashboard() {
                                                             <button
                                                                 onClick={() => copyAccessKey(client.access_key)}
                                                                 className="inline-flex items-center gap-2 rounded-[9px] px-2.5 h-8 max-w-full transition-colors hover:bg-white"
-                                                                style={{ border: `1px solid ${T.border}`, background: '#F6F4EF' }}
+                                                                style={{ border: `1px solid ${T.border}`, background: '#F1F3F7' }}
                                                                 title={isCopied ? 'Copied' : 'Click to copy'}
                                                             >
-                                                                <span className="font-jbmono text-[12px] truncate" style={{ color: '#6E6759' }}>{client.access_key}</span>
+                                                                <span className="font-jbmono text-[12px] truncate" style={{ color: '#5E6675' }}>{client.access_key}</span>
                                                                 {isCopied
                                                                     ? <Check size={13} className="shrink-0" style={{ color: T.green }} strokeWidth={2.5} />
                                                                     : <Copy size={13} className="shrink-0" style={{ color: T.faint }} strokeWidth={1.8} />}
@@ -1748,10 +1748,10 @@ export default function AdminDashboard() {
                                                             {client.stats.projectCount > 0 ? (
                                                                 <>
                                                                     <span className="lg:hidden text-[11px] font-extrabold uppercase mr-2" style={{ letterSpacing: '0.1em', color: T.label }}>Projects</span>
-                                                                    {client.stats.completedProjects}<span style={{ color: '#B9B19C', fontWeight: 600 }}>/{client.stats.projectCount}</span>
+                                                                    {client.stats.completedProjects}<span style={{ color: '#AAB1BE', fontWeight: 600 }}>/{client.stats.projectCount}</span>
                                                                 </>
                                                             ) : (
-                                                                <span style={{ color: '#B9B19C' }}>—</span>
+                                                                <span style={{ color: '#AAB1BE' }}>—</span>
                                                             )}
                                                         </div>
 
@@ -1760,16 +1760,16 @@ export default function AdminDashboard() {
                                                             <div className="lg:text-right">
                                                                 {isPkg ? (
                                                                     <>
-                                                                        <div className="tabular-nums" style={{ fontSize: 15, fontWeight: 700 }}>{fmtINR(Number(client.package_fee) || 0)}<span style={{ color: '#9A937F', fontWeight: 600 }}>/mo</span></div>
-                                                                        <div className="text-[11.5px] font-semibold" style={{ color: '#9A937F' }}>retainer</div>
+                                                                        <div className="tabular-nums" style={{ fontSize: 15, fontWeight: 700 }}>{fmtINR(Number(client.package_fee) || 0)}<span style={{ color: '#828A99', fontWeight: 600 }}>/mo</span></div>
+                                                                        <div className="text-[11.5px] font-semibold" style={{ color: '#828A99' }}>retainer</div>
                                                                     </>
                                                                 ) : client.stats.totalValue > 0 ? (
                                                                     <>
                                                                         <div className="tabular-nums" style={{ fontSize: 15, fontWeight: 700 }}>{formatK(client.stats.totalValue)}</div>
-                                                                        <div className="text-[11.5px] font-semibold tabular-nums" style={{ color: paidPctClient === 100 ? T.green : '#9A937F' }}>{paidPctClient}% paid</div>
+                                                                        <div className="text-[11.5px] font-semibold tabular-nums" style={{ color: paidPctClient === 100 ? T.green : '#828A99' }}>{paidPctClient}% paid</div>
                                                                     </>
                                                                 ) : (
-                                                                    <div style={{ color: '#B9B19C', fontWeight: 600, fontSize: 14 }}>—</div>
+                                                                    <div style={{ color: '#AAB1BE', fontWeight: 600, fontSize: 14 }}>—</div>
                                                                 )}
                                                             </div>
                                                             {stage && <StagePill label={stage.label} tone={stage.tone} />}
@@ -1787,8 +1787,8 @@ export default function AdminDashboard() {
                                                                 aria-label="Open actions menu"
                                                                 aria-expanded={openMenuId === client.id}
                                                                 aria-haspopup="menu"
-                                                                className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(22,20,15,0.06)]"
-                                                                style={{ color: '#857D69' }}
+                                                                className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(26,29,37,0.06)]"
+                                                                style={{ color: '#6E7686' }}
                                                             >
                                                                 <MoreHorizontal size={16} />
                                                             </button>
@@ -1803,7 +1803,7 @@ export default function AdminDashboard() {
                                                                 initial={{ opacity: 0, y: menuFlipUp ? 4 : -4 }}
                                                                 animate={{ opacity: 1, y: 0 }}
                                                                 className={`absolute right-0 w-56 rounded-xl z-50 overflow-hidden p-1.5 bg-white ${menuFlipUp ? 'bottom-[64px]' : 'top-1'}`}
-                                                                style={{ boxShadow: `0 0 0 1px ${T.border}, 0 16px 40px -8px rgba(22,20,15,0.25)` }}
+                                                                style={{ boxShadow: `0 0 0 1px ${T.border}, 0 16px 40px -8px rgba(26,29,37,0.25)` }}
                                                             >
                                                                 {[
                                                                     { icon: <FolderPlus size={14} />, label: 'Projects', fn: () => handleClientSelect(client) },
@@ -1820,9 +1820,9 @@ export default function AdminDashboard() {
                                                                         role="menuitem"
                                                                         onClick={() => { setOpenMenuId(null); item.fn(); }}
                                                                         className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] font-semibold rounded-lg transition-colors text-left"
-                                                                        style={{ color: '#5B5448' }}
-                                                                        onMouseEnter={e => { e.currentTarget.style.background = '#F6F4F0'; e.currentTarget.style.color = T.ink; }}
-                                                                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#5B5448'; }}
+                                                                        style={{ color: '#4A515E' }}
+                                                                        onMouseEnter={e => { e.currentTarget.style.background = '#F1F3F7'; e.currentTarget.style.color = T.ink; }}
+                                                                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#4A515E'; }}
                                                                     >
                                                                         {item.icon}{item.label}
                                                                     </button>
@@ -1832,9 +1832,9 @@ export default function AdminDashboard() {
                                                                     role="menuitem"
                                                                     onClick={() => { setOpenMenuId(null); handleEditClient(client); }}
                                                                     className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] font-semibold rounded-lg transition-colors text-left"
-                                                                    style={{ color: '#5B5448' }}
-                                                                    onMouseEnter={e => { e.currentTarget.style.background = '#F6F4F0'; e.currentTarget.style.color = T.ink; }}
-                                                                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#5B5448'; }}
+                                                                    style={{ color: '#4A515E' }}
+                                                                    onMouseEnter={e => { e.currentTarget.style.background = '#F1F3F7'; e.currentTarget.style.color = T.ink; }}
+                                                                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#4A515E'; }}
                                                                 >
                                                                     <Pencil size={14} />Edit
                                                                 </button>
@@ -1869,19 +1869,19 @@ export default function AdminDashboard() {
                                                 <button
                                                     key={log.id}
                                                     onClick={() => cl && handleViewActivity(cl)}
-                                                    className="w-full flex items-center gap-3 py-4 text-left transition-colors hover:bg-[rgba(22,20,15,0.025)]"
+                                                    className="w-full flex items-center gap-3 py-4 text-left transition-colors hover:bg-[rgba(26,29,37,0.025)]"
                                                     style={{ borderBottom: `1px solid ${T.hairline}` }}
                                                 >
                                                     <div className="min-w-0 flex-1">
                                                         <div className="font-bold truncate" style={{ fontSize: 14 }}>{log.title}</div>
-                                                        <div className="text-[12.5px] mt-0.5 truncate" style={{ color: '#9A937F' }}>
+                                                        <div className="text-[12.5px] mt-0.5 truncate" style={{ color: '#828A99' }}>
                                                             {cl?.name || 'Unknown client'} · {getRelativeTime(log.created_at)}
                                                         </div>
                                                     </div>
                                                     {amount > 0 && (
                                                         <div className="text-right shrink-0">
                                                             <div className="font-bold tabular-nums" style={{ fontSize: 13.5 }}>₹{amount.toLocaleString('en-IN')}</div>
-                                                            <div className="text-[10.5px] font-extrabold uppercase mt-0.5" style={{ letterSpacing: '0.05em', color: isMoneyIn ? T.green : '#857D69' }}>
+                                                            <div className="text-[10.5px] font-extrabold uppercase mt-0.5" style={{ letterSpacing: '0.05em', color: isMoneyIn ? T.green : '#6E7686' }}>
                                                                 {isMoneyIn ? 'Paid' : getActivityMeta(log.action_type).label}
                                                             </div>
                                                         </div>
@@ -1892,11 +1892,11 @@ export default function AdminDashboard() {
 
                                         {/* Outstanding note card */}
                                         {debtors.length > 0 && (
-                                            <div className="mt-6 rounded-[18px] px-5 py-[18px]" style={{ background: '#E9E3D4' }}>
+                                            <div className="mt-6 rounded-[18px] px-5 py-[18px]" style={{ background: '#E5E9F1' }}>
                                                 <div className="font-bold" style={{ fontSize: 13.5 }}>
                                                     {debtors.length} {debtors.length === 1 ? 'client has' : 'clients have'} dues
                                                 </div>
-                                                <div className="text-[12.5px] mt-1 leading-[1.5]" style={{ color: '#857D69' }}>
+                                                <div className="text-[12.5px] mt-1 leading-[1.5]" style={{ color: '#6E7686' }}>
                                                     ₹{debtors.reduce((a, c) => a + c.stats.pendingValue, 0).toLocaleString('en-IN')} awaiting collection from {debtors.slice(0, 2).map(c => c.name.split(' ')[0]).join(' & ')}{debtors.length > 2 ? ` +${debtors.length - 2} more` : ''}.
                                                 </div>
                                             </div>
@@ -1923,7 +1923,7 @@ export default function AdminDashboard() {
                             <div>
                                 {/* ===== TOP BAR ===== */}
                                 <header className="flex items-center gap-3">
-                                    <button onClick={handleBack} aria-label="Back to clients" className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(22,20,15,0.06)] shrink-0" style={{ border: `1px solid ${T.hairline}`, color: '#857D69' }}>
+                                    <button onClick={handleBack} aria-label="Back to clients" className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(26,29,37,0.06)] shrink-0" style={{ border: `1px solid ${T.hairline}`, color: '#6E7686' }}>
                                         <ArrowLeft size={15} strokeWidth={2} />
                                     </button>
                                     <div className="text-[11.5px] font-extrabold uppercase truncate" style={{ letterSpacing: '0.14em', color: T.label }}>
@@ -1944,7 +1944,7 @@ export default function AdminDashboard() {
                                 <div className="mt-10 mb-9 max-w-3xl">
                                     <h1 className="font-extrabold break-words" style={{ fontSize: 'clamp(34px, 4.4vw, 56px)', letterSpacing: '-0.04em', lineHeight: 1.0, margin: 0 }}>
                                         {selectedClient?.name || 'Client'}.<br />
-                                        <span style={{ color: '#B9B19C' }}>
+                                        <span style={{ color: '#AAB1BE' }}>
                                             {projectsCount === 0 ? 'No projects yet.' : `${projectsCount} ${projectsCount === 1 ? 'project' : 'projects'}.`}
                                         </span>
                                     </h1>
@@ -1989,7 +1989,7 @@ export default function AdminDashboard() {
                                                 style={{ borderBottom: `1px solid ${T.hairline}` }}
                                             >
                                                 {/* Index */}
-                                                <div className="hidden lg:block font-jbmono text-[12.5px]" style={{ color: '#857D69' }}>
+                                                <div className="hidden lg:block font-jbmono text-[12.5px]" style={{ color: '#6E7686' }}>
                                                     {String(idx + 1).padStart(2, '0')}
                                                 </div>
 
@@ -2000,7 +2000,7 @@ export default function AdminDashboard() {
                                                         <StagePill label={ds} tone={tone} size="sm" />
                                                     </div>
                                                     <div className="text-[11.5px] font-extrabold uppercase mt-1.5" style={{ letterSpacing: '0.1em', color: T.label }}>
-                                                        {project.category} <span style={{ color: '#C9C2B2' }}>·</span> {new Date(project.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                        {project.category} <span style={{ color: '#BFC5D0' }}>·</span> {new Date(project.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                                                     </div>
                                                 </div>
 
@@ -2018,7 +2018,7 @@ export default function AdminDashboard() {
                                                         </div>
                                                         <span className="text-[12.5px] font-semibold tabular-nums shrink-0" style={{ color: T.muted }}>{progress}%</span>
                                                     </div>
-                                                    <div className="text-[11.5px] font-semibold mt-1.5 tabular-nums" style={{ color: '#9A937F' }}>
+                                                    <div className="text-[11.5px] font-semibold mt-1.5 tabular-nums" style={{ color: '#828A99' }}>
                                                         {project.stats?.completedFeatures ?? 0}/{project.stats?.totalFeatures ?? 0} features done
                                                     </div>
                                                 </div>
@@ -2033,7 +2033,7 @@ export default function AdminDashboard() {
                                                             </div>
                                                         </>
                                                     ) : (
-                                                        <div style={{ color: '#B9B19C', fontWeight: 600, fontSize: 14 }}>{isPkgClient ? 'covered' : '—'}</div>
+                                                        <div style={{ color: '#AAB1BE', fontWeight: 600, fontSize: 14 }}>{isPkgClient ? 'covered' : '—'}</div>
                                                     )}
                                                 </div>
 
@@ -2041,8 +2041,8 @@ export default function AdminDashboard() {
                                                 <div className="flex items-center gap-1.5 lg:justify-end flex-wrap">
                                                     <button
                                                         onClick={() => handleProjectLinksSelect(project)}
-                                                        className="rounded-full h-9 px-4 text-[12.5px] font-bold flex items-center gap-1.5 transition-colors hover:bg-[rgba(22,20,15,0.06)]"
-                                                        style={{ border: `1px solid ${T.hairline}`, color: '#5B5448' }}
+                                                        className="rounded-full h-9 px-4 text-[12.5px] font-bold flex items-center gap-1.5 transition-colors hover:bg-[rgba(26,29,37,0.06)]"
+                                                        style={{ border: `1px solid ${T.hairline}`, color: '#4A515E' }}
                                                     >
                                                         <Link2 size={13} strokeWidth={2} /> Links
                                                     </button>
@@ -2056,8 +2056,8 @@ export default function AdminDashboard() {
                                                     <button
                                                         onClick={() => handleEditProject(project)}
                                                         aria-label="Edit project"
-                                                        className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(22,20,15,0.06)]"
-                                                        style={{ color: '#857D69' }}
+                                                        className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(26,29,37,0.06)]"
+                                                        style={{ color: '#6E7686' }}
                                                     >
                                                         <Pencil size={14} strokeWidth={2} />
                                                     </button>
@@ -2065,9 +2065,9 @@ export default function AdminDashboard() {
                                                         onClick={() => handleDelete(project.id, 'projects')}
                                                         aria-label="Delete project"
                                                         className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(179,51,29,0.08)]"
-                                                        style={{ color: '#857D69' }}
+                                                        style={{ color: '#6E7686' }}
                                                         onMouseEnter={e => { e.currentTarget.style.color = '#B3331D'; }}
-                                                        onMouseLeave={e => { e.currentTarget.style.color = '#857D69'; }}
+                                                        onMouseLeave={e => { e.currentTarget.style.color = '#6E7686'; }}
                                                     >
                                                         <Trash2 size={14} strokeWidth={2} />
                                                     </button>
@@ -2085,7 +2085,7 @@ export default function AdminDashboard() {
                         <div>
                             {/* ===== TOP BAR ===== */}
                             <header className="flex items-center gap-3">
-                                <button onClick={handleBack} aria-label="Back to projects" className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(22,20,15,0.06)] shrink-0" style={{ border: `1px solid ${T.hairline}`, color: '#857D69' }}>
+                                <button onClick={handleBack} aria-label="Back to projects" className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(26,29,37,0.06)] shrink-0" style={{ border: `1px solid ${T.hairline}`, color: '#6E7686' }}>
                                     <ArrowLeft size={15} strokeWidth={2} />
                                 </button>
                                 <div className="text-[11.5px] font-extrabold uppercase truncate" style={{ letterSpacing: '0.14em', color: T.label }}>
@@ -2106,7 +2106,7 @@ export default function AdminDashboard() {
                             <div className="mt-10 mb-9 max-w-3xl">
                                 <h1 className="font-extrabold break-words" style={{ fontSize: 'clamp(32px, 4vw, 52px)', letterSpacing: '-0.04em', lineHeight: 1.02, margin: 0 }}>
                                     {selectedProject?.description || 'Project'}.<br />
-                                    <span style={{ color: '#B9B19C' }}>{links.length} {links.length === 1 ? 'link' : 'links'}.</span>
+                                    <span style={{ color: '#AAB1BE' }}>{links.length} {links.length === 1 ? 'link' : 'links'}.</span>
                                 </h1>
                                 <p className="text-[15.5px] mt-5 leading-[1.55] max-w-xl" style={{ color: T.muted }}>
                                     {links.length === 0
@@ -2129,7 +2129,7 @@ export default function AdminDashboard() {
                                         className="flex items-center gap-4 py-[18px]"
                                         style={{ borderBottom: `1px solid ${T.hairline}` }}
                                     >
-                                        <div className="shrink-0 w-10 h-10 rounded-xl grid place-items-center" style={{ background: '#F0EEE8', color: '#6E6759' }}>
+                                        <div className="shrink-0 w-10 h-10 rounded-xl grid place-items-center" style={{ background: '#EAEDF2', color: '#5E6675' }}>
                                             <Link2 size={15} strokeWidth={2} />
                                         </div>
                                         <div className="min-w-0 flex-1">
@@ -2139,9 +2139,9 @@ export default function AdminDashboard() {
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="font-jbmono text-[12px] truncate block mt-0.5 transition-colors"
-                                                style={{ color: '#857D69' }}
+                                                style={{ color: '#6E7686' }}
                                                 onMouseEnter={e => { e.currentTarget.style.color = T.accent; }}
-                                                onMouseLeave={e => { e.currentTarget.style.color = '#857D69'; }}
+                                                onMouseLeave={e => { e.currentTarget.style.color = '#6E7686'; }}
                                             >
                                                 {link.url}
                                             </a>
@@ -2152,16 +2152,16 @@ export default function AdminDashboard() {
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 aria-label="Open link"
-                                                className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(22,20,15,0.06)]"
-                                                style={{ color: '#857D69' }}
+                                                className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(26,29,37,0.06)]"
+                                                style={{ color: '#6E7686' }}
                                             >
                                                 <ArrowUpRight size={14} strokeWidth={2} />
                                             </a>
                                             <button
                                                 onClick={() => { setEditingLinkIndex(index); setFormData({ link_title: link.title, link_url: link.url }); setShowModal(true); }}
                                                 aria-label="Edit link"
-                                                className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(22,20,15,0.06)]"
-                                                style={{ color: '#857D69' }}
+                                                className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(26,29,37,0.06)]"
+                                                style={{ color: '#6E7686' }}
                                             >
                                                 <Pencil size={14} strokeWidth={2} />
                                             </button>
@@ -2169,9 +2169,9 @@ export default function AdminDashboard() {
                                                 onClick={() => handleDeleteLink(index)}
                                                 aria-label="Delete link"
                                                 className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(179,51,29,0.08)]"
-                                                style={{ color: '#857D69' }}
+                                                style={{ color: '#6E7686' }}
                                                 onMouseEnter={e => { e.currentTarget.style.color = '#B3331D'; }}
-                                                onMouseLeave={e => { e.currentTarget.style.color = '#857D69'; }}
+                                                onMouseLeave={e => { e.currentTarget.style.color = '#6E7686'; }}
                                             >
                                                 <Trash2 size={14} strokeWidth={2} />
                                             </button>
@@ -2211,7 +2211,7 @@ export default function AdminDashboard() {
                             <div>
                                 {/* ===== TOP BAR ===== */}
                                 <header className="flex items-center gap-3">
-                                    <button onClick={handleBack} aria-label="Back to projects" className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(22,20,15,0.06)] shrink-0" style={{ border: `1px solid ${T.hairline}`, color: '#857D69' }}>
+                                    <button onClick={handleBack} aria-label="Back to projects" className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(26,29,37,0.06)] shrink-0" style={{ border: `1px solid ${T.hairline}`, color: '#6E7686' }}>
                                         <ArrowLeft size={15} strokeWidth={2} />
                                     </button>
                                     <div className="text-[11.5px] font-extrabold uppercase truncate" style={{ letterSpacing: '0.14em', color: T.label }}>
@@ -2233,7 +2233,7 @@ export default function AdminDashboard() {
                                     <div className="max-w-xl">
                                         <h1 className="font-extrabold break-words" style={{ fontSize: 'clamp(32px, 4vw, 52px)', letterSpacing: '-0.04em', lineHeight: 1.02, margin: 0 }}>
                                             {selectedProject?.description || 'Project'}.<br />
-                                            <span style={{ color: '#B9B19C' }}>{featuresCount} {featuresCount === 1 ? 'feature' : 'features'}.</span>
+                                            <span style={{ color: '#AAB1BE' }}>{featuresCount} {featuresCount === 1 ? 'feature' : 'features'}.</span>
                                         </h1>
                                         <p className="text-[15.5px] mt-5 leading-[1.55]" style={{ color: T.muted }}>
                                             {featuresCount === 0
@@ -2277,7 +2277,7 @@ export default function AdminDashboard() {
                                                         className="rounded-full h-7 px-3 text-[11px] font-extrabold uppercase flex items-center gap-1 transition-colors"
                                                         style={sortField === field
                                                             ? { background: T.dark, color: '#fff', letterSpacing: '0.05em' }
-                                                            : { color: '#857D69', letterSpacing: '0.05em' }}
+                                                            : { color: '#6E7686', letterSpacing: '0.05em' }}
                                                     >
                                                         {field === 'created_at' ? 'Date' : field}
                                                         {sortField === field && (sortOrder === 'asc' ? <ArrowUp size={10} strokeWidth={2.5} /> : <ArrowDown size={10} strokeWidth={2.5} />)}
@@ -2311,16 +2311,16 @@ export default function AdminDashboard() {
                                                             initial={{ opacity: 0 }}
                                                             animate={{ opacity: 1 }}
                                                             transition={{ delay: Math.min(idx * 0.025, 0.3), duration: 0.2 }}
-                                                            className="grid grid-cols-[minmax(0,2.6fr)_0.9fr_0.9fr_1.3fr_0.8fr_1.6fr_84px] gap-x-4 items-center py-4 transition-colors hover:bg-[rgba(22,20,15,0.02)]"
+                                                            className="grid grid-cols-[minmax(0,2.6fr)_0.9fr_0.9fr_1.3fr_0.8fr_1.6fr_84px] gap-x-4 items-center py-4 transition-colors hover:bg-[rgba(26,29,37,0.02)]"
                                                             style={{ borderBottom: `1px solid ${T.hairline}` }}
                                                         >
                                                             <div className="min-w-0">
                                                                 <p className="font-semibold truncate" style={{ fontSize: 14.5 }}>{feature.description}</p>
                                                             </div>
-                                                            <div className="font-jbmono text-[11.5px] tabular-nums" style={{ color: '#857D69' }}>
+                                                            <div className="font-jbmono text-[11.5px] tabular-nums" style={{ color: '#6E7686' }}>
                                                                 {feature.created_at ? new Date(feature.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—'}
                                                             </div>
-                                                            <div className="font-jbmono text-[11.5px] truncate" style={{ color: '#9A937F' }}>
+                                                            <div className="font-jbmono text-[11.5px] truncate" style={{ color: '#828A99' }}>
                                                                 {feature.estimation || '—'}
                                                             </div>
                                                             <div className="text-right">
@@ -2333,7 +2333,7 @@ export default function AdminDashboard() {
                                                                     <>
                                                                         <div className="font-bold tabular-nums" style={{ fontSize: 14.5 }}>{fmtINR(feature.amount || 0)}</div>
                                                                         {(feature.paid_amount || 0) > 0 && (feature.paid_amount || 0) < (feature.amount || 0) && (
-                                                                            <div className="font-jbmono text-[10.5px] tabular-nums" style={{ color: '#9A937F' }}>{fmtINR(feature.paid_amount || 0)} paid</div>
+                                                                            <div className="font-jbmono text-[10.5px] tabular-nums" style={{ color: '#828A99' }}>{fmtINR(feature.paid_amount || 0)} paid</div>
                                                                         )}
                                                                     </>
                                                                 )}
@@ -2341,7 +2341,7 @@ export default function AdminDashboard() {
                                                             <div>
                                                                 <span className="inline-flex rounded-full font-extrabold uppercase whitespace-nowrap" style={feature.is_new_request
                                                                     ? { background: T.accentSoft, color: T.accent, padding: '3px 9px', fontSize: 10, letterSpacing: '0.06em' }
-                                                                    : { background: '#F0EEE8', color: '#6E6759', padding: '3px 9px', fontSize: 10, letterSpacing: '0.06em' }}>
+                                                                    : { background: '#EAEDF2', color: '#5E6675', padding: '3px 9px', fontSize: 10, letterSpacing: '0.06em' }}>
                                                                     {feature.is_new_request ? 'Extra' : 'Core'}
                                                                 </span>
                                                             </div>
@@ -2354,16 +2354,16 @@ export default function AdminDashboard() {
                                                                 )}
                                                             </div>
                                                             <div className="flex items-center justify-end gap-1">
-                                                                <button onClick={() => handleEditFeature(feature)} aria-label="Edit feature" className="w-8 h-8 rounded-full grid place-items-center transition-colors hover:bg-[rgba(22,20,15,0.06)]" style={{ color: '#857D69' }}>
+                                                                <button onClick={() => handleEditFeature(feature)} aria-label="Edit feature" className="w-8 h-8 rounded-full grid place-items-center transition-colors hover:bg-[rgba(26,29,37,0.06)]" style={{ color: '#6E7686' }}>
                                                                     <Pencil size={13} strokeWidth={2} />
                                                                 </button>
                                                                 <button
                                                                     onClick={() => handleDelete(feature.id, 'features')}
                                                                     aria-label="Delete feature"
                                                                     className="w-8 h-8 rounded-full grid place-items-center transition-colors hover:bg-[rgba(179,51,29,0.08)]"
-                                                                    style={{ color: '#857D69' }}
+                                                                    style={{ color: '#6E7686' }}
                                                                     onMouseEnter={e => { e.currentTarget.style.color = '#B3331D'; }}
-                                                                    onMouseLeave={e => { e.currentTarget.style.color = '#857D69'; }}
+                                                                    onMouseLeave={e => { e.currentTarget.style.color = '#6E7686'; }}
                                                                 >
                                                                     <Trash2 size={13} strokeWidth={2} />
                                                                 </button>
@@ -2385,12 +2385,12 @@ export default function AdminDashboard() {
                                                             animate={{ opacity: 1, y: 0 }}
                                                             transition={{ delay: Math.min(idx * 0.03, 0.3), duration: 0.2 }}
                                                             className="rounded-[18px] bg-white p-4"
-                                                            style={{ boxShadow: `0 0 0 1px ${T.border}, 0 1px 2px rgba(28,26,23,0.04)` }}
+                                                            style={{ boxShadow: `0 0 0 1px ${T.border}, 0 1px 2px rgba(28,33,40,0.04)` }}
                                                         >
                                                             <div className="flex items-start justify-between gap-3">
                                                                 <h4 className="font-bold flex-1 leading-snug" style={{ fontSize: 15 }}>{feature.description}</h4>
                                                                 <div className="flex items-center gap-1 shrink-0">
-                                                                    <button onClick={() => handleEditFeature(feature)} aria-label="Edit" className="w-8 h-8 rounded-full grid place-items-center transition-colors hover:bg-[rgba(22,20,15,0.06)]" style={{ color: '#857D69' }}>
+                                                                    <button onClick={() => handleEditFeature(feature)} aria-label="Edit" className="w-8 h-8 rounded-full grid place-items-center transition-colors hover:bg-[rgba(26,29,37,0.06)]" style={{ color: '#6E7686' }}>
                                                                         <Pencil size={13} strokeWidth={2} />
                                                                     </button>
                                                                     <button onClick={() => handleDelete(feature.id, 'features')} aria-label="Delete" className="w-8 h-8 rounded-full grid place-items-center transition-colors hover:bg-[rgba(179,51,29,0.08)]" style={{ color: '#B3331D' }}>
@@ -2402,11 +2402,11 @@ export default function AdminDashboard() {
                                                                 <StagePill label={feature.status} tone={tone} size="sm" />
                                                                 <span className="inline-flex rounded-full font-extrabold uppercase" style={feature.is_new_request
                                                                     ? { background: T.accentSoft, color: T.accent, padding: '3px 9px', fontSize: 10, letterSpacing: '0.06em' }
-                                                                    : { background: '#F0EEE8', color: '#6E6759', padding: '3px 9px', fontSize: 10, letterSpacing: '0.06em' }}>
+                                                                    : { background: '#EAEDF2', color: '#5E6675', padding: '3px 9px', fontSize: 10, letterSpacing: '0.06em' }}>
                                                                     {feature.is_new_request ? 'Extra' : 'Core'}
                                                                 </span>
                                                                 {feature.estimation && (
-                                                                    <span className="font-jbmono text-[10.5px] uppercase" style={{ color: '#9A937F' }}>Est · {feature.estimation}</span>
+                                                                    <span className="font-jbmono text-[10.5px] uppercase" style={{ color: '#828A99' }}>Est · {feature.estimation}</span>
                                                                 )}
                                                             </div>
                                                             <div className="grid grid-cols-3 mt-4 pt-3" style={{ borderTop: `1px solid ${T.borderSoft}` }}>
@@ -2419,12 +2419,12 @@ export default function AdminDashboard() {
                                                                 <div>
                                                                     <div className="text-[10px] font-extrabold uppercase mb-1" style={{ letterSpacing: '0.1em', color: T.label }}>Paid</div>
                                                                     {ratePending
-                                                                        ? <span style={{ color: '#B9B19C' }}>—</span>
-                                                                        : <span className="font-bold tabular-nums" style={{ fontSize: 14, color: (feature.paid_amount || 0) > 0 ? T.green : '#B9B19C' }}>{fmtINR(feature.paid_amount || 0)}</span>}
+                                                                        ? <span style={{ color: '#AAB1BE' }}>—</span>
+                                                                        : <span className="font-bold tabular-nums" style={{ fontSize: 14, color: (feature.paid_amount || 0) > 0 ? T.green : '#AAB1BE' }}>{fmtINR(feature.paid_amount || 0)}</span>}
                                                                 </div>
                                                                 <div>
                                                                     <div className="text-[10px] font-extrabold uppercase mb-1" style={{ letterSpacing: '0.1em', color: T.label }}>Date</div>
-                                                                    <span className="font-jbmono text-[11.5px] tabular-nums" style={{ color: '#857D69' }}>
+                                                                    <span className="font-jbmono text-[11.5px] tabular-nums" style={{ color: '#6E7686' }}>
                                                                         {feature.created_at ? new Date(feature.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—'}
                                                                     </span>
                                                                 </div>
@@ -2454,14 +2454,14 @@ export default function AdminDashboard() {
                             feature_added: T.accent, link_added: T.accent, project_created: T.accent, package_started: T.accent,
                             feature_completed: T.dark, project_completed: T.dark,
                             feature_deleted: '#B3331D', link_removed: '#B3331D',
-                            feature_updated: '#5B5448', link_updated: '#5B5448', project_updated: '#5B5448', status_changed: '#5B5448', package_reverted: '#5B5448',
+                            feature_updated: '#4A515E', link_updated: '#4A515E', project_updated: '#4A515E', status_changed: '#4A515E', package_reverted: '#4A515E',
                         };
 
                         return (
                             <div>
                                 {/* ===== TOP BAR ===== */}
                                 <header className="flex items-center gap-3">
-                                    <button onClick={handleBack} aria-label="Back to clients" className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(22,20,15,0.06)] shrink-0" style={{ border: `1px solid ${T.hairline}`, color: '#857D69' }}>
+                                    <button onClick={handleBack} aria-label="Back to clients" className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(26,29,37,0.06)] shrink-0" style={{ border: `1px solid ${T.hairline}`, color: '#6E7686' }}>
                                         <ArrowLeft size={15} strokeWidth={2} />
                                     </button>
                                     <div className="text-[11.5px] font-extrabold uppercase truncate" style={{ letterSpacing: '0.14em', color: T.label }}>
@@ -2473,7 +2473,7 @@ export default function AdminDashboard() {
                                 <div className="mt-10 mb-9 max-w-3xl">
                                     <h1 className="font-extrabold break-words" style={{ fontSize: 'clamp(32px, 4vw, 52px)', letterSpacing: '-0.04em', lineHeight: 1.02, margin: 0 }}>
                                         {selectedClient?.name}.<br />
-                                        <span style={{ color: '#B9B19C' }}>Activity log.</span>
+                                        <span style={{ color: '#AAB1BE' }}>Activity log.</span>
                                     </h1>
                                     <p className="text-[15.5px] mt-5 leading-[1.55] max-w-xl" style={{ color: T.muted }}>
                                         {totalLogs === 0
@@ -2515,7 +2515,7 @@ export default function AdminDashboard() {
                                         initial={{ opacity: 0, y: -6 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         className="sticky top-3 z-20 rounded-2xl px-5 py-3.5 flex items-center justify-between gap-3 mb-8 text-white"
-                                        style={{ background: T.dark, boxShadow: '0 16px 40px -12px rgba(22,20,15,0.45)' }}
+                                        style={{ background: T.dark, boxShadow: '0 16px 40px -12px rgba(26,29,37,0.45)' }}
                                     >
                                         <span className="text-[12px] font-extrabold uppercase tabular-nums" style={{ letterSpacing: '0.1em' }}>
                                             {selectedLogIds.size} <span style={{ color: 'rgba(255,255,255,0.55)' }}>selected</span>
@@ -2555,7 +2555,7 @@ export default function AdminDashboard() {
                                         <EmptyBlock icon={<Activity size={18} strokeWidth={2} />} title="No activity yet" sub="Events will appear here as you make changes to projects, features, and payments." />
                                     ) : activityLogs.map((log) => {
                                         const meta = getActivityMeta(log.action_type);
-                                        const tone = warmAction[log.action_type] || '#5B5448';
+                                        const tone = warmAction[log.action_type] || '#4A515E';
                                         const isSent = !!log.notified_at;
                                         const isSending = sendingIds.has(log.id);
                                         const isSelected = selectedLogIds.has(log.id);
@@ -2564,7 +2564,7 @@ export default function AdminDashboard() {
                                             <div
                                                 key={log.id}
                                                 className={`flex flex-wrap items-start gap-3 py-5 transition-colors ${isHidden ? 'opacity-55' : ''}`}
-                                                style={{ borderBottom: `1px solid ${T.hairline}`, background: isSelected ? 'rgba(232,85,46,0.05)' : 'transparent' }}
+                                                style={{ borderBottom: `1px solid ${T.hairline}`, background: isSelected ? 'rgba(238,77,45,0.05)' : 'transparent' }}
                                             >
                                                 <label className="pt-1.5 shrink-0 cursor-pointer">
                                                     <input
@@ -2585,7 +2585,7 @@ export default function AdminDashboard() {
                                                             {meta.label}
                                                         </span>
                                                         {isHidden && (
-                                                            <span className="inline-flex items-center gap-1 rounded-full font-extrabold uppercase" style={{ border: `1px solid ${T.hairline}`, color: '#857D69', padding: '2px 8px', fontSize: 10, letterSpacing: '0.06em' }}>
+                                                            <span className="inline-flex items-center gap-1 rounded-full font-extrabold uppercase" style={{ border: `1px solid ${T.hairline}`, color: '#6E7686', padding: '2px 8px', fontSize: 10, letterSpacing: '0.06em' }}>
                                                                 <EyeOff size={9} /> Hidden
                                                             </span>
                                                         )}
@@ -2612,10 +2612,10 @@ export default function AdminDashboard() {
                                                     )}
 
                                                     {log.metadata?.changes && Object.keys(log.metadata.changes).length > 0 && (
-                                                        <div className="mt-2.5 space-y-1 rounded-xl p-3" style={{ background: '#F6F4F0' }}>
+                                                        <div className="mt-2.5 space-y-1 rounded-xl p-3" style={{ background: '#F1F3F7' }}>
                                                             {Object.entries(log.metadata.changes).map(([key, diff]: [string, any], i) => (
                                                                 <div key={i} className="flex items-center gap-1.5 text-[10.5px] font-jbmono flex-wrap">
-                                                                    <span className="uppercase" style={{ color: '#9A937F' }}>{key}</span>
+                                                                    <span className="uppercase" style={{ color: '#828A99' }}>{key}</span>
                                                                     <span className="line-through" style={{ color: T.faint }}>{diff.old || 'none'}</span>
                                                                     <ArrowRight size={9} style={{ color: T.faint }} />
                                                                     <span className="font-medium tabular-nums" style={{ color: T.ink }}>{diff.new}</span>
@@ -2629,7 +2629,7 @@ export default function AdminDashboard() {
                                                             <div className="flex-1 h-[4px] rounded-full overflow-hidden max-w-[140px]" style={{ background: T.borderSoft }}>
                                                                 <div className="h-full rounded-full transition-all" style={{ width: `${Math.min((Number(log.metadata.paidAmount) / Number(log.metadata.amount)) * 100, 100)}%`, background: T.green }} />
                                                             </div>
-                                                            <span className="text-[10.5px] font-jbmono tabular-nums" style={{ color: '#9A937F' }}>
+                                                            <span className="text-[10.5px] font-jbmono tabular-nums" style={{ color: '#828A99' }}>
                                                                 ₹{Number(log.metadata.paidAmount).toLocaleString('en-IN')}/₹{Number(log.metadata.amount).toLocaleString('en-IN')}
                                                             </span>
                                                         </div>
@@ -2648,8 +2648,8 @@ export default function AdminDashboard() {
                                                         <button
                                                             onClick={() => handleSendSingle(log.id)}
                                                             disabled={isSending || !selectedClient?.email}
-                                                            className="rounded-full h-8 px-3 text-[11.5px] font-bold flex items-center gap-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[rgba(22,20,15,0.06)]"
-                                                            style={{ border: `1px solid ${T.hairline}`, color: '#5B5448' }}
+                                                            className="rounded-full h-8 px-3 text-[11.5px] font-bold flex items-center gap-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[rgba(26,29,37,0.06)]"
+                                                            style={{ border: `1px solid ${T.hairline}`, color: '#4A515E' }}
                                                             title={!selectedClient?.email ? 'Add client email first' : isSent ? 'Resend' : 'Send'}
                                                         >
                                                             {isSending ? <Loader2 size={10} className="animate-spin" /> : <Send size={10} strokeWidth={2.2} />}
@@ -2657,8 +2657,8 @@ export default function AdminDashboard() {
                                                         </button>
                                                         <button
                                                             onClick={() => handleToggleHideLog(log.id, !isHidden)}
-                                                            className="w-8 h-8 rounded-full grid place-items-center transition-colors hover:bg-[rgba(22,20,15,0.06)]"
-                                                            style={{ color: '#857D69' }}
+                                                            className="w-8 h-8 rounded-full grid place-items-center transition-colors hover:bg-[rgba(26,29,37,0.06)]"
+                                                            style={{ color: '#6E7686' }}
                                                             title={isHidden ? 'Unhide' : 'Hide from client'}
                                                             aria-label={isHidden ? 'Unhide log' : 'Hide log'}
                                                         >
@@ -2667,9 +2667,9 @@ export default function AdminDashboard() {
                                                         <button
                                                             onClick={() => handleDeleteLog(log.id)}
                                                             className="w-8 h-8 rounded-full grid place-items-center transition-colors hover:bg-[rgba(179,51,29,0.08)]"
-                                                            style={{ color: '#857D69' }}
+                                                            style={{ color: '#6E7686' }}
                                                             onMouseEnter={e => { e.currentTarget.style.color = '#B3331D'; }}
-                                                            onMouseLeave={e => { e.currentTarget.style.color = '#857D69'; }}
+                                                            onMouseLeave={e => { e.currentTarget.style.color = '#6E7686'; }}
                                                             title="Delete"
                                                             aria-label="Delete log"
                                                         >
@@ -2694,14 +2694,14 @@ export default function AdminDashboard() {
                     const isEditing = !!(editingId || editingLinkIndex !== null);
                     const helpCls = 'text-[11.5px] mt-1.5';
                     return (
-                        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 backdrop-blur-sm" style={{ background: 'rgba(22,20,15,0.5)' }}>
+                        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 backdrop-blur-sm" style={{ background: 'rgba(26,29,37,0.5)' }}>
                             <motion.div
                                 initial={{ opacity: 0, y: 30, scale: 0.98 }}
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
                                 exit={{ opacity: 0, y: 30, scale: 0.98 }}
                                 transition={{ type: 'spring', damping: 26, stiffness: 320 }}
                                 className="font-hanken w-full sm:max-w-md rounded-t-[22px] sm:rounded-[22px] overflow-hidden max-h-[92vh] sm:max-h-[88vh] flex flex-col"
-                                style={{ background: '#FCFBF9', color: T.ink, boxShadow: `0 0 0 1px ${T.border}, 0 24px 64px -12px rgba(22,20,15,0.4)` }}
+                                style={{ background: '#FBFCFE', color: T.ink, boxShadow: `0 0 0 1px ${T.border}, 0 24px 64px -12px rgba(26,29,37,0.4)` }}
                             >
                                 <div className="px-5 sm:px-6 py-4 flex justify-between items-center shrink-0" style={{ borderBottom: `1px solid ${T.borderSoft}` }}>
                                     <div className="flex items-center gap-2 min-w-0">
@@ -2714,8 +2714,8 @@ export default function AdminDashboard() {
                                     <button
                                         onClick={() => { setShowModal(false); setEditingId(null); setEditingLinkIndex(null); }}
                                         aria-label="Close"
-                                        className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(22,20,15,0.06)]"
-                                        style={{ color: '#857D69' }}
+                                        className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(26,29,37,0.06)]"
+                                        style={{ color: '#6E7686' }}
                                     >
                                         <X size={15} strokeWidth={2} />
                                     </button>
@@ -2858,8 +2858,8 @@ export default function AdminDashboard() {
                                     <div className="flex items-center gap-2 pt-2">
                                         <button
                                             onClick={() => { setShowModal(false); setEditingId(null); setEditingLinkIndex(null); }}
-                                            className="rounded-full h-11 px-5 text-[13.5px] font-bold transition-colors hover:bg-[rgba(22,20,15,0.06)]"
-                                            style={{ border: `1px solid ${T.hairline}`, color: '#5B5448' }}
+                                            className="rounded-full h-11 px-5 text-[13.5px] font-bold transition-colors hover:bg-[rgba(26,29,37,0.06)]"
+                                            style={{ border: `1px solid ${T.hairline}`, color: '#4A515E' }}
                                         >
                                             Cancel
                                         </button>
@@ -2903,15 +2903,15 @@ export default function AdminDashboard() {
                 const close = () => setPackageClient(null);
 
                 return (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 backdrop-blur-sm font-hanken" style={{ background: 'rgba(22,20,15,0.5)' }} onClick={close}>
-                        <div className="w-full max-w-lg rounded-[22px] overflow-hidden" style={{ background: '#FCFBF9', color: T.ink, boxShadow: `0 0 0 1px ${T.border}, 0 24px 64px -12px rgba(22,20,15,0.4)` }} onClick={e => e.stopPropagation()}>
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 backdrop-blur-sm font-hanken" style={{ background: 'rgba(26,29,37,0.5)' }} onClick={close}>
+                        <div className="w-full max-w-lg rounded-[22px] overflow-hidden" style={{ background: '#FBFCFE', color: T.ink, boxShadow: `0 0 0 1px ${T.border}, 0 24px 64px -12px rgba(26,29,37,0.4)` }} onClick={e => e.stopPropagation()}>
                             <div className="px-6 py-5 flex items-center justify-between" style={{ borderBottom: `1px solid ${T.borderSoft}` }}>
                                 <div className="min-w-0">
                                     <p className="text-[10.5px] font-extrabold uppercase" style={{ letterSpacing: '0.12em', color: T.accent }}>Convert to Monthly Package</p>
                                     <h3 className="text-[16.5px] font-bold mt-0.5 truncate">{packageClient.name}</h3>
                                     <p className="text-[11.5px] mt-0.5" style={{ color: T.muted }}>Retainer covers all of this client&apos;s projects</p>
                                 </div>
-                                <button onClick={close} aria-label="Close" className="w-9 h-9 shrink-0 rounded-full grid place-items-center transition-colors hover:bg-[rgba(22,20,15,0.06)]" style={{ color: '#857D69' }}><X size={16} /></button>
+                                <button onClick={close} aria-label="Close" className="w-9 h-9 shrink-0 rounded-full grid place-items-center transition-colors hover:bg-[rgba(26,29,37,0.06)]" style={{ color: '#6E7686' }}><X size={16} /></button>
                             </div>
 
                             <div className="px-6 py-5 flex flex-col gap-4">
@@ -2937,7 +2937,7 @@ export default function AdminDashboard() {
                                     />
                                 </div>
 
-                                <div className="rounded-[16px] p-4 flex flex-col gap-3" style={{ background: '#F6F4F0', border: `1px solid ${T.borderSoft}` }}>
+                                <div className="rounded-[16px] p-4 flex flex-col gap-3" style={{ background: '#F1F3F7', border: `1px solid ${T.borderSoft}` }}>
                                     <p className="text-[10.5px] font-extrabold uppercase" style={{ letterSpacing: '0.12em', color: T.label }}>Preview · nothing is saved yet</p>
                                     <div className="grid grid-cols-3 gap-2 text-center">
                                         <div><p className="text-[10px] font-extrabold uppercase" style={{ letterSpacing: '0.08em', color: T.label }}>Total</p><p className="text-[14.5px] font-bold tabular-nums mt-0.5">{fmt(before.total)}</p></div>
@@ -2956,7 +2956,7 @@ export default function AdminDashboard() {
                             </div>
 
                             <div className="px-6 py-4 flex items-center gap-2" style={{ borderTop: `1px solid ${T.borderSoft}` }}>
-                                <button onClick={close} disabled={packageSaving} className="rounded-full h-11 px-5 text-[13.5px] font-bold transition-colors hover:bg-[rgba(22,20,15,0.06)] disabled:opacity-50" style={{ border: `1px solid ${T.hairline}`, color: '#5B5448' }}>Cancel</button>
+                                <button onClick={close} disabled={packageSaving} className="rounded-full h-11 px-5 text-[13.5px] font-bold transition-colors hover:bg-[rgba(26,29,37,0.06)] disabled:opacity-50" style={{ border: `1px solid ${T.hairline}`, color: '#4A515E' }}>Cancel</button>
                                 <button onClick={handleConfirmPackage} disabled={packageSaving || fee <= 0 || !start} className="flex-1 rounded-full h-11 px-5 text-[13.5px] font-bold text-white flex items-center justify-center gap-1.5 transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed" style={{ background: T.dark }}>
                                     {packageSaving ? <><Loader2 size={13} className="animate-spin" /> Converting…</> : 'Confirm conversion'}
                                 </button>
@@ -2992,14 +2992,14 @@ export default function AdminDashboard() {
                     .filter(s => !existingStarts.has(s));
 
                 return (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 backdrop-blur-sm font-hanken" style={{ background: 'rgba(22,20,15,0.5)' }} onClick={close}>
-                        <div className="w-full max-w-xl rounded-[22px] overflow-hidden flex flex-col max-h-[85vh]" style={{ background: '#FCFBF9', color: T.ink, boxShadow: `0 0 0 1px ${T.border}, 0 24px 64px -12px rgba(22,20,15,0.4)` }} onClick={e => e.stopPropagation()}>
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 backdrop-blur-sm font-hanken" style={{ background: 'rgba(26,29,37,0.5)' }} onClick={close}>
+                        <div className="w-full max-w-xl rounded-[22px] overflow-hidden flex flex-col max-h-[85vh]" style={{ background: '#FBFCFE', color: T.ink, boxShadow: `0 0 0 1px ${T.border}, 0 24px 64px -12px rgba(26,29,37,0.4)` }} onClick={e => e.stopPropagation()}>
                             <div className="px-6 py-5 flex items-center justify-between shrink-0" style={{ borderBottom: `1px solid ${T.borderSoft}` }}>
                                 <div className="min-w-0">
                                     <p className="text-[10.5px] font-extrabold uppercase" style={{ letterSpacing: '0.12em', color: T.accent }}>Manage Package</p>
                                     <h3 className="text-[16.5px] font-bold mt-0.5 truncate">{client.name} · {fmt(fee)}/mo</h3>
                                 </div>
-                                <button onClick={close} aria-label="Close" className="w-9 h-9 shrink-0 rounded-full grid place-items-center transition-colors hover:bg-[rgba(22,20,15,0.06)]" style={{ color: '#857D69' }}><X size={16} /></button>
+                                <button onClick={close} aria-label="Close" className="w-9 h-9 shrink-0 rounded-full grid place-items-center transition-colors hover:bg-[rgba(26,29,37,0.06)]" style={{ color: '#6E7686' }}><X size={16} /></button>
                             </div>
 
                             <div className="px-6 py-4 flex items-center justify-between gap-3 shrink-0" style={{ borderBottom: `1px solid ${T.borderSoft}` }}>
@@ -3055,8 +3055,8 @@ export default function AdminDashboard() {
                                             <button
                                                 onClick={() => recordPeriodPayment(p)}
                                                 disabled={packageSaving}
-                                                className="rounded-full h-10 px-4 text-[12.5px] font-bold transition-colors hover:bg-[rgba(22,20,15,0.06)] disabled:opacity-50"
-                                                style={{ border: `1px solid ${T.hairline}`, color: '#5B5448' }}
+                                                className="rounded-full h-10 px-4 text-[12.5px] font-bold transition-colors hover:bg-[rgba(26,29,37,0.06)] disabled:opacity-50"
+                                                style={{ border: `1px solid ${T.hairline}`, color: '#4A515E' }}
                                             >
                                                 Save
                                             </button>
