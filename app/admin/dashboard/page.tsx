@@ -10,7 +10,7 @@ import { computeProjectStats } from '@/lib/billing';
 import { packageSchedule, todayLocalISO, coveragePeriod, shiftDaysISO, shiftMonthsISO, type Cadence } from '@/lib/packageDates';
 import { Select } from '@/components/Select';
 import { DatePicker } from '@/components/DatePicker';
-import { Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut, ArrowUp, ArrowDown, Mail, MailCheck, Send, CheckCircle2, Clock, Zap, CreditCard, FileText, Link2, Activity, RefreshCw, PackagePlus, ArrowRight, EyeOff, Eye, Search, Copy, Check, UserPlus, MoreHorizontal, ArrowUpRight, ChevronDown, Home, Folder } from 'lucide-react';
+import { Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut, ArrowUp, ArrowDown, Mail, MailCheck, Send, CheckCircle2, Clock, Zap, CreditCard, FileText, Link2, Activity, RefreshCw, PackagePlus, ArrowRight, EyeOff, Eye, Search, Copy, Check, UserPlus, MoreHorizontal, ArrowUpRight, ChevronDown, Home, Folder, Pin, PinOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Hanken_Grotesk, JetBrains_Mono } from 'next/font/google';
 
@@ -33,6 +33,8 @@ type Client = {
     package_status?: string | null;
     package_started_on?: string | null;
     package_anchor_day?: number | null;
+    // Pinned to the top of the admin directory regardless of the active sort/filter.
+    pinned?: boolean | null;
 };
 
 type ClientStats = {
@@ -404,6 +406,18 @@ export default function AdminDashboard() {
             setTimeout(() => setCopiedKey(null), 1500);
         } catch {
             // silent fail
+        }
+    };
+
+    // Pin / unpin a client so it floats to the top of the directory. Persisted on
+    // the client row (optimistic update, reverted if the write fails).
+    const togglePin = async (client: ClientWithStats) => {
+        const next = !client.pinned;
+        setClients(prev => prev.map(c => c.id === client.id ? { ...c, pinned: next } : c));
+        const { error } = await supabaseAdmin.from('clients').update({ pinned: next }).eq('id', client.id);
+        if (error) {
+            setClients(prev => prev.map(c => c.id === client.id ? { ...c, pinned: !next } : c));
+            alert('Could not update pin: ' + error.message);
         }
     };
 
@@ -1517,6 +1531,8 @@ export default function AdminDashboard() {
                                 c.access_key.toLowerCase().includes(q))
                             : [...clients]
                         ).sort((a, b) => {
+                            // Pinned clients always float to the top, regardless of the active sort.
+                            if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
                             if (clientSort === 'name') return a.name.localeCompare(b.name);
                             if (clientSort === 'projects') return b.stats.projectCount - a.stats.projectCount;
                             if (clientSort === 'value') return b.stats.totalValue - a.stats.totalValue;
@@ -1688,7 +1704,7 @@ export default function AdminDashboard() {
                                                     animate={{ opacity: 1 }}
                                                     transition={{ delay: Math.min(idx * 0.03, 0.3), duration: 0.2 }}
                                                     className="py-[18px]"
-                                                    style={{ borderBottom: `1px solid ${T.hairline}` }}
+                                                    style={{ borderBottom: `1px solid ${T.hairline}`, background: client.pinned ? 'rgba(238,77,45,0.05)' : 'transparent' }}
                                                 >
                                                     <div className="grid grid-cols-[1fr_auto] lg:grid-cols-[2.1fr_1.2fr_0.7fr_1.6fr_44px] gap-x-4 gap-y-3 items-center">
                                                         {/* Profile */}
@@ -1696,6 +1712,7 @@ export default function AdminDashboard() {
                                                             <WarmAvatar name={client.name} size={44} />
                                                             <div className="min-w-0">
                                                                 <div className="flex items-center gap-2 min-w-0">
+                                                                    {client.pinned && <Pin size={13} className="shrink-0" style={{ color: T.accent }} fill={T.accent} />}
                                                                     <h3 className="font-bold truncate" style={{ fontSize: 15.5, color: T.ink }}>{client.name}</h3>
                                                                     {isPkg && (
                                                                         <span className="shrink-0 font-extrabold uppercase rounded-full" style={{ fontSize: 10, letterSpacing: '0.06em', color: T.accent, border: `1px solid ${T.accent}`, padding: '1px 8px' }} title="Monthly package client">
@@ -1806,6 +1823,7 @@ export default function AdminDashboard() {
                                                                 style={{ boxShadow: `0 0 0 1px ${T.border}, 0 16px 40px -8px rgba(26,29,37,0.25)` }}
                                                             >
                                                                 {[
+                                                                    { icon: client.pinned ? <PinOff size={14} /> : <Pin size={14} />, label: client.pinned ? 'Unpin from top' : 'Pin to top', fn: () => togglePin(client) },
                                                                     { icon: <FolderPlus size={14} />, label: 'Projects', fn: () => handleClientSelect(client) },
                                                                     { icon: <Activity size={14} />, label: 'Activity log', fn: () => handleViewActivity(client) },
                                                                     ...(client.billing_mode !== 'package'

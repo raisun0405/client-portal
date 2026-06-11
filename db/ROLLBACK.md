@@ -44,6 +44,7 @@ Commits so far on `feature/monthly-package`:
 | `0001_status_override` | adds `projects.status_override` | `0001_status_override.down.sql` | only On Hold / Cancelled overrides; nothing else |
 | `0002_package_billing` *(applied, then SUPERSEDED by 0003)* | put the package on `projects` + `features.coverage` (wrong model — package is per-client) | `0002_package_billing.down.sql` | n/a — 0003 cleans this up; do not run 0002 separately |
 | `0003_client_package_billing` *(APPLIED 2026-06-09)* | moves the package to `clients`, drops `features.coverage` + project package columns, rebuilds `billing_periods` / `package_migrations` keyed on `client_id` | `0003_client_package_billing.down.sql` | package data only; client/project/feature data untouched |
+| `0004_client_pinned` *(APPLIED 2026-06-11)* | adds `clients.pinned` (boolean, default false) so the admin can pin clients to the top of the directory | `0004_client_pinned.down.sql` | only which clients were pinned (a UI convenience); no other data |
 
 > **0002 vs 0003:** 0002 was applied but the model was wrong (package is per-**client**, not per-project). 0003 supersedes it: its `.up` idempotently drops everything 0002 added and builds the correct client-level schema. Run **0003 up** (not 0002 down) — but only after the matching app code is deployed.
 
