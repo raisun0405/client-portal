@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logActivity, type ActivityLog } from '@/lib/activityLogger';
@@ -188,7 +188,7 @@ function EmptyBlock({ icon, title, sub }: { icon: React.ReactNode; title: string
 }
 
 // Option C's dark hero card — collection % + split bar, real money only.
-function DarkPanel({ heading, pct, collected, outstanding, onCollect }: { heading: string; pct: number; collected: number; outstanding: number; onCollect?: () => void }) {
+function DarkPanel({ heading, pct, collected, outstanding }: { heading: string; pct: number; collected: number; outstanding: number }) {
     const fmt = (n: number) => `₹${(n || 0).toLocaleString('en-IN')}`;
     return (
         <section className="rounded-[26px] text-white px-7 sm:px-9 pt-7 pb-8" style={{ background: T.dark }}>
@@ -219,15 +219,6 @@ function DarkPanel({ heading, pct, collected, outstanding, onCollect }: { headin
                         </div>
                     </div>
                 </div>
-                {onCollect && outstanding > 0 && (
-                    <button
-                        onClick={onCollect}
-                        className="shrink-0 self-start lg:self-auto rounded-full h-11 px-5 text-[13.5px] font-bold flex items-center gap-2 whitespace-nowrap text-white transition-colors hover:bg-white/20"
-                        style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.14)' }}
-                    >
-                        Collect outstanding <ArrowUpRight size={14} strokeWidth={2.2} />
-                    </button>
-                )}
             </div>
         </section>
     );
@@ -305,7 +296,6 @@ export default function AdminDashboard() {
 
     // Recent activity across ALL clients (overview's "Recent" column)
     const [recentLogs, setRecentLogs] = useState<ActivityLog[]>([]);
-    const directoryRef = useRef<HTMLDivElement>(null);
 
     // Activity log state
     const [activityLogs, setActivityLogs] = useState<(ActivityLog & { notified_at: string | null })[]>([]);
@@ -1629,7 +1619,6 @@ export default function AdminDashboard() {
                                         pct={paidPct}
                                         collected={totalPaid}
                                         outstanding={totalPending}
-                                        onCollect={() => { setClientSort('value'); directoryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
                                     />
                                 )}
 
@@ -1639,7 +1628,7 @@ export default function AdminDashboard() {
                                 {/* ===== DIRECTORY + RECENT ===== */}
                                 <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-x-14 gap-y-12 mt-10 items-start">
                                     {/* Directory — hairline editorial, no card chrome */}
-                                    <section ref={directoryRef} className="min-w-0 scroll-mt-6">
+                                    <section className="min-w-0">
                                         <SectionHead
                                             title="All clients"
                                             meta={`${filtered.length} of ${clients.length}`}
