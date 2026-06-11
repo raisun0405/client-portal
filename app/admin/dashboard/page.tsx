@@ -10,8 +10,13 @@ import { computeProjectStats } from '@/lib/billing';
 import { packageSchedule, todayLocalISO, coveragePeriod, shiftDaysISO, shiftMonthsISO, type Cadence } from '@/lib/packageDates';
 import { Select } from '@/components/Select';
 import { DatePicker } from '@/components/DatePicker';
-import { Users, Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut, ArrowUp, ArrowDown, Calendar, Mail, MailCheck, Send, CheckCircle2, Clock, Zap, CreditCard, FileText, Link2, Activity, RefreshCw, PackagePlus, ArrowRight, EyeOff, Eye, Search, Copy, Check, Briefcase, TrendingUp, Hash, UserPlus, SlidersHorizontal, MoreHorizontal, ArrowUpRight, CircleDashed, Wallet, ChevronDown } from 'lucide-react';
+import { Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut, ArrowUp, ArrowDown, Mail, MailCheck, Send, CheckCircle2, Clock, Zap, CreditCard, FileText, Link2, Activity, RefreshCw, PackagePlus, ArrowRight, EyeOff, Eye, Search, Copy, Check, UserPlus, MoreHorizontal, ArrowUpRight, ChevronDown, Home, Folder } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Hanken_Grotesk, JetBrains_Mono } from 'next/font/google';
+
+// Warm Editorial (Inspo Option C) typefaces — scoped to the admin shell only.
+const hankenFont = Hanken_Grotesk({ subsets: ['latin'], variable: '--font-hanken' });
+const jbMonoFont = JetBrains_Mono({ subsets: ['latin'], variable: '--font-jbmono' });
 
 
 // --- Types ---
@@ -97,6 +102,162 @@ type ProjectWithStats = Project & {
     };
 };
 
+// ===== Warm Editorial design tokens (Inspo/shared.jsx · Option C) =====
+const T = {
+    bg: '#F1EDE5',          // beige canvas
+    card: '#FFFFFF',
+    ink: '#1C1A17',
+    dark: '#16140F',        // dark hero card / SHIP pill / active rail
+    muted: '#8A857C',
+    faint: '#B5B0A6',
+    border: '#E9E5DD',
+    borderSoft: '#EFECE5',
+    hairline: '#DDD6C6',    // editorial row separators
+    railBorder: '#E2DCCF',
+    label: '#A29A86',       // small-caps section labels
+    accent: '#E8552E',
+    accentSoft: '#FBEAE3',
+    green: '#1F8A5B',
+    greenSoft: '#E4F2EB',
+    amber: '#A86B2D',
+    amberSoft: '#F7EDD8',
+};
+
+const AVATAR_HUES = ['#E8552E', '#16140F', '#A86B2D', '#5B5448'];
+const hueFor = (name: string) => AVATAR_HUES[(name || ' ').split('').reduce((a, ch) => a + ch.charCodeAt(0), 0) % AVATAR_HUES.length];
+
+function WarmAvatar({ name, size = 44 }: { name: string; size?: number }) {
+    return (
+        <div
+            className="rounded-full grid place-items-center text-white font-bold shrink-0 select-none"
+            style={{ width: size, height: size, background: hueFor(name), fontSize: Math.round(size * 0.38), letterSpacing: '0.02em' }}
+        >
+            {(name || '?').charAt(0).toUpperCase()}
+        </div>
+    );
+}
+
+// Stage pill tones — REAL statuses, Option C pill anatomy (soft bg, dot, small caps).
+type PillTone = { bg: string; fg: string; dot: string };
+const PROJECT_STAGE: Record<string, PillTone> = {
+    'Not Started': { bg: '#F0EEE8', fg: '#6E6759', dot: '#A89F8D' },
+    'In Progress': { bg: '#FBEAE3', fg: '#E8552E', dot: '#E8552E' },
+    'Completed': { bg: '#16140F', fg: '#FFFFFF', dot: '#FFFFFF' },
+    'On Hold': { bg: '#F7EDD8', fg: '#A86B2D', dot: '#A86B2D' },
+    'Cancelled': { bg: '#EFECE5', fg: '#8A857C', dot: '#B5B0A6' },
+};
+const FEATURE_STAGE: Record<string, PillTone> = {
+    Requested: { bg: '#F0EEE8', fg: '#6E6759', dot: '#A89F8D' },
+    Approved: { bg: '#EFECE5', fg: '#5B5448', dot: '#5B5448' },
+    Working: { bg: '#FBEAE3', fg: '#E8552E', dot: '#E8552E' },
+    Updating: { bg: '#FBEAE3', fg: '#E8552E', dot: '#E8552E' },
+    Completed: { bg: '#16140F', fg: '#FFFFFF', dot: '#FFFFFF' },
+};
+
+function StagePill({ label, tone, size = 'md' }: { label: string; tone: PillTone; size?: 'sm' | 'md' }) {
+    return (
+        <span
+            className="inline-flex items-center gap-1.5 rounded-full whitespace-nowrap font-bold uppercase shrink-0"
+            style={{ background: tone.bg, color: tone.fg, padding: size === 'sm' ? '3px 9px' : '5px 11px', fontSize: size === 'sm' ? 10 : 11, letterSpacing: '0.05em' }}
+        >
+            <span className="rounded-full shrink-0" style={{ width: 5, height: 5, background: tone.dot }} />
+            {label}
+        </span>
+    );
+}
+
+// Editorial section header — 2px ink underline, oversized title, small-caps meta.
+function SectionHead({ title, meta, right }: { title: string; meta?: string; right?: React.ReactNode }) {
+    return (
+        <div className="flex items-baseline gap-3.5 pb-3.5 flex-wrap" style={{ borderBottom: `2px solid ${T.ink}` }}>
+            <h2 className="font-extrabold" style={{ fontSize: 24, letterSpacing: '-0.02em', margin: 0, color: T.ink }}>{title}</h2>
+            {meta && <span className="text-[11.5px] font-extrabold uppercase" style={{ letterSpacing: '0.14em', color: T.label }}>{meta}</span>}
+            {right && <div className="ml-auto">{right}</div>}
+        </div>
+    );
+}
+
+function EmptyBlock({ icon, title, sub }: { icon: React.ReactNode; title: string; sub: string }) {
+    return (
+        <div className="py-16 px-6 text-center" style={{ borderBottom: `1px solid ${T.hairline}` }}>
+            <div className="inline-grid place-items-center w-12 h-12 rounded-2xl mb-4" style={{ background: '#F0EEE8', color: '#6E6759' }}>{icon}</div>
+            <p className="font-extrabold" style={{ fontSize: 19, letterSpacing: '-0.02em', color: T.ink }}>{title}</p>
+            <p className="text-[13.5px] mt-1.5 max-w-sm mx-auto" style={{ color: T.muted }}>{sub}</p>
+        </div>
+    );
+}
+
+// Option C's dark hero card — collection % + split bar, real money only.
+function DarkPanel({ heading, pct, collected, outstanding, onCollect }: { heading: string; pct: number; collected: number; outstanding: number; onCollect?: () => void }) {
+    const fmt = (n: number) => `₹${(n || 0).toLocaleString('en-IN')}`;
+    return (
+        <section className="rounded-[26px] text-white px-7 sm:px-9 pt-7 pb-8" style={{ background: T.dark }}>
+            <div className="flex items-baseline">
+                <div className="text-[11.5px] font-extrabold uppercase" style={{ letterSpacing: '0.14em', color: 'rgba(255,255,255,0.4)' }}>{heading}</div>
+                <div className="ml-auto flex gap-1.5">
+                    {[T.accent, '#FFFFFF', '#6E6759'].map((h, i) => <span key={i} className="w-1.5 h-1.5 rounded-full" style={{ background: h }} />)}
+                </div>
+            </div>
+            <div className="flex flex-col lg:flex-row lg:items-end gap-8 lg:gap-14 mt-7">
+                <div className="shrink-0">
+                    <div className="font-extrabold tabular-nums" style={{ fontSize: 'clamp(44px, 5vw, 56px)', letterSpacing: '-0.04em', lineHeight: 1, color: T.accent }}>{pct}%</div>
+                    <div className="text-[13.5px] mt-2 max-w-[190px] leading-[1.5]" style={{ color: 'rgba(255,255,255,0.55)' }}>of contracted value collected to date</div>
+                </div>
+                <div className="flex-1 w-full min-w-0">
+                    <div className="flex h-[14px] rounded-full overflow-hidden gap-[3px]">
+                        {pct > 0 && <div className="rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: T.accent }} />}
+                        {pct < 100 && <div className="flex-1 rounded-full" style={{ background: 'rgba(255,255,255,0.18)' }} />}
+                    </div>
+                    <div className="flex mt-4 gap-4 flex-wrap">
+                        <div>
+                            <div className="text-[20px] sm:text-[22px] font-extrabold tabular-nums">{fmt(collected)}</div>
+                            <div className="text-[11px] font-bold mt-0.5" style={{ color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em' }}>REALIZED REVENUE</div>
+                        </div>
+                        <div className="ml-auto text-right">
+                            <div className="text-[20px] sm:text-[22px] font-extrabold tabular-nums" style={{ color: 'rgba(255,255,255,0.75)' }}>{fmt(outstanding)}</div>
+                            <div className="text-[11px] font-bold mt-0.5" style={{ color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em' }}>AWAITING — {Math.max(100 - pct, 0)}%</div>
+                        </div>
+                    </div>
+                </div>
+                {onCollect && outstanding > 0 && (
+                    <button
+                        onClick={onCollect}
+                        className="shrink-0 self-start lg:self-auto rounded-full h-11 px-5 text-[13.5px] font-bold flex items-center gap-2 whitespace-nowrap text-white transition-colors hover:bg-white/20"
+                        style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.14)' }}
+                    >
+                        Collect outstanding <ArrowUpRight size={14} strokeWidth={2.2} />
+                    </button>
+                )}
+            </div>
+        </section>
+    );
+}
+
+// Slim icon-rail button (Option C left rail).
+function RailBtn({ icon: Icon, active, disabled, onClick, title }: { icon: React.ComponentType<{ size?: number; strokeWidth?: number }>; active?: boolean; disabled?: boolean; onClick?: () => void; title: string }) {
+    return (
+        <button
+            onClick={onClick}
+            disabled={disabled}
+            title={title}
+            aria-label={title}
+            className="w-11 h-11 rounded-[14px] grid place-items-center transition-colors disabled:opacity-35 disabled:cursor-not-allowed"
+            style={active ? { background: T.dark, color: '#fff' } : { color: '#9A937F' }}
+            onMouseEnter={e => { if (!active && !disabled) e.currentTarget.style.background = 'rgba(22,20,15,0.06)'; }}
+            onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent'; }}
+        >
+            <Icon size={19} strokeWidth={1.8} />
+        </button>
+    );
+}
+
+// Shared warm form-control styling (modals).
+const wLabelCls = 'block text-[10.5px] font-extrabold uppercase tracking-[0.12em] mb-2';
+const wInputCls = 'w-full h-10 px-3.5 rounded-xl bg-white text-[14px] outline-none transition-shadow';
+const wInputStyle: React.CSSProperties = { boxShadow: `0 0 0 1px ${T.border}`, color: T.ink };
+const wFocus = (e: React.FocusEvent<HTMLInputElement>) => { e.currentTarget.style.boxShadow = `0 0 0 1px ${T.accent}, 0 0 0 3px rgba(232,85,46,0.15)`; };
+const wBlur = (e: React.FocusEvent<HTMLInputElement>) => { e.currentTarget.style.boxShadow = `0 0 0 1px ${T.border}`; };
+
 export default function AdminDashboard() {
     const router = useRouter();
     const [view, setView] = useState<'clients' | 'projects' | 'features' | 'links' | 'activity'>('clients');
@@ -141,6 +302,10 @@ export default function AdminDashboard() {
     // Sorting state for features
     const [sortField, setSortField] = useState<SortField>('created_at');
     const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+
+    // Recent activity across ALL clients (overview's "Recent" column)
+    const [recentLogs, setRecentLogs] = useState<ActivityLog[]>([]);
+    const directoryRef = useRef<HTMLDivElement>(null);
 
     // Activity log state
     const [activityLogs, setActivityLogs] = useState<(ActivityLog & { notified_at: string | null })[]>([]);
@@ -190,10 +355,13 @@ export default function AdminDashboard() {
         if (!clientsData) { setClients([]); setLoading(false); return; }
 
         // Fetch all projects and features in parallel for aggregate stats
-        const [{ data: projectsData }, { data: featuresData }] = await Promise.all([
+        // (+ the latest activity across all clients for the overview's Recent column)
+        const [{ data: projectsData }, { data: featuresData }, { data: recentData }] = await Promise.all([
             supabaseAdmin.from('projects').select('id, client_id, status, status_override'),
             supabaseAdmin.from('features').select('project_id, amount, paid_amount, status, payment_confirmed'),
+            supabaseAdmin.from('activity_logs').select('*').order('created_at', { ascending: false }).limit(10),
         ]);
+        setRecentLogs(((recentData || []) as ActivityLog[]).filter(l => !l.is_hidden).slice(0, 6));
 
         const projectsByClient = new Map<string, { id: string; status: string; status_override?: string | null }[]>();
         (projectsData || []).forEach((p: any) => {
@@ -323,6 +491,16 @@ export default function AdminDashboard() {
         setSelectedProject(project);
         setLinks(project.links || []);
         setView('links');
+    };
+
+    // Jump straight back to the overview from anywhere (icon rail home).
+    const goOverview = () => {
+        setView('clients');
+        setSelectedClient(null);
+        setSelectedProject(null);
+        setFeatures([]);
+        setLinks([]);
+        setActivityLogs([]);
     };
 
     const handleBack = () => {
@@ -1258,1297 +1436,848 @@ export default function AdminDashboard() {
         return new Date(dateStr).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
     };
 
+    const signOut = async () => { await supabaseAdmin.auth.signOut(); router.push('/admin'); };
+
     return (
-        <div className="min-h-screen antialiased geist-canvas font-geist bg-[#0a0a0a] text-[#ededed] selection:bg-[#0a72ef]/30">
-            {/* Geist + Geist Mono (Vercel design system) for clients view; legacy fonts retained for other views */}
+        <div className={`${hankenFont.variable} ${jbMonoFont.variable} warm-root font-hanken min-h-screen antialiased`} style={{ background: T.bg, color: T.ink }}>
+            {/* Warm Editorial canvas (Inspo Option C) — Hanken Grotesk + JetBrains Mono */}
             <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Inter:wght@400;500;600&family=Outfit:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
-                .font-geist { font-family: 'Geist', Arial, system-ui, sans-serif; font-feature-settings: "liga"; }
-                .font-geistmono { font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-feature-settings: "liga","tnum"; }
-                .font-outfit { font-family: 'Outfit', system-ui, sans-serif; }
-                .font-inter { font-family: 'Inter', system-ui, sans-serif; }
-                .font-display { font-family: 'Instrument Serif', 'Times New Roman', serif; }
-                .font-grotesk { font-family: 'Space Grotesk', system-ui, sans-serif; }
-                .font-jbmono { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
-                /* Override globals.css light body bg so overscroll/bounce doesn't flash white at the bottom on the admin dashboard */
-                html, body {
-                    background-color: #0a0a0a !important;
-                    overscroll-behavior: none;
-                }
-                /* Subtle atmospheric gradient at top — barely visible, per DESIGN.md hero gradient principle */
-                .geist-canvas {
-                    background-image: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(10,114,239,0.07), transparent 60%);
-                    background-attachment: fixed;
-                }
+                .font-hanken { font-family: var(--font-hanken), 'Hanken Grotesk', system-ui, sans-serif; }
+                .font-jbmono { font-family: var(--font-jbmono), 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace; font-feature-settings: "tnum"; }
+                /* Override globals.css body bg so overscroll doesn't flash the portal's slate */
+                html, body { background-color: #F1EDE5 !important; overscroll-behavior: none; }
+                .warm-root ::selection { background: rgba(232,85,46,0.22); }
+                .warm-root .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(28,26,23,0.16); }
+                .warm-root .custom-scrollbar { scrollbar-width: thin; scrollbar-color: rgba(28,26,23,0.16) transparent; }
+                .warm-root input[type='checkbox'] { accent-color: #E8552E; }
+                .warm-root input[type=number]::-webkit-outer-spin-button, .warm-root input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
             `}</style>
-            <main className="max-w-7xl p-4 md:p-8 mx-auto">
-                {loading && (
-                    <div className="flex flex-col items-center justify-center py-20">
-                        <div className="flex items-center gap-2 mb-4">
-                            <span className="w-2 h-2 rounded-full bg-[#0a72ef] loader-dot"></span>
-                            <span className="w-2 h-2 rounded-full bg-[#de1d8d] loader-dot"></span>
-                            <span className="w-2 h-2 rounded-full bg-[#ff5b4f] loader-dot"></span>
-                        </div>
-                        <p className="text-[#737373] text-sm font-medium font-geistmono uppercase tracking-[0.02em]">Loading</p>
+
+            {/* ===== ICON RAIL (desktop) ===== */}
+            <aside
+                className="hidden md:flex fixed left-0 top-0 bottom-0 w-[76px] flex-col items-center py-7 z-40"
+                style={{ borderRight: `1px solid ${T.railBorder}`, background: T.bg }}
+            >
+                <button
+                    onClick={goOverview}
+                    title="Overview"
+                    className="w-[38px] h-[38px] rounded-xl grid place-items-center text-white font-extrabold text-[18px] mb-9 transition-transform hover:scale-105"
+                    style={{ background: T.accent }}
+                >
+                    R
+                </button>
+                <nav className="flex flex-col gap-2.5">
+                    <RailBtn icon={Home} title="Overview" active={view === 'clients'} onClick={goOverview} />
+                    <RailBtn icon={Folder} title="Projects" active={view === 'projects'} disabled={!selectedClient} onClick={() => selectedClient && handleClientSelect(selectedClient)} />
+                    <RailBtn icon={Zap} title="Features" active={view === 'features'} disabled={!selectedProject} onClick={() => selectedProject && handleProjectSelect(selectedProject)} />
+                    <RailBtn icon={Link2} title="Links" active={view === 'links'} disabled={!selectedProject} onClick={() => selectedProject && handleProjectLinksSelect(selectedProject)} />
+                    <RailBtn icon={Activity} title="Activity log" active={view === 'activity'} disabled={!selectedClient} onClick={() => selectedClient && handleViewActivity(selectedClient)} />
+                </nav>
+                <div className="mt-auto flex flex-col items-center gap-3">
+                    <RailBtn icon={LogOut} title="Sign out" onClick={signOut} />
+                    <div className="w-10 h-10 rounded-full grid place-items-center text-white font-bold text-[15px] select-none" style={{ background: '#5B5448' }}>R</div>
+                </div>
+            </aside>
+
+            <main className="md:pl-[76px]">
+                <div className="max-w-[1240px] mx-auto px-4 sm:px-8 lg:px-12 py-6 md:py-8">
+                    {/* Mobile top bar (rail is hidden) */}
+                    <div className="md:hidden flex items-center gap-3 mb-6">
+                        <button onClick={goOverview} title="Overview" className="w-9 h-9 rounded-xl grid place-items-center text-white font-extrabold text-[16px]" style={{ background: T.accent }}>R</button>
+                        <span className="text-[11.5px] font-extrabold uppercase" style={{ letterSpacing: '0.14em', color: T.label }}>Admin</span>
+                        <button
+                            onClick={signOut}
+                            aria-label="Sign out"
+                            className="ml-auto w-9 h-9 rounded-full grid place-items-center transition-colors"
+                            style={{ border: `1px solid ${T.hairline}`, color: '#857D69' }}
+                        >
+                            <LogOut size={14} strokeWidth={2} />
+                        </button>
                     </div>
-                )}
 
-                {/* ========== CLIENTS VIEW ========== */}
-                {view === 'clients' && !loading && (() => {
-                    // Overall portfolio stats
-                    const totalClients = clients.length;
-                    const totalProjects = clients.reduce((a, c) => a + c.stats.projectCount, 0);
-                    const activeProjects = clients.reduce((a, c) => a + (c.stats.projectCount - c.stats.completedProjects), 0);
-                    const totalValue = clients.reduce((a, c) => a + c.stats.totalValue, 0);
-                    const totalPaid = clients.reduce((a, c) => a + c.stats.paidValue, 0);
-                    const totalPending = Math.max(totalValue - totalPaid, 0);
-                    const clientsWithEmail = clients.filter(c => !!c.email).length;
-                    const paidPct = totalValue > 0 ? Math.round((totalPaid / totalValue) * 100) : 0;
+                    {loading && (
+                        <div className="flex flex-col items-center justify-center py-24">
+                            <div className="flex items-center gap-2 mb-4">
+                                <span className="w-2 h-2 rounded-full loader-dot" style={{ background: T.accent }}></span>
+                                <span className="w-2 h-2 rounded-full loader-dot" style={{ background: T.dark }}></span>
+                                <span className="w-2 h-2 rounded-full loader-dot" style={{ background: T.amber }}></span>
+                            </div>
+                            <p className="font-jbmono text-[11px] font-medium uppercase tracking-[0.14em]" style={{ color: T.label }}>Loading</p>
+                        </div>
+                    )}
 
-                    // Filter + sort
-                    const q = clientSearch.trim().toLowerCase();
-                    let filtered = q
-                        ? clients.filter(c =>
-                            c.name.toLowerCase().includes(q) ||
-                            (c.email || '').toLowerCase().includes(q) ||
-                            c.access_key.toLowerCase().includes(q)
-                        )
-                        : [...clients];
-                    filtered.sort((a, b) => {
-                        if (clientSort === 'name') return a.name.localeCompare(b.name);
-                        if (clientSort === 'projects') return b.stats.projectCount - a.stats.projectCount;
-                        if (clientSort === 'value') return b.stats.totalValue - a.stats.totalValue;
-                        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-                    });
+                    {/* ========== CLIENTS OVERVIEW ========== */}
+                    {view === 'clients' && !loading && (() => {
+                        // Overall portfolio stats
+                        const totalClients = clients.length;
+                        const totalProjects = clients.reduce((a, c) => a + c.stats.projectCount, 0);
+                        const shippedProjects = clients.reduce((a, c) => a + c.stats.completedProjects, 0);
+                        const activeProjects = totalProjects - shippedProjects;
+                        const totalValue = clients.reduce((a, c) => a + c.stats.totalValue, 0);
+                        const totalPaid = clients.reduce((a, c) => a + c.stats.paidValue, 0);
+                        const totalPending = Math.max(totalValue - totalPaid, 0);
+                        const paidPct = totalValue > 0 ? Math.round((totalPaid / totalValue) * 100) : 0;
 
-                    const sortLabels: Record<ClientSortField, string> = {
-                        recent: 'Recently Added',
-                        name: 'Name (A–Z)',
-                        projects: 'Most Projects',
-                        value: 'Highest Value',
-                    };
-                    const formatK = (n: number) => n >= 100000 ? `₹${(n / 1000).toFixed(0)}k` : n >= 1000 ? `₹${(n / 1000).toFixed(1)}k` : `₹${n}`;
+                        // Filter + sort
+                        const q = clientSearch.trim().toLowerCase();
+                        const filtered = (q
+                            ? clients.filter(c =>
+                                c.name.toLowerCase().includes(q) ||
+                                (c.email || '').toLowerCase().includes(q) ||
+                                c.access_key.toLowerCase().includes(q))
+                            : [...clients]
+                        ).sort((a, b) => {
+                            if (clientSort === 'name') return a.name.localeCompare(b.name);
+                            if (clientSort === 'projects') return b.stats.projectCount - a.stats.projectCount;
+                            if (clientSort === 'value') return b.stats.totalValue - a.stats.totalValue;
+                            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+                        });
 
-                    return (
-                        <div className="space-y-14 relative">
-                            {/* ===== COMMAND BAR ===== */}
-                            <header className="flex items-center justify-between gap-3 -mt-2">
-                                <div className="flex items-center gap-2 min-w-0">
-                                    <span className="font-geistmono text-[12px] font-medium uppercase text-[#a1a1a1] truncate tracking-[0.02em]">
-                                        admin <span className="text-[#404040] mx-1">/</span> <span className="text-white">overview</span>
-                                    </span>
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                    <button
-                                        onClick={async () => { await supabaseAdmin.auth.signOut(); router.push('/admin'); }}
-                                        className="h-9 px-3 rounded-md bg-transparent hover:bg-[#181818] text-[#a1a1a1] hover:text-white flex items-center justify-center gap-2 transition-colors text-[13px] font-medium font-geist"
-                                        style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
-                                        title="Sign out"
-                                        aria-label="Sign out"
-                                    >
-                                        <LogOut size={13} strokeWidth={2} />
-                                        <span className="hidden sm:inline">Sign out</span>
+                        const sortLabels: Record<ClientSortField, string> = {
+                            recent: 'Recently added',
+                            name: 'Name (A–Z)',
+                            projects: 'Most projects',
+                            value: 'Highest value',
+                        };
+                        const fmtINR = (n: number) => `₹${(n || 0).toLocaleString('en-IN')}`;
+                        const formatK = (n: number) => n >= 100000 ? `₹${(n / 1000).toFixed(0)}k` : n >= 1000 ? `₹${(n / 1000).toFixed(1)}k` : `₹${n}`;
+
+                        // Aggregate per-client stage from REAL project statuses
+                        const clientStage = (c: ClientWithStats): { label: string; tone: PillTone } | null =>
+                            c.stats.projectCount === 0 ? null
+                                : c.stats.completedProjects === c.stats.projectCount ? { label: 'Complete', tone: PROJECT_STAGE['Completed'] }
+                                    : c.stats.progress > 0 ? { label: 'In Progress', tone: PROJECT_STAGE['In Progress'] }
+                                        : { label: 'Not Started', tone: PROJECT_STAGE['Not Started'] };
+
+                        const debtors = clients.filter(c => c.stats.pendingValue > 0).sort((a, b) => b.stats.pendingValue - a.stats.pendingValue);
+
+                        const searchPill = (
+                            <div className="flex items-center gap-2.5 rounded-full h-11 px-4.5 min-w-0" style={{ border: `1px solid ${T.hairline}`, paddingLeft: 18, paddingRight: 14 }}>
+                                <Search size={15} style={{ color: '#9A937F' }} strokeWidth={2} />
+                                <input
+                                    type="text"
+                                    name="client_search"
+                                    autoComplete="off"
+                                    spellCheck={false}
+                                    data-form-type="other"
+                                    placeholder="Search clients…"
+                                    className="bg-transparent outline-none text-[13.5px] w-full min-w-0 placeholder:text-[#9A937F]"
+                                    style={{ color: T.ink }}
+                                    value={clientSearch}
+                                    onChange={(e) => setClientSearch(e.target.value)}
+                                />
+                                {clientSearch && (
+                                    <button type="button" onClick={() => setClientSearch('')} aria-label="Clear search" className="shrink-0 grid place-items-center w-5 h-5 rounded-full transition-colors hover:bg-[rgba(22,20,15,0.08)]" style={{ color: '#9A937F' }}>
+                                        <X size={11} strokeWidth={2.5} />
                                     </button>
-                                    <button
-                                        onClick={() => { setFormData({}); setEditingId(null); setEditingLinkIndex(null); setShowModal(true); }}
-                                        className="h-9 px-3.5 rounded-md bg-white hover:bg-[#ededed] text-[#0a0a0a] flex items-center justify-center gap-1.5 transition-colors text-[13px] font-medium font-geist"
-                                    >
-                                        <Plus size={13} strokeWidth={2.5} />
-                                        New client
-                                    </button>
-                                </div>
-                            </header>
-
-                            {/* ===== HERO ===== */}
-                            <section className="pt-6 pb-2 max-w-3xl">
-                                {totalClients === 0 ? (
-                                    <>
-                                        <h1
-                                            className="text-white font-semibold font-geist leading-[0.95] break-words"
-                                            style={{ fontSize: 'clamp(44px, 6.6vw, 76px)', letterSpacing: '-0.055em', fontFeatureSettings: '"liga"' }}
-                                        >
-                                            Empty<br /><span className="text-[#525252]">portfolio.</span>
-                                        </h1>
-                                        <p className="text-[#a1a1a1] text-[18px] leading-[1.56] mt-6 max-w-xl font-geist">
-                                            Add your first client to begin tracking projects, contracts, and collections.
-                                        </p>
-                                    </>
-                                ) : (
-                                    <>
-                                        <h1
-                                            className="text-white font-semibold font-geist leading-[0.95] break-words"
-                                            style={{ fontSize: 'clamp(44px, 6.6vw, 76px)', letterSpacing: '-0.055em', fontFeatureSettings: '"liga"' }}
-                                        >
-                                            {totalClients} {totalClients === 1 ? 'client' : 'clients'}.<br />
-                                            <span className="text-[#525252]">{totalProjects} {totalProjects === 1 ? 'project' : 'projects'}.</span>
-                                        </h1>
-                                        <p className="text-[#a1a1a1] text-[18px] leading-[1.56] mt-6 max-w-xl font-geist">
-                                            {totalValue > 0 ? (
-                                                <>
-                                                    Tracking <span className="text-white tabular-nums">₹{totalValue.toLocaleString('en-IN')}</span> in contracted work
-                                                    {paidPct === 100
-                                                        ? <>. Fully collected.</>
-                                                        : paidPct === 0
-                                                            ? <>. Awaiting first collection.</>
-                                                            : <>. <span className="text-white tabular-nums">{paidPct}%</span> collected, <span className="tabular-nums">{100 - paidPct}%</span> outstanding.</>}
-                                                </>
-                                            ) : (
-                                                <>No contracted work yet — add a project to begin.</>
-                                            )}
-                                        </p>
-                                    </>
                                 )}
-                            </section>
+                            </div>
+                        );
 
-                            {/* ===== WORKFLOW PIPELINE ===== */}
-                            <section>
-                                <div className="flex items-center justify-between mb-3">
-                                    <span className="font-geistmono text-[11px] font-medium uppercase text-[#737373]">Pipeline</span>
-                                    <div className="flex items-center gap-1">
-                                        <span className="w-1 h-1 rounded-full bg-[#0a72ef]" />
-                                        <span className="w-1 h-1 rounded-full bg-[#de1d8d]" />
-                                        <span className="w-1 h-1 rounded-full bg-[#ff5b4f]" />
+                        return (
+                            <div className="relative">
+                                {/* ===== TOP BAR ===== */}
+                                <header className="flex items-center gap-3">
+                                    <div className="text-[11.5px] font-extrabold uppercase shrink-0" style={{ letterSpacing: '0.14em', color: T.label }}>
+                                        Admin — Overview
                                     </div>
-                                </div>
-                                <div
-                                    className="grid grid-cols-1 md:grid-cols-3 rounded-lg overflow-hidden"
-                                    style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px, rgba(0,0,0,0.4) 0px 1px 2px' }}
-                                >
-                                    {[
-                                        { idx: '01', label: 'Develop', sub: 'Total contracted', value: totalValue, color: '#0a72ef', meta: `${totalProjects} ${totalProjects === 1 ? 'project' : 'projects'}` },
-                                        { idx: '02', label: 'Preview', sub: 'Awaiting collection', value: totalPending, color: '#de1d8d', meta: totalValue > 0 ? `${Math.max(100 - paidPct, 0)}% outstanding` : '—' },
-                                        { idx: '03', label: 'Ship', sub: 'Realized revenue', value: totalPaid, color: '#ff5b4f', meta: totalValue > 0 ? `${paidPct}% collected` : '—' },
-                                    ].map((step, i) => (
-                                        <div
-                                            key={step.idx}
-                                            className={`relative p-5 sm:p-7 flex flex-col gap-4 sm:gap-5 min-w-0 ${i < 2 ? 'shadow-[inset_0_-1px_0_0_rgba(255,255,255,0.08)] md:shadow-[inset_-1px_0_0_0_rgba(255,255,255,0.08)]' : ''}`}
-                                        >
-                                            <div className="flex items-center justify-between gap-2">
-                                                <span className="font-geistmono text-[11px] font-medium uppercase" style={{ color: step.color }}>
-                                                    {step.idx} · {step.label}
-                                                </span>
-                                                <span className="font-geistmono text-[10px] uppercase text-[#737373] tabular-nums">{step.meta}</span>
-                                            </div>
-                                            <div className="text-[#a1a1a1] text-[14px] leading-[1.4] font-geist">
-                                                {step.sub}
-                                            </div>
-                                            <div
-                                                className="text-white font-semibold tabular-nums font-geist"
-                                                style={{ fontSize: 'clamp(28px, 5vw, 40px)', letterSpacing: '-1.4px', lineHeight: 1.0, fontFeatureSettings: '"tnum","liga"' }}
-                                            >
-                                                ₹{step.value.toLocaleString('en-IN')}
-                                            </div>
-                                            {/* connector arrow — only on desktop horizontal layout */}
-                                            {i < 2 && (
-                                                <div
-                                                    className="hidden md:flex absolute top-1/2 -right-3 -translate-y-1/2 w-6 h-6 items-center justify-center rounded-full bg-[#0a0a0a] z-10"
-                                                    style={{ boxShadow: 'rgba(255,255,255,0.12) 0px 0px 0px 1px' }}
-                                                    aria-hidden="true"
-                                                >
-                                                    <ArrowRight size={11} className="text-[#737373]" strokeWidth={2} />
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            </section>
-
-                            {/* ===== COUNT METRICS ===== */}
-                            <section
-                                className="grid grid-cols-2 rounded-lg overflow-hidden"
-                                style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
-                            >
-                                <div
-                                    className="p-5 sm:p-7 flex flex-col gap-3 sm:gap-4 min-w-0"
-                                    style={{ boxShadow: 'rgba(255,255,255,0.08) -1px 0px 0px inset' }}
-                                >
-                                    <div className="flex items-center justify-between">
-                                        <span className="font-geistmono text-[11px] font-medium uppercase text-[#737373]">Clients</span>
-                                        <UserPlus size={13} className="text-[#525252]" strokeWidth={2} />
-                                    </div>
-                                    <div
-                                        className="text-white font-semibold tabular-nums font-geist"
-                                        style={{ fontSize: 'clamp(36px, 6vw, 52px)', letterSpacing: '-1.6px', lineHeight: 1.0 }}
-                                    >
-                                        {totalClients}
-                                    </div>
-                                    <div className="flex items-center gap-2 text-[13px] font-geist">
-                                        <span
-                                            className="inline-flex items-center px-2 h-5 rounded-full whitespace-nowrap font-medium tabular-nums"
-                                            style={{ background: 'rgba(10,114,245,0.12)', color: '#3a8dff', fontSize: '11px' }}
-                                        >
-                                            {clientsWithEmail} email-enabled
-                                        </span>
-                                        {totalClients - clientsWithEmail > 0 && (
-                                            <span className="text-[#737373] tabular-nums">{totalClients - clientsWithEmail} pending</span>
-                                        )}
-                                    </div>
-                                </div>
-                                <div className="p-5 sm:p-7 flex flex-col gap-3 sm:gap-4 min-w-0">
-                                    <div className="flex items-center justify-between">
-                                        <span className="font-geistmono text-[11px] font-medium uppercase text-[#737373]">Projects</span>
-                                        <Briefcase size={13} className="text-[#525252]" strokeWidth={2} />
-                                    </div>
-                                    <div
-                                        className="text-white font-semibold tabular-nums font-geist"
-                                        style={{ fontSize: 'clamp(36px, 6vw, 52px)', letterSpacing: '-1.6px', lineHeight: 1.0 }}
-                                    >
-                                        {totalProjects}
-                                    </div>
-                                    <div className="flex items-center gap-2 text-[13px] font-geist">
-                                        <span
-                                            className="inline-flex items-center px-2 h-5 rounded-full whitespace-nowrap font-medium tabular-nums"
-                                            style={{ background: 'rgba(255,91,79,0.12)', color: '#ff7a72', fontSize: '11px' }}
-                                        >
-                                            {activeProjects} active
-                                        </span>
-                                        <span className="text-[#525252]">·</span>
-                                        <span className="text-[#a1a1a1] tabular-nums">{totalProjects - activeProjects} shipped</span>
-                                    </div>
-                                </div>
-                            </section>
-
-                            {/* ===== DIRECTORY ===== */}
-                            <section className="space-y-6">
-                                <div
-                                    className="flex items-end justify-between gap-4 pb-5"
-                                    style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 1px 0px' }}
-                                >
-                                    <div>
-                                        <span className="font-geistmono text-[11px] font-medium uppercase text-[#737373] mb-2 block">Directory</span>
-                                        <h2
-                                            className="text-white font-semibold font-geist leading-[1.0]"
-                                            style={{ fontSize: '32px', letterSpacing: '-1.28px' }}
-                                        >
-                                            All clients
-                                        </h2>
-                                    </div>
-                                    <span className="font-geistmono text-[11px] uppercase text-[#737373] tabular-nums pb-1">
-                                        {filtered.length} <span className="text-[#525252]">of</span> {clients.length}
-                                    </span>
-                                </div>
-
-                                {/* Toolbar */}
-                                <div className="flex flex-col sm:flex-row gap-2">
-                                    <div className="relative flex-1">
-                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#737373]" size={14} strokeWidth={2} />
-                                        <input
-                                            type="text"
-                                            name="client_search"
-                                            autoComplete="off"
-                                            spellCheck={false}
-                                            data-form-type="other"
-                                            placeholder="Search by name, email, or access key..."
-                                            className="w-full bg-transparent rounded-md pl-9 pr-9 h-10 text-[14px] text-white placeholder:text-[#737373] outline-none transition-shadow font-geist"
-                                            style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
-                                            onFocus={(e) => { e.currentTarget.style.boxShadow = 'rgba(10,114,239,0.6) 0px 0px 0px 1px, rgba(10,114,239,0.20) 0px 0px 0px 3px'; }}
-                                            onBlur={(e) => { e.currentTarget.style.boxShadow = 'rgba(255,255,255,0.10) 0px 0px 0px 1px'; }}
-                                            value={clientSearch}
-                                            onChange={(e) => setClientSearch(e.target.value)}
-                                        />
-                                        {clientSearch && (
-                                            <button
-                                                type="button"
-                                                onClick={() => setClientSearch('')}
-                                                className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded text-[#737373] hover:text-white hover:bg-[#181818] transition-colors"
-                                                aria-label="Clear search"
-                                            >
-                                                <X size={12} strokeWidth={2.5} />
-                                            </button>
-                                        )}
-                                    </div>
-                                    <div className="relative" data-menu-root>
+                                    <div className="ml-auto flex items-center gap-3 min-w-0">
+                                        <div className="hidden sm:block w-[240px]">{searchPill}</div>
                                         <button
-                                            onClick={() => setSortOpen(o => !o)}
-                                            aria-expanded={sortOpen}
-                                            aria-haspopup="listbox"
-                                            className="w-full sm:w-auto h-10 px-3 rounded-md text-[#a1a1a1] hover:text-white flex items-center justify-center gap-2 transition-colors text-[13px] font-medium font-geist"
-                                            style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
+                                            onClick={() => { setFormData({}); setEditingId(null); setEditingLinkIndex(null); setShowModal(true); }}
+                                            className="rounded-full h-11 px-5 text-[14px] font-bold text-white flex items-center gap-2 whitespace-nowrap transition-opacity hover:opacity-90 shrink-0"
+                                            style={{ background: T.dark }}
                                         >
-                                            <SlidersHorizontal size={13} strokeWidth={2} />
-                                            <span>{sortLabels[clientSort]}</span>
-                                            <ChevronDown size={13} strokeWidth={2} className={`transition-transform ${sortOpen ? 'rotate-180' : ''}`} />
+                                            <Plus size={15} strokeWidth={2.5} /> New client
                                         </button>
-                                        {sortOpen && (
-                                            <motion.div
-                                                initial={{ opacity: 0, y: -4 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                className="absolute right-0 top-full mt-1.5 w-56 rounded-md z-50 overflow-hidden p-1 bg-[#161616]"
-                                                style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px, rgba(0,0,0,0.7) 0px 12px 32px -4px, rgba(0,0,0,0.5) 0px 4px 8px -2px' }}
-                                            >
-                                                {(['recent', 'name', 'projects', 'value'] as ClientSortField[]).map(key => (
-                                                    <button
-                                                        key={key}
-                                                        onClick={() => { setClientSort(key); setSortOpen(false); }}
-                                                        className={`w-full text-left px-2.5 py-2 text-[13px] rounded transition-colors font-geist ${
-                                                            clientSort === key
-                                                                ? 'bg-[#222] text-white font-medium'
-                                                                : 'text-[#a1a1a1] hover:bg-[#222] hover:text-white'
-                                                        }`}
-                                                    >
-                                                        {sortLabels[key]}
-                                                    </button>
-                                                ))}
-                                            </motion.div>
-                                        )}
                                     </div>
+                                </header>
+
+                                {/* ===== EDITORIAL HERO ===== */}
+                                <div className="flex flex-wrap items-end gap-x-10 gap-y-8 mt-10 mb-9">
+                                    {totalClients === 0 ? (
+                                        <h1 className="font-extrabold" style={{ fontSize: 'clamp(40px, 5.2vw, 74px)', letterSpacing: '-0.045em', lineHeight: 0.98, margin: 0 }}>
+                                            Empty<br /><span style={{ color: '#B9B19C' }}>portfolio.</span>
+                                        </h1>
+                                    ) : (
+                                        <h1 className="font-extrabold tabular-nums" style={{ fontSize: 'clamp(40px, 5.2vw, 74px)', letterSpacing: '-0.045em', lineHeight: 0.98, margin: 0 }}>
+                                            {fmtINR(totalValue)}<br />
+                                            <span style={{ color: '#B9B19C' }}>in contracted work.</span>
+                                        </h1>
+                                    )}
+                                    {totalClients > 0 && (
+                                    <div className="ml-auto flex flex-wrap gap-7 lg:gap-9 pb-2">
+                                        {[
+                                            { v: totalClients, l: 'Clients' },
+                                            { v: totalProjects, l: 'Projects' },
+                                            { v: activeProjects, l: 'Active' },
+                                            { v: shippedProjects, l: 'Shipped' },
+                                        ].map((s, i) => (
+                                            <div key={i} style={{ borderLeft: `1px solid ${T.hairline}`, paddingLeft: 18 }}>
+                                                <div className="font-extrabold tabular-nums" style={{ fontSize: 34, letterSpacing: '-0.03em', lineHeight: 1 }}>{s.v}</div>
+                                                <div className="text-[11.5px] font-extrabold uppercase mt-1.5" style={{ letterSpacing: '0.14em', color: T.label }}>{s.l}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    )}
                                 </div>
 
-                                {/* List */}
-                                {filtered.length === 0 ? (
-                                    <div
-                                        className="rounded-lg py-20 px-6 text-center"
-                                        style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
-                                    >
-                                        <div
-                                            className="inline-flex w-12 h-12 items-center justify-center rounded-md mb-5"
-                                            style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
-                                        >
-                                            {clients.length === 0
-                                                ? <UserPlus size={18} className="text-[#a1a1a1]" strokeWidth={2} />
-                                                : <Search size={18} className="text-[#a1a1a1]" strokeWidth={2} />}
-                                        </div>
-                                        <p className="text-white text-[20px] font-semibold font-geist" style={{ letterSpacing: '-0.4px' }}>
-                                            {clients.length === 0 ? 'No clients yet' : 'No matches'}
-                                        </p>
-                                        <p className="text-[#a1a1a1] text-[14px] mt-2 max-w-sm mx-auto font-geist">
-                                            {clients.length === 0
-                                                ? 'Click "New client" to onboard your first client.'
-                                                : `Nothing matches "${clientSearch}".`}
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <div
-                                        className="rounded-lg"
-                                        style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
-                                    >
-                                        {/* Header */}
-                                        <div
-                                            className="hidden lg:grid grid-cols-12 gap-4 px-6 h-10 items-center font-geistmono text-[10px] font-medium uppercase text-[#737373] rounded-t-lg"
-                                            style={{ boxShadow: 'rgba(255,255,255,0.08) 0px -1px 0px inset', background: 'rgba(255,255,255,0.015)' }}
-                                        >
-                                            <div className="col-span-4">Client</div>
-                                            <div className="col-span-2">Access Key</div>
-                                            <div className="col-span-1 text-right">Projects</div>
-                                            <div className="col-span-2 text-right">Contract</div>
-                                            <div className="col-span-2">Status</div>
-                                            <div className="col-span-1 text-right">Actions</div>
-                                        </div>
+                                {/* ===== DARK PIPELINE CARD ===== */}
+                                {totalValue > 0 && (
+                                    <DarkPanel
+                                        heading="Pipeline — Collections"
+                                        pct={paidPct}
+                                        collected={totalPaid}
+                                        outstanding={totalPending}
+                                        onCollect={() => { setClientSort('value'); directoryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
+                                    />
+                                )}
 
-                                        {filtered.map((client, idx) => {
+                                {/* Mobile search */}
+                                <div className="sm:hidden mt-8">{searchPill}</div>
+
+                                {/* ===== DIRECTORY + RECENT ===== */}
+                                <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-x-14 gap-y-12 mt-10 items-start">
+                                    {/* Directory — hairline editorial, no card chrome */}
+                                    <section ref={directoryRef} className="min-w-0 scroll-mt-6">
+                                        <SectionHead
+                                            title="All clients"
+                                            meta={`${filtered.length} of ${clients.length}`}
+                                            right={
+                                                <div className="relative" data-menu-root>
+                                                    <button
+                                                        onClick={() => setSortOpen(o => !o)}
+                                                        aria-expanded={sortOpen}
+                                                        aria-haspopup="listbox"
+                                                        className="flex items-center gap-2 text-[13px] font-bold transition-colors hover:text-[#1C1A17]"
+                                                        style={{ color: '#857D69' }}
+                                                    >
+                                                        {sortLabels[clientSort]}
+                                                        <ChevronDown size={14} strokeWidth={2.2} className={`transition-transform ${sortOpen ? 'rotate-180' : ''}`} />
+                                                    </button>
+                                                    {sortOpen && (
+                                                        <motion.div
+                                                            initial={{ opacity: 0, y: -4 }}
+                                                            animate={{ opacity: 1, y: 0 }}
+                                                            className="absolute right-0 top-full mt-2 w-52 rounded-xl z-50 overflow-hidden p-1.5 bg-white"
+                                                            style={{ boxShadow: `0 0 0 1px ${T.border}, 0 16px 40px -8px rgba(22,20,15,0.25)` }}
+                                                        >
+                                                            {(['recent', 'name', 'projects', 'value'] as ClientSortField[]).map(key => (
+                                                                <button
+                                                                    key={key}
+                                                                    onClick={() => { setClientSort(key); setSortOpen(false); }}
+                                                                    className="w-full flex items-center justify-between text-left px-3 py-2 text-[13px] rounded-lg transition-colors"
+                                                                    style={clientSort === key ? { background: '#F6F4F0', color: T.ink, fontWeight: 700 } : { color: '#5B5448' }}
+                                                                    onMouseEnter={e => { if (clientSort !== key) e.currentTarget.style.background = '#F6F4F0'; }}
+                                                                    onMouseLeave={e => { if (clientSort !== key) e.currentTarget.style.background = 'transparent'; }}
+                                                                >
+                                                                    {sortLabels[key]}
+                                                                    {clientSort === key && <Check size={13} style={{ color: T.accent }} strokeWidth={2.5} />}
+                                                                </button>
+                                                            ))}
+                                                        </motion.div>
+                                                    )}
+                                                </div>
+                                            }
+                                        />
+
+                                        {filtered.length === 0 ? (
+                                            <EmptyBlock
+                                                icon={clients.length === 0 ? <UserPlus size={18} strokeWidth={2} /> : <Search size={18} strokeWidth={2} />}
+                                                title={clients.length === 0 ? 'No clients yet' : 'No matches'}
+                                                sub={clients.length === 0 ? 'Click "New client" to onboard your first client.' : `Nothing matches "${clientSearch}".`}
+                                            />
+                                        ) : filtered.map((client, idx) => {
                                             const isCopied = copiedKey === client.access_key;
-                                            const paidPctClient = client.stats.totalValue > 0
-                                                ? Math.round((client.stats.paidValue / client.stats.totalValue) * 100)
-                                                : 0;
-                                            const hasProjects = client.stats.projectCount > 0;
-                                            const progress = client.stats.progress;
-                                            // Map status to workflow stages — Develop (early) Blue → Preview (mid) Pink → Ship (done) Red
-                                            const statusColor = progress === 100 ? '#ff5b4f' : progress >= 50 ? '#de1d8d' : '#0a72ef';
-                                            const statusLabel = progress === 100 ? 'Shipped' : progress >= 50 ? 'Preview' : 'Develop';
-
-                                            const isFirst = idx === 0;
-                                            const isLast = idx === filtered.length - 1;
+                                            const paidPctClient = client.stats.totalValue > 0 ? Math.round((client.stats.paidValue / client.stats.totalValue) * 100) : 0;
+                                            const stage = clientStage(client);
+                                            const isPkg = client.billing_mode === 'package';
                                             return (
                                                 <motion.div
                                                     key={client.id}
                                                     initial={{ opacity: 0 }}
                                                     animate={{ opacity: 1 }}
-                                                    transition={{ delay: idx * 0.03, duration: 0.2 }}
-                                                    className={`group grid grid-cols-1 lg:grid-cols-12 gap-3 lg:gap-4 items-center px-5 lg:px-6 py-4 hover:bg-[#0d0d0d] transition-colors ${isFirst ? 'rounded-t-lg lg:rounded-t-none' : ''} ${isLast ? 'rounded-b-lg' : ''}`}
-                                                    style={{ boxShadow: idx > 0 ? 'rgba(255,255,255,0.08) 0px 1px 0px inset' : undefined }}
+                                                    transition={{ delay: Math.min(idx * 0.03, 0.3), duration: 0.2 }}
+                                                    className="py-[18px]"
+                                                    style={{ borderBottom: `1px solid ${T.hairline}` }}
                                                 >
-                                                    {/* Profile */}
-                                                    <div className="col-span-1 lg:col-span-4 flex items-center gap-3 min-w-0">
-                                                        <div
-                                                            className="shrink-0 w-9 h-9 rounded-md flex items-center justify-center bg-[#111] text-[#ededed] text-[14px] font-semibold font-geist"
-                                                            style={{ letterSpacing: '-0.4px', boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
-                                                        >
-                                                            {client.name.charAt(0).toUpperCase()}
+                                                    <div className="grid grid-cols-[1fr_auto] lg:grid-cols-[2.1fr_1.2fr_0.7fr_1.6fr_44px] gap-x-4 gap-y-3 items-center">
+                                                        {/* Profile */}
+                                                        <div className="flex items-center gap-3.5 min-w-0">
+                                                            <WarmAvatar name={client.name} size={44} />
+                                                            <div className="min-w-0">
+                                                                <div className="flex items-center gap-2 min-w-0">
+                                                                    <h3 className="font-bold truncate" style={{ fontSize: 15.5, color: T.ink }}>{client.name}</h3>
+                                                                    {isPkg && (
+                                                                        <span className="shrink-0 font-extrabold uppercase rounded-full" style={{ fontSize: 10, letterSpacing: '0.06em', color: T.accent, border: `1px solid ${T.accent}`, padding: '1px 8px' }} title="Monthly package client">
+                                                                            Package
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                <div className="text-[12.5px] truncate mt-0.5" style={{ color: '#9A937F' }}>
+                                                                    {client.email || <span style={{ color: T.accent }}>No email on file</span>}
+                                                                </div>
+                                                            </div>
                                                         </div>
-                                                        <div className="min-w-0 flex-1">
-                                                            <div className="flex items-center gap-2">
-                                                                <h3 className="text-white font-semibold truncate text-[15px] font-geist" style={{ letterSpacing: '-0.3px' }}>
-                                                                    {client.name}
-                                                                </h3>
-                                                                {client.billing_mode === 'package' && (
-                                                                    <span className="inline-flex items-center gap-1 px-1.5 h-4 rounded-full bg-violet-500/15 text-violet-300 font-geistmono text-[9px] uppercase font-medium shrink-0" title="Monthly package client">
-                                                                        <CreditCard size={9} /> Package
-                                                                    </span>
+
+                                                        {/* Kebab — mobile position (top right) */}
+                                                        <div className="lg:hidden relative justify-self-end" data-menu-root>
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    if (openMenuId === client.id) { setOpenMenuId(null); return; }
+                                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                                    setMenuFlipUp(window.innerHeight - rect.bottom < 236);
+                                                                    setOpenMenuId(client.id);
+                                                                }}
+                                                                aria-label="Open actions menu"
+                                                                aria-expanded={openMenuId === client.id}
+                                                                aria-haspopup="menu"
+                                                                className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(22,20,15,0.06)]"
+                                                                style={{ color: '#857D69' }}
+                                                            >
+                                                                <MoreHorizontal size={16} />
+                                                            </button>
+                                                        </div>
+
+                                                        {/* Access key */}
+                                                        <div className="min-w-0 col-span-2 lg:col-span-1">
+                                                            <button
+                                                                onClick={() => copyAccessKey(client.access_key)}
+                                                                className="inline-flex items-center gap-2 rounded-[9px] px-2.5 h-8 max-w-full transition-colors hover:bg-white"
+                                                                style={{ border: `1px solid ${T.border}`, background: '#F6F4EF' }}
+                                                                title={isCopied ? 'Copied' : 'Click to copy'}
+                                                            >
+                                                                <span className="font-jbmono text-[12px] truncate" style={{ color: '#6E6759' }}>{client.access_key}</span>
+                                                                {isCopied
+                                                                    ? <Check size={13} className="shrink-0" style={{ color: T.green }} strokeWidth={2.5} />
+                                                                    : <Copy size={13} className="shrink-0" style={{ color: T.faint }} strokeWidth={1.8} />}
+                                                            </button>
+                                                        </div>
+
+                                                        {/* Projects */}
+                                                        <div className="tabular-nums" style={{ fontSize: 15, fontWeight: 700 }}>
+                                                            {client.stats.projectCount > 0 ? (
+                                                                <>
+                                                                    <span className="lg:hidden text-[11px] font-extrabold uppercase mr-2" style={{ letterSpacing: '0.1em', color: T.label }}>Projects</span>
+                                                                    {client.stats.completedProjects}<span style={{ color: '#B9B19C', fontWeight: 600 }}>/{client.stats.projectCount}</span>
+                                                                </>
+                                                            ) : (
+                                                                <span style={{ color: '#B9B19C' }}>—</span>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Contract + stage */}
+                                                        <div className="flex items-center gap-4 lg:justify-self-end">
+                                                            <div className="lg:text-right">
+                                                                {isPkg ? (
+                                                                    <>
+                                                                        <div className="tabular-nums" style={{ fontSize: 15, fontWeight: 700 }}>{fmtINR(Number(client.package_fee) || 0)}<span style={{ color: '#9A937F', fontWeight: 600 }}>/mo</span></div>
+                                                                        <div className="text-[11.5px] font-semibold" style={{ color: '#9A937F' }}>retainer</div>
+                                                                    </>
+                                                                ) : client.stats.totalValue > 0 ? (
+                                                                    <>
+                                                                        <div className="tabular-nums" style={{ fontSize: 15, fontWeight: 700 }}>{formatK(client.stats.totalValue)}</div>
+                                                                        <div className="text-[11.5px] font-semibold tabular-nums" style={{ color: paidPctClient === 100 ? T.green : '#9A937F' }}>{paidPctClient}% paid</div>
+                                                                    </>
+                                                                ) : (
+                                                                    <div style={{ color: '#B9B19C', fontWeight: 600, fontSize: 14 }}>—</div>
                                                                 )}
                                                             </div>
-                                                            <p className="text-[#737373] text-[12px] truncate font-geist mt-0.5 flex items-center gap-2">
-                                                                <span className="truncate">
-                                                                    {client.email || <span className="text-[#ff5b4f]">No email on file</span>}
-                                                                </span>
-                                                                <span className="font-geistmono text-[10px] uppercase text-[#525252] shrink-0">
-                                                                    {new Date(client.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                                                                </span>
-                                                            </p>
+                                                            {stage && <StagePill label={stage.label} tone={stage.tone} />}
                                                         </div>
-                                                    </div>
 
-                                                    {/* Access Key */}
-                                                    <div className="col-span-1 lg:col-span-2 flex items-center justify-between lg:justify-start gap-2">
-                                                        <span className="lg:hidden font-geistmono text-[10px] uppercase text-[#737373]">Key</span>
-                                                        <button
-                                                            onClick={() => copyAccessKey(client.access_key)}
-                                                            className="flex items-center gap-1.5 hover:bg-[#181818] px-2 h-7 rounded transition-colors max-w-full"
-                                                            style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
-                                                            title={isCopied ? 'Copied' : 'Click to copy'}
-                                                        >
-                                                            <span className="text-[#a1a1a1] font-geistmono text-[11px] truncate max-w-[110px]">{client.access_key}</span>
-                                                            {isCopied
-                                                                ? <Check size={11} className="text-[#0a72ef] shrink-0" strokeWidth={3} />
-                                                                : <Copy size={11} className="text-[#525252] group-hover:text-[#a1a1a1] shrink-0 transition-colors" />}
-                                                        </button>
-                                                    </div>
-
-                                                    {/* Projects */}
-                                                    <div className="col-span-1 lg:col-span-1 flex items-center justify-between lg:justify-end">
-                                                        <span className="lg:hidden font-geistmono text-[10px] uppercase text-[#737373]">Projects</span>
-                                                        {hasProjects ? (
-                                                            <span className="font-geist text-white tabular-nums text-[15px] font-semibold" style={{ letterSpacing: '-0.3px' }}>
-                                                                {client.stats.completedProjects}<span className="text-[#525252] font-normal">/</span>{client.stats.projectCount}
-                                                            </span>
-                                                        ) : (
-                                                            <span className="text-[#525252] text-[14px] font-geist">—</span>
-                                                        )}
-                                                    </div>
-
-                                                    {/* Contract */}
-                                                    <div className="col-span-1 lg:col-span-2 flex items-center justify-between lg:justify-end">
-                                                        <span className="lg:hidden font-geistmono text-[10px] uppercase text-[#737373]">Contract</span>
-                                                        {client.stats.totalValue > 0 ? (
-                                                            <div className="text-right font-geist">
-                                                                <div className="text-white text-[14px] font-semibold tabular-nums" style={{ letterSpacing: '-0.28px' }}>
-                                                                    {formatK(client.stats.totalValue)}
-                                                                </div>
-                                                                <div className="text-[#737373] text-[11px] tabular-nums font-geistmono">{paidPctClient}% paid</div>
-                                                            </div>
-                                                        ) : (
-                                                            <span className="text-[#525252] text-[14px] font-geist">—</span>
-                                                        )}
-                                                    </div>
-
-                                                    {/* Status */}
-                                                    <div className="col-span-1 lg:col-span-2 flex items-center justify-between lg:justify-start gap-3">
-                                                        <span className="lg:hidden font-geistmono text-[10px] uppercase text-[#737373] shrink-0">Status</span>
-                                                        <div className="flex items-center gap-2 flex-1 lg:max-w-[180px] min-w-0">
-                                                            <span
-                                                                className="inline-flex items-center gap-1.5 px-2 h-5 rounded-full whitespace-nowrap font-geistmono text-[10px] uppercase font-medium shrink-0"
-                                                                style={{ background: `${statusColor}1f`, color: statusColor }}
+                                                        {/* Kebab — desktop */}
+                                                        <div className="hidden lg:block relative justify-self-end" data-menu-root>
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    if (openMenuId === client.id) { setOpenMenuId(null); return; }
+                                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                                    setMenuFlipUp(window.innerHeight - rect.bottom < 236);
+                                                                    setOpenMenuId(client.id);
+                                                                }}
+                                                                aria-label="Open actions menu"
+                                                                aria-expanded={openMenuId === client.id}
+                                                                aria-haspopup="menu"
+                                                                className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(22,20,15,0.06)]"
+                                                                style={{ color: '#857D69' }}
                                                             >
-                                                                <span className="w-1 h-1 rounded-full" style={{ background: statusColor }} />
-                                                                {statusLabel}
-                                                            </span>
-                                                            <div className="flex-1 min-w-0 h-[2px] bg-[#1a1a1a] rounded-full overflow-hidden">
-                                                                <motion.div
-                                                                    initial={{ width: 0 }}
-                                                                    animate={{ width: `${progress}%` }}
-                                                                    transition={{ duration: 0.7, ease: 'easeOut', delay: 0.1 + idx * 0.03 }}
-                                                                    className="h-full rounded-full"
-                                                                    style={{ background: statusColor }}
-                                                                />
-                                                            </div>
-                                                            <span className="font-geistmono text-[10px] tabular-nums text-[#737373] w-9 text-right shrink-0">{progress}%</span>
+                                                                <MoreHorizontal size={16} />
+                                                            </button>
                                                         </div>
                                                     </div>
 
-                                                    {/* Actions */}
-                                                    <div className="col-span-1 lg:col-span-1 flex items-center justify-end relative" data-menu-root>
-                                                        <button
-                                                            onClick={(e) => {
-                                                                if (openMenuId === client.id) {
-                                                                    setOpenMenuId(null);
-                                                                    return;
-                                                                }
-                                                                // Viewport-aware flip: if not enough room below, open upward
-                                                                const rect = e.currentTarget.getBoundingClientRect();
-                                                                const menuApproxHeight = 220;
-                                                                const spaceBelow = window.innerHeight - rect.bottom;
-                                                                setMenuFlipUp(spaceBelow < menuApproxHeight + 16);
-                                                                setOpenMenuId(client.id);
-                                                            }}
-                                                            aria-label="Open actions menu"
-                                                            aria-expanded={openMenuId === client.id}
-                                                            aria-haspopup="menu"
-                                                            className="w-8 h-8 rounded-md text-[#737373] hover:text-white hover:bg-[#181818] flex items-center justify-center transition-colors"
-                                                        >
-                                                            <MoreHorizontal size={15} />
-                                                        </button>
-                                                        {openMenuId === client.id && (
+                                                    {/* Shared actions menu (anchored to whichever kebab opened it) */}
+                                                    {openMenuId === client.id && (
+                                                        <div className="relative" data-menu-root>
                                                             <motion.div
                                                                 role="menu"
                                                                 initial={{ opacity: 0, y: menuFlipUp ? 4 : -4 }}
                                                                 animate={{ opacity: 1, y: 0 }}
-                                                                className={`absolute right-0 w-52 rounded-md z-50 overflow-hidden p-1 bg-[#161616] ${
-                                                                    menuFlipUp ? 'bottom-full mb-2' : 'top-full mt-1.5'
-                                                                }`}
-                                                                style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px, rgba(0,0,0,0.7) 0px 12px 32px -4px, rgba(0,0,0,0.5) 0px 4px 8px -2px' }}
+                                                                className={`absolute right-0 w-56 rounded-xl z-50 overflow-hidden p-1.5 bg-white ${menuFlipUp ? 'bottom-[64px]' : 'top-1'}`}
+                                                                style={{ boxShadow: `0 0 0 1px ${T.border}, 0 16px 40px -8px rgba(22,20,15,0.25)` }}
                                                             >
-                                                                <button
-                                                                    role="menuitem"
-                                                                    onClick={() => { setOpenMenuId(null); handleClientSelect(client); }}
-                                                                    className="w-full flex items-center gap-2.5 px-2.5 py-2 text-[13px] text-[#a1a1a1] hover:text-white rounded hover:bg-[#222] transition-colors font-geist"
-                                                                >
-                                                                    <FolderPlus size={13} />
-                                                                    Projects
-                                                                </button>
-                                                                <button
-                                                                    role="menuitem"
-                                                                    onClick={() => { setOpenMenuId(null); handleViewActivity(client); }}
-                                                                    className="w-full flex items-center gap-2.5 px-2.5 py-2 text-[13px] text-[#a1a1a1] hover:text-white rounded hover:bg-[#222] transition-colors font-geist"
-                                                                >
-                                                                    <Activity size={13} />
-                                                                    Activity log
-                                                                </button>
-                                                                {client.billing_mode !== 'package' ? (
+                                                                {[
+                                                                    { icon: <FolderPlus size={14} />, label: 'Projects', fn: () => handleClientSelect(client) },
+                                                                    { icon: <Activity size={14} />, label: 'Activity log', fn: () => handleViewActivity(client) },
+                                                                    ...(client.billing_mode !== 'package'
+                                                                        ? [{ icon: <PackagePlus size={14} />, label: 'Convert to package', fn: () => openPackageModal(client) }]
+                                                                        : [
+                                                                            { icon: <CreditCard size={14} />, label: 'Manage package', fn: () => openManagePackage(client) },
+                                                                            { icon: <RefreshCw size={14} />, label: 'Undo package', fn: () => handleUndoPackage(client) },
+                                                                        ]),
+                                                                ].map((item, i) => (
                                                                     <button
+                                                                        key={i}
                                                                         role="menuitem"
-                                                                        onClick={() => { setOpenMenuId(null); openPackageModal(client); }}
-                                                                        className="w-full flex items-center gap-2.5 px-2.5 py-2 text-[13px] text-[#a1a1a1] hover:text-[#0a72ef] rounded hover:bg-[#222] transition-colors font-geist"
+                                                                        onClick={() => { setOpenMenuId(null); item.fn(); }}
+                                                                        className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] font-semibold rounded-lg transition-colors text-left"
+                                                                        style={{ color: '#5B5448' }}
+                                                                        onMouseEnter={e => { e.currentTarget.style.background = '#F6F4F0'; e.currentTarget.style.color = T.ink; }}
+                                                                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#5B5448'; }}
                                                                     >
-                                                                        <PackagePlus size={13} />
-                                                                        Convert to package
+                                                                        {item.icon}{item.label}
                                                                     </button>
-                                                                ) : (
-                                                                    <>
-                                                                        <button
-                                                                            role="menuitem"
-                                                                            onClick={() => { setOpenMenuId(null); openManagePackage(client); }}
-                                                                            className="w-full flex items-center gap-2.5 px-2.5 py-2 text-[13px] text-[#a1a1a1] hover:text-[#0a72ef] rounded hover:bg-[#222] transition-colors font-geist"
-                                                                        >
-                                                                            <CreditCard size={13} />
-                                                                            Manage package
-                                                                        </button>
-                                                                        <button
-                                                                            role="menuitem"
-                                                                            onClick={() => { setOpenMenuId(null); handleUndoPackage(client); }}
-                                                                            className="w-full flex items-center gap-2.5 px-2.5 py-2 text-[13px] text-[#a1a1a1] hover:text-white rounded hover:bg-[#222] transition-colors font-geist"
-                                                                        >
-                                                                            <RefreshCw size={13} />
-                                                                            Undo package
-                                                                        </button>
-                                                                    </>
-                                                                )}
-                                                                <div className="h-px my-1" style={{ background: 'rgba(255,255,255,0.08)' }} />
+                                                                ))}
+                                                                <div className="h-px my-1.5 mx-2" style={{ background: T.borderSoft }} />
                                                                 <button
                                                                     role="menuitem"
                                                                     onClick={() => { setOpenMenuId(null); handleEditClient(client); }}
-                                                                    className="w-full flex items-center gap-2.5 px-2.5 py-2 text-[13px] text-[#a1a1a1] hover:text-white rounded hover:bg-[#222] transition-colors font-geist"
+                                                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] font-semibold rounded-lg transition-colors text-left"
+                                                                    style={{ color: '#5B5448' }}
+                                                                    onMouseEnter={e => { e.currentTarget.style.background = '#F6F4F0'; e.currentTarget.style.color = T.ink; }}
+                                                                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#5B5448'; }}
                                                                 >
-                                                                    <Pencil size={13} />
-                                                                    Edit
+                                                                    <Pencil size={14} />Edit
                                                                 </button>
                                                                 <button
                                                                     role="menuitem"
                                                                     onClick={() => { setOpenMenuId(null); handleDelete(client.id, 'clients'); }}
-                                                                    className="w-full flex items-center gap-2.5 px-2.5 py-2 text-[13px] text-[#ff5b4f] rounded hover:bg-[#222] transition-colors font-geist"
+                                                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] font-semibold rounded-lg transition-colors text-left"
+                                                                    style={{ color: '#B3331D' }}
+                                                                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(179,51,29,0.08)'; }}
+                                                                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
                                                                 >
-                                                                    <Trash2 size={13} />
-                                                                    Delete
+                                                                    <Trash2 size={14} />Delete
                                                                 </button>
                                                             </motion.div>
-                                                        )}
-                                                    </div>
+                                                        </div>
+                                                    )}
                                                 </motion.div>
                                             );
                                         })}
-                                    </div>
-                                )}
-                            </section>
-                        </div>
-                    );
-                })()}
+                                    </section>
 
-                {/* ========== PROJECTS VIEW ========== */}
-                {view === 'projects' && !loading && (() => {
-                    const projectsCount = projects.length;
-                    const completedCount = projects.filter(p => p.displayStatus === 'Completed').length;
-                    const activeCount = projectsCount - completedCount;
-                    const totalValue = projects.reduce((a, p) => a + (p.stats?.total ?? 0), 0);
-                    const totalPaid = projects.reduce((a, p) => a + (p.stats?.paid ?? 0), 0);
-                    const totalPending = Math.max(totalValue - totalPaid, 0);
-                    const paidPct = totalValue > 0 ? Math.round((totalPaid / totalValue) * 100) : 0;
-                    const formatINR = (n: number) => `₹${(n ?? 0).toLocaleString('en-IN')}`;
-
-                    return (
-                        <div className="space-y-12">
-                            {/* ===== COMMAND BAR ===== */}
-                            <header className="flex items-center justify-between gap-3 -mt-2">
-                                <div className="flex items-center gap-2 min-w-0">
-                                    <button
-                                        onClick={handleBack}
-                                        aria-label="Back to clients"
-                                        className="h-8 w-8 rounded-md flex items-center justify-center text-[#a1a1a1] hover:text-white hover:bg-[#181818] transition-colors shrink-0"
-                                        style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
-                                    >
-                                        <ArrowLeft size={13} strokeWidth={2} />
-                                    </button>
-                                    <span className="font-geistmono text-[12px] font-medium uppercase text-[#a1a1a1] truncate tracking-[0.02em] ml-1">
-                                        admin
-                                        <span className="text-[#404040] mx-1.5">/</span>
-                                        <button
-                                            type="button"
-                                            onClick={handleBack}
-                                            className="hover:text-white transition-colors uppercase"
-                                        >
-                                            clients
-                                        </button>
-                                        <span className="text-[#404040] mx-1.5">/</span>
-                                        <span className="text-white">{selectedClient?.name || '—'}</span>
-                                    </span>
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                    <button
-                                        onClick={async () => { await supabaseAdmin.auth.signOut(); router.push('/admin'); }}
-                                        className="h-9 px-3 rounded-md bg-transparent hover:bg-[#181818] text-[#a1a1a1] hover:text-white flex items-center justify-center gap-2 transition-colors text-[13px] font-medium font-geist"
-                                        style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
-                                        aria-label="Sign out"
-                                    >
-                                        <LogOut size={13} strokeWidth={2} />
-                                        <span className="hidden sm:inline">Sign out</span>
-                                    </button>
-                                    <button
-                                        onClick={() => { setFormData({}); setEditingId(null); setEditingLinkIndex(null); setShowModal(true); }}
-                                        className="h-9 px-3.5 rounded-md bg-white hover:bg-[#ededed] text-[#0a0a0a] flex items-center justify-center gap-1.5 transition-colors text-[13px] font-medium font-geist"
-                                    >
-                                        <Plus size={13} strokeWidth={2.5} />
-                                        New project
-                                    </button>
-                                </div>
-                            </header>
-
-                            {/* ===== HERO ===== */}
-                            <section className="pt-6 pb-2 max-w-3xl">
-                                {projectsCount === 0 ? (
-                                    <>
-                                        <h1
-                                            className="text-white font-semibold font-geist leading-[0.95] break-words"
-                                            style={{ fontSize: 'clamp(44px, 6.6vw, 76px)', letterSpacing: '-0.055em', fontFeatureSettings: '"liga"' }}
-                                        >
-                                            {selectedClient?.name || 'Client'}.<br />
-                                            <span className="text-[#525252]">No projects yet.</span>
-                                        </h1>
-                                        <p className="text-[#a1a1a1] text-[18px] leading-[1.56] mt-6 max-w-xl font-geist">
-                                            Create the first project for this client to begin tracking features and collections.
-                                        </p>
-                                    </>
-                                ) : (
-                                    <>
-                                        <h1
-                                            className="text-white font-semibold font-geist leading-[0.95] break-words"
-                                            style={{ fontSize: 'clamp(44px, 6.6vw, 76px)', letterSpacing: '-0.055em', fontFeatureSettings: '"liga"' }}
-                                        >
-                                            {selectedClient?.name}.<br />
-                                            <span className="text-[#525252]">{projectsCount} {projectsCount === 1 ? 'project' : 'projects'}.</span>
-                                        </h1>
-                                        <p className="text-[#a1a1a1] text-[18px] leading-[1.56] mt-6 max-w-xl font-geist">
-                                            {totalValue > 0 ? (
-                                                <>
-                                                    Tracking <span className="text-white tabular-nums">{formatINR(totalValue)}</span> in contracted work
-                                                    {paidPct === 100
-                                                        ? <>. Fully collected.</>
-                                                        : paidPct === 0
-                                                            ? <>. Awaiting first collection.</>
-                                                            : <>. <span className="text-white tabular-nums">{paidPct}%</span> collected, <span className="tabular-nums">{100 - paidPct}%</span> outstanding.</>}
-                                                </>
-                                            ) : (
-                                                <>{activeCount} active · {completedCount} shipped. No financials recorded yet.</>
-                                            )}
-                                        </p>
-                                    </>
-                                )}
-                            </section>
-
-                            {/* ===== AGGREGATE PIPELINE ===== */}
-                            {projectsCount > 0 && (
-                                <section>
-                                    <div className="flex items-center justify-between mb-3">
-                                        <span className="font-geistmono text-[11px] font-medium uppercase text-[#737373]">Financials</span>
-                                        <div className="flex items-center gap-1">
-                                            <span className="w-1 h-1 rounded-full bg-[#0a72ef]" />
-                                            <span className="w-1 h-1 rounded-full bg-[#de1d8d]" />
-                                            <span className="w-1 h-1 rounded-full bg-[#ff5b4f]" />
-                                        </div>
-                                    </div>
-                                    <div
-                                        className="grid grid-cols-1 md:grid-cols-3 rounded-lg"
-                                        style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px, rgba(0,0,0,0.4) 0px 1px 2px' }}
-                                    >
-                                        {[
-                                            { idx: '01', label: 'Develop', sub: 'Total contracted', value: totalValue, color: '#0a72ef', meta: `${activeCount} active` },
-                                            { idx: '02', label: 'Preview', sub: 'Awaiting collection', value: totalPending, color: '#de1d8d', meta: totalValue > 0 ? `${100 - paidPct}% outstanding` : '—' },
-                                            { idx: '03', label: 'Ship', sub: 'Realized revenue', value: totalPaid, color: '#ff5b4f', meta: totalValue > 0 ? `${paidPct}% collected` : '—' },
-                                        ].map((step, i) => (
-                                            <div
-                                                key={step.idx}
-                                                className={`relative p-5 sm:p-7 flex flex-col gap-4 sm:gap-5 min-w-0 ${i === 0 ? 'rounded-t-lg md:rounded-tr-none md:rounded-l-lg' : ''} ${i === 2 ? 'rounded-b-lg md:rounded-bl-none md:rounded-r-lg' : ''} ${i < 2 ? 'shadow-[inset_0_-1px_0_0_rgba(255,255,255,0.08)] md:shadow-[inset_-1px_0_0_0_rgba(255,255,255,0.08)]' : ''}`}
-                                            >
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <span className="font-geistmono text-[11px] font-medium uppercase" style={{ color: step.color }}>
-                                                        {step.idx} · {step.label}
-                                                    </span>
-                                                    <span className="font-geistmono text-[10px] uppercase text-[#737373] tabular-nums">{step.meta}</span>
-                                                </div>
-                                                <div className="text-[#a1a1a1] text-[14px] leading-[1.4] font-geist">
-                                                    {step.sub}
-                                                </div>
-                                                <div
-                                                    className="text-white font-semibold tabular-nums font-geist"
-                                                    style={{ fontSize: 'clamp(28px, 5vw, 40px)', letterSpacing: '-1.4px', lineHeight: 1.0, fontFeatureSettings: '"tnum","liga"' }}
-                                                >
-                                                    {formatINR(step.value)}
-                                                </div>
-                                                {i < 2 && (
-                                                    <div
-                                                        className="hidden md:flex absolute top-1/2 -right-3 -translate-y-1/2 w-6 h-6 items-center justify-center rounded-full bg-[#0a0a0a] z-10"
-                                                        style={{ boxShadow: 'rgba(255,255,255,0.12) 0px 0px 0px 1px' }}
-                                                        aria-hidden="true"
-                                                    >
-                                                        <ArrowRight size={11} className="text-[#737373]" strokeWidth={2} />
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </section>
-                            )}
-
-                            {/* ===== PROJECTS LIST ===== */}
-                            <section className="space-y-6">
-                                <div
-                                    className="flex items-end justify-between gap-4 pb-5"
-                                    style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 1px 0px' }}
-                                >
-                                    <div>
-                                        <span className="font-geistmono text-[11px] font-medium uppercase text-[#737373] mb-2 block">Catalog</span>
-                                        <h2
-                                            className="text-white font-semibold font-geist leading-[1.0]"
-                                            style={{ fontSize: '32px', letterSpacing: '-1.28px' }}
-                                        >
-                                            All projects
-                                        </h2>
-                                    </div>
-                                    {projectsCount > 0 && (
-                                        <span className="font-geistmono text-[11px] uppercase text-[#737373] tabular-nums pb-1">
-                                            {completedCount} <span className="text-[#525252]">shipped of</span> {projectsCount}
-                                        </span>
-                                    )}
-                                </div>
-
-                                {projectsCount === 0 ? (
-                                    <div
-                                        className="rounded-lg py-20 px-6 text-center"
-                                        style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
-                                    >
-                                        <div
-                                            className="inline-flex w-12 h-12 items-center justify-center rounded-md mb-5"
-                                            style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
-                                        >
-                                            <PackagePlus size={18} className="text-[#a1a1a1]" strokeWidth={2} />
-                                        </div>
-                                        <p className="text-white text-[20px] font-semibold font-geist" style={{ letterSpacing: '-0.4px' }}>
-                                            No projects yet
-                                        </p>
-                                        <p className="text-[#a1a1a1] text-[14px] mt-2 max-w-sm mx-auto font-geist">
-                                            Click &quot;New project&quot; to create the first deliverable for this client.
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-4">
-                                        {projects.map((project, idx) => {
-                                            const ds = project.displayStatus;
-                                            const isCompleted = ds === 'Completed';
-                                            const isOnHold = ds === 'On Hold';
-                                            const isCancelled = ds === 'Cancelled';
-                                            const progress = project.stats?.progress ?? 0;
-                                            const stageColor = isCancelled ? '#737373' : isOnHold ? '#f59e0b' : isCompleted ? '#ff5b4f' : progress >= 50 ? '#de1d8d' : '#0a72ef';
-                                            const stageLabel = isCancelled ? 'Cancelled' : isOnHold ? 'On Hold' : isCompleted ? 'Shipped' : progress >= 50 ? 'Preview' : 'Develop';
-                                            const projectIdx = String(idx + 1).padStart(2, '0');
-                                            const total = project.stats?.total ?? 0;
-                                            const paid = project.stats?.paid ?? 0;
-                                            const pending = project.stats?.pending ?? Math.max(total - paid, 0);
-
+                                    {/* Recent — latest activity across all clients */}
+                                    <section className="min-w-0">
+                                        <SectionHead title="Recent" />
+                                        {recentLogs.length === 0 ? (
+                                            <p className="text-[13px] py-6" style={{ color: T.muted }}>No activity yet — changes will appear here.</p>
+                                        ) : recentLogs.map((log) => {
+                                            const cl = clients.find(c => c.id === log.client_id);
+                                            const amount = Number(log.metadata?.amount) || 0;
+                                            const isMoneyIn = log.action_type === 'payment_received' || log.action_type === 'rate_confirmed';
                                             return (
-                                                <motion.article
-                                                    layout
-                                                    key={project.id}
-                                                    initial={{ opacity: 0, y: 4 }}
-                                                    animate={{ opacity: 1, y: 0 }}
-                                                    transition={{ delay: idx * 0.04, duration: 0.25 }}
-                                                    className="rounded-lg p-6 sm:p-7 group hover:bg-[#0c0c0c] transition-colors"
-                                                    style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
+                                                <button
+                                                    key={log.id}
+                                                    onClick={() => cl && handleViewActivity(cl)}
+                                                    className="w-full flex items-center gap-3 py-4 text-left transition-colors hover:bg-[rgba(22,20,15,0.025)]"
+                                                    style={{ borderBottom: `1px solid ${T.hairline}` }}
                                                 >
-                                                    {/* Header row: index + category + date */}
-                                                    <div className="flex items-center justify-between gap-2 mb-5 flex-wrap">
-                                                        <div className="flex items-center gap-3 flex-wrap">
-                                                            <span
-                                                                className="inline-flex items-center gap-1.5 px-2 h-5 rounded-full whitespace-nowrap font-geistmono text-[10px] uppercase font-medium shrink-0"
-                                                                style={{ background: `${stageColor}1f`, color: stageColor }}
-                                                            >
-                                                                <span className="w-1 h-1 rounded-full" style={{ background: stageColor }} />
-                                                                {projectIdx} · {stageLabel}
-                                                            </span>
-                                                            <span className="font-geistmono text-[11px] uppercase text-[#737373]">
-                                                                {project.category}
-                                                            </span>
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="font-bold truncate" style={{ fontSize: 14 }}>{log.title}</div>
+                                                        <div className="text-[12.5px] mt-0.5 truncate" style={{ color: '#9A937F' }}>
+                                                            {cl?.name || 'Unknown client'} · {getRelativeTime(log.created_at)}
                                                         </div>
-                                                        <span className="font-geistmono text-[10px] uppercase text-[#525252] tabular-nums">
-                                                            {new Date(project.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                                                        </span>
                                                     </div>
-
-                                                    {/* Project title */}
-                                                    <h3
-                                                        className="text-white font-semibold font-geist mb-6"
-                                                        style={{ fontSize: 'clamp(20px, 2.4vw, 24px)', letterSpacing: '-0.96px', lineHeight: 1.2 }}
-                                                    >
-                                                        {project.description}
-                                                    </h3>
-
-                                                    {/* Progress */}
-                                                    <div className="mb-6">
-                                                        <div className="flex items-end justify-between mb-2.5">
-                                                            <span className="font-geistmono text-[11px] font-medium uppercase text-[#737373]">Progress</span>
-                                                            <div className="flex items-baseline gap-2 font-geist">
-                                                                <span
-                                                                    className="text-white font-semibold tabular-nums"
-                                                                    style={{ fontSize: '18px', letterSpacing: '-0.36px' }}
-                                                                >
-                                                                    {progress}%
-                                                                </span>
-                                                                <span className="text-[#737373] text-[11px] font-geistmono tabular-nums">
-                                                                    {project.stats?.completedFeatures ?? 0}<span className="text-[#404040]">/</span>{project.stats?.totalFeatures ?? 0}
-                                                                </span>
+                                                    {amount > 0 && (
+                                                        <div className="text-right shrink-0">
+                                                            <div className="font-bold tabular-nums" style={{ fontSize: 13.5 }}>₹{amount.toLocaleString('en-IN')}</div>
+                                                            <div className="text-[10.5px] font-extrabold uppercase mt-0.5" style={{ letterSpacing: '0.05em', color: isMoneyIn ? T.green : '#857D69' }}>
+                                                                {isMoneyIn ? 'Paid' : getActivityMeta(log.action_type).label}
                                                             </div>
                                                         </div>
-                                                        <div className="h-1 w-full bg-[#181818] rounded-full overflow-hidden">
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
+
+                                        {/* Outstanding note card */}
+                                        {debtors.length > 0 && (
+                                            <div className="mt-6 rounded-[18px] px-5 py-[18px]" style={{ background: '#E9E3D4' }}>
+                                                <div className="font-bold" style={{ fontSize: 13.5 }}>
+                                                    {debtors.length} {debtors.length === 1 ? 'client has' : 'clients have'} dues
+                                                </div>
+                                                <div className="text-[12.5px] mt-1 leading-[1.5]" style={{ color: '#857D69' }}>
+                                                    ₹{debtors.reduce((a, c) => a + c.stats.pendingValue, 0).toLocaleString('en-IN')} awaiting collection from {debtors.slice(0, 2).map(c => c.name.split(' ')[0]).join(' & ')}{debtors.length > 2 ? ` +${debtors.length - 2} more` : ''}.
+                                                </div>
+                                            </div>
+                                        )}
+                                    </section>
+                                </div>
+                            </div>
+                        );
+                    })()}
+
+                    {/* ========== PROJECTS VIEW ========== */}
+                    {view === 'projects' && !loading && (() => {
+                        const projectsCount = projects.length;
+                        const completedCount = projects.filter(p => p.displayStatus === 'Completed').length;
+                        const activeCount = projectsCount - completedCount;
+                        const totalValue = projects.reduce((a, p) => a + (p.stats?.total ?? 0), 0);
+                        const totalPaid = projects.reduce((a, p) => a + (p.stats?.paid ?? 0), 0);
+                        const totalPending = Math.max(totalValue - totalPaid, 0);
+                        const paidPct = totalValue > 0 ? Math.round((totalPaid / totalValue) * 100) : 0;
+                        const fmtINR = (n: number) => `₹${(n ?? 0).toLocaleString('en-IN')}`;
+                        const isPkgClient = selectedClient?.billing_mode === 'package';
+
+                        return (
+                            <div>
+                                {/* ===== TOP BAR ===== */}
+                                <header className="flex items-center gap-3">
+                                    <button onClick={handleBack} aria-label="Back to clients" className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(22,20,15,0.06)] shrink-0" style={{ border: `1px solid ${T.hairline}`, color: '#857D69' }}>
+                                        <ArrowLeft size={15} strokeWidth={2} />
+                                    </button>
+                                    <div className="text-[11.5px] font-extrabold uppercase truncate" style={{ letterSpacing: '0.14em', color: T.label }}>
+                                        Admin — <span style={{ color: T.ink }}>{selectedClient?.name || '—'}</span>
+                                    </div>
+                                    <div className="ml-auto shrink-0">
+                                        <button
+                                            onClick={() => { setFormData({}); setEditingId(null); setEditingLinkIndex(null); setShowModal(true); }}
+                                            className="rounded-full h-11 px-5 text-[14px] font-bold text-white flex items-center gap-2 whitespace-nowrap transition-opacity hover:opacity-90"
+                                            style={{ background: T.dark }}
+                                        >
+                                            <Plus size={15} strokeWidth={2.5} /> New project
+                                        </button>
+                                    </div>
+                                </header>
+
+                                {/* ===== EDITORIAL HERO ===== */}
+                                <div className="mt-10 mb-9 max-w-3xl">
+                                    <h1 className="font-extrabold break-words" style={{ fontSize: 'clamp(34px, 4.4vw, 56px)', letterSpacing: '-0.04em', lineHeight: 1.0, margin: 0 }}>
+                                        {selectedClient?.name || 'Client'}.<br />
+                                        <span style={{ color: '#B9B19C' }}>
+                                            {projectsCount === 0 ? 'No projects yet.' : `${projectsCount} ${projectsCount === 1 ? 'project' : 'projects'}.`}
+                                        </span>
+                                    </h1>
+                                    <p className="text-[15.5px] mt-5 leading-[1.55] max-w-xl" style={{ color: T.muted }}>
+                                        {projectsCount === 0
+                                            ? 'Create the first project for this client to begin tracking features and collections.'
+                                            : isPkgClient
+                                                ? <>On a monthly retainer of <span className="font-bold tabular-nums" style={{ color: T.ink }}>{fmtINR(Number(selectedClient?.package_fee) || 0)}</span> — {activeCount} active · {completedCount} shipped.</>
+                                                : totalValue > 0
+                                                    ? <>Tracking <span className="font-bold tabular-nums" style={{ color: T.ink }}>{fmtINR(totalValue)}</span> in contracted work{paidPct === 100 ? '. Fully collected.' : paidPct === 0 ? '. Awaiting first collection.' : <>. <span className="font-bold tabular-nums" style={{ color: T.ink }}>{paidPct}%</span> collected.</>}</>
+                                                    : <>{activeCount} active · {completedCount} shipped. No financials recorded yet.</>}
+                                    </p>
+                                </div>
+
+                                {/* ===== DARK PIPELINE (client-scoped) ===== */}
+                                {totalValue > 0 && (
+                                    <div className="mb-10">
+                                        <DarkPanel heading={`Pipeline — ${selectedClient?.name || 'Client'}`} pct={paidPct} collected={totalPaid} outstanding={totalPending} />
+                                    </div>
+                                )}
+
+                                {/* ===== PROJECT LIST ===== */}
+                                <section>
+                                    <SectionHead title="All projects" meta={projectsCount > 0 ? `${completedCount} shipped of ${projectsCount}` : undefined} />
+                                    {projectsCount === 0 ? (
+                                        <EmptyBlock icon={<PackagePlus size={18} strokeWidth={2} />} title="No projects yet" sub={'Click "New project" to create the first deliverable for this client.'} />
+                                    ) : projects.map((project, idx) => {
+                                        const ds = project.displayStatus;
+                                        const tone = PROJECT_STAGE[ds] || PROJECT_STAGE['Not Started'];
+                                        const progress = project.stats?.progress ?? 0;
+                                        const total = project.stats?.total ?? 0;
+                                        const paid = project.stats?.paid ?? 0;
+                                        const pending = project.stats?.pending ?? Math.max(total - paid, 0);
+                                        const projPaidPct = total > 0 ? Math.round((paid / total) * 100) : 0;
+                                        return (
+                                            <motion.article
+                                                key={project.id}
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                transition={{ delay: Math.min(idx * 0.04, 0.3), duration: 0.25 }}
+                                                className="grid grid-cols-1 lg:grid-cols-[44px_minmax(0,2.2fr)_minmax(0,1.5fr)_minmax(0,1.1fr)_auto] gap-x-5 gap-y-4 lg:items-center py-6"
+                                                style={{ borderBottom: `1px solid ${T.hairline}` }}
+                                            >
+                                                {/* Index */}
+                                                <div className="hidden lg:block font-jbmono text-[12.5px]" style={{ color: '#857D69' }}>
+                                                    {String(idx + 1).padStart(2, '0')}
+                                                </div>
+
+                                                {/* Title + meta */}
+                                                <div className="min-w-0">
+                                                    <div className="flex items-center gap-3 flex-wrap">
+                                                        <h3 className="font-bold" style={{ fontSize: 17, letterSpacing: '-0.01em' }}>{project.description}</h3>
+                                                        <StagePill label={ds} tone={tone} size="sm" />
+                                                    </div>
+                                                    <div className="text-[11.5px] font-extrabold uppercase mt-1.5" style={{ letterSpacing: '0.1em', color: T.label }}>
+                                                        {project.category} <span style={{ color: '#C9C2B2' }}>·</span> {new Date(project.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                    </div>
+                                                </div>
+
+                                                {/* Progress */}
+                                                <div className="min-w-0 max-w-[260px]">
+                                                    <div className="flex items-center gap-2.5">
+                                                        <div className="flex-1 h-[5px] rounded-full overflow-hidden" style={{ background: T.borderSoft }}>
                                                             <motion.div
                                                                 initial={{ width: 0 }}
                                                                 animate={{ width: `${progress}%` }}
-                                                                transition={{ duration: 0.7, ease: 'easeOut', delay: 0.1 + idx * 0.04 }}
+                                                                transition={{ duration: 0.7, ease: 'easeOut', delay: 0.1 + Math.min(idx * 0.04, 0.3) }}
                                                                 className="h-full rounded-full"
-                                                                style={{ background: stageColor }}
+                                                                style={{ background: progress === 100 ? T.green : T.dark }}
                                                             />
                                                         </div>
+                                                        <span className="text-[12.5px] font-semibold tabular-nums shrink-0" style={{ color: T.muted }}>{progress}%</span>
                                                     </div>
-
-                                                    {/* Payment breakdown */}
-                                                    <div
-                                                        className="grid grid-cols-3 rounded-md mb-6 overflow-hidden"
-                                                        style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
-                                                    >
-                                                        <div
-                                                            className="p-3 sm:p-4 flex flex-col gap-1.5 sm:gap-2 min-w-0"
-                                                            style={{ boxShadow: 'rgba(255,255,255,0.08) -1px 0px 0px inset' }}
-                                                        >
-                                                            <span className="font-geistmono text-[10px] font-medium uppercase text-[#737373]">Total</span>
-                                                            <span
-                                                                className="text-white font-semibold tabular-nums font-geist truncate"
-                                                                style={{ fontSize: 'clamp(13px, 2vw, 18px)', letterSpacing: '-0.32px' }}
-                                                            >
-                                                                {formatINR(total)}
-                                                            </span>
-                                                        </div>
-                                                        <div
-                                                            className="p-3 sm:p-4 flex flex-col gap-1.5 sm:gap-2 min-w-0"
-                                                            style={{ boxShadow: 'rgba(255,255,255,0.08) -1px 0px 0px inset' }}
-                                                        >
-                                                            <span className="font-geistmono text-[10px] font-medium uppercase text-[#737373]">Paid</span>
-                                                            <span
-                                                                className="font-semibold tabular-nums font-geist truncate"
-                                                                style={{ fontSize: 'clamp(13px, 2vw, 18px)', letterSpacing: '-0.32px', color: paid > 0 ? '#ff5b4f' : '#525252' }}
-                                                            >
-                                                                {formatINR(paid)}
-                                                            </span>
-                                                        </div>
-                                                        <div className="p-3 sm:p-4 flex flex-col gap-1.5 sm:gap-2 min-w-0">
-                                                            <span className="font-geistmono text-[10px] font-medium uppercase text-[#737373]">Pending</span>
-                                                            <span
-                                                                className="font-semibold tabular-nums font-geist truncate"
-                                                                style={{ fontSize: 'clamp(13px, 2vw, 18px)', letterSpacing: '-0.32px', color: pending > 0 ? '#de1d8d' : '#525252' }}
-                                                            >
-                                                                {formatINR(pending)}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Footer actions */}
-                                                    <div
-                                                        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-5"
-                                                        style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 1px 0px inset' }}
-                                                    >
-                                                        <div className="flex items-center gap-1 order-2 sm:order-1">
-                                                            <button
-                                                                onClick={() => handleEditProject(project)}
-                                                                aria-label="Edit project"
-                                                                className="h-9 w-9 sm:h-8 sm:w-8 rounded-md flex items-center justify-center text-[#737373] hover:text-white hover:bg-[#181818] transition-colors"
-                                                            >
-                                                                <Pencil size={13} strokeWidth={2} />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleDelete(project.id, 'projects')}
-                                                                aria-label="Delete project"
-                                                                className="h-9 w-9 sm:h-8 sm:w-8 rounded-md flex items-center justify-center text-[#737373] hover:text-[#ff5b4f] hover:bg-[#181818] transition-colors"
-                                                            >
-                                                                <Trash2 size={13} strokeWidth={2} />
-                                                            </button>
-                                                        </div>
-                                                        <div className="flex items-center gap-2 order-1 sm:order-2">
-                                                            <button
-                                                                onClick={() => handleProjectLinksSelect(project)}
-                                                                className="flex-1 sm:flex-none h-9 px-3.5 rounded-md text-[#a1a1a1] hover:text-white hover:bg-[#181818] flex items-center justify-center gap-1.5 transition-colors text-[13px] font-medium font-geist"
-                                                                style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
-                                                            >
-                                                                <Link2 size={13} strokeWidth={2} />
-                                                                Links
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleProjectSelect(project)}
-                                                                className="flex-1 sm:flex-none h-9 px-3.5 rounded-md bg-white hover:bg-[#ededed] text-[#0a0a0a] flex items-center justify-center gap-1.5 transition-colors text-[13px] font-medium font-geist whitespace-nowrap"
-                                                            >
-                                                                <span className="sm:hidden">Features</span>
-                                                                <span className="hidden sm:inline">Manage features</span>
-                                                                <ArrowRight size={13} strokeWidth={2.5} />
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                </motion.article>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </section>
-                        </div>
-                    );
-                })()}
-
-                {/* ========== LINKS VIEW ========== */}
-                {view === 'links' && !loading && (
-                    <div className="space-y-12">
-                        {/* ===== COMMAND BAR ===== */}
-                        <header className="flex items-center justify-between gap-3 -mt-2">
-                            <div className="flex items-center gap-2 min-w-0">
-                                <button
-                                    onClick={handleBack}
-                                    aria-label="Back to projects"
-                                    className="h-8 w-8 rounded-md flex items-center justify-center text-[#a1a1a1] hover:text-white hover:bg-[#181818] transition-colors shrink-0"
-                                    style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
-                                >
-                                    <ArrowLeft size={13} strokeWidth={2} />
-                                </button>
-                                <span className="font-geistmono text-[12px] font-medium uppercase text-[#a1a1a1] truncate tracking-[0.02em] ml-1">
-                                    admin
-                                    <span className="text-[#404040] mx-1.5">/</span>
-                                    <span className="text-[#737373]">{selectedClient?.name || '—'}</span>
-                                    <span className="text-[#404040] mx-1.5">/</span>
-                                    <button type="button" onClick={handleBack} className="hover:text-white transition-colors uppercase">projects</button>
-                                    <span className="text-[#404040] mx-1.5">/</span>
-                                    <span className="text-white">links</span>
-                                </span>
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                                <button
-                                    onClick={async () => { await supabaseAdmin.auth.signOut(); router.push('/admin'); }}
-                                    className="h-9 px-3 rounded-md bg-transparent hover:bg-[#181818] text-[#a1a1a1] hover:text-white flex items-center justify-center gap-2 transition-colors text-[13px] font-medium font-geist"
-                                    style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
-                                    aria-label="Sign out"
-                                >
-                                    <LogOut size={13} strokeWidth={2} />
-                                    <span className="hidden sm:inline">Sign out</span>
-                                </button>
-                                <button
-                                    onClick={() => { setFormData({}); setEditingId(null); setEditingLinkIndex(null); setShowModal(true); }}
-                                    className="h-9 px-3.5 rounded-md bg-white hover:bg-[#ededed] text-[#0a0a0a] flex items-center justify-center gap-1.5 transition-colors text-[13px] font-medium font-geist"
-                                >
-                                    <Plus size={13} strokeWidth={2.5} />
-                                    New link
-                                </button>
-                            </div>
-                        </header>
-
-                        {/* ===== HERO ===== */}
-                        <section className="pt-6 pb-2 max-w-3xl">
-                            <h1
-                                className="text-white font-semibold font-geist leading-[0.95] break-words"
-                                style={{ fontSize: 'clamp(40px, 5.6vw, 64px)', letterSpacing: '-0.05em', fontFeatureSettings: '"liga"' }}
-                            >
-                                {selectedProject?.description || 'Project'}.<br />
-                                <span className="text-[#525252]">{links.length} {links.length === 1 ? 'link' : 'links'}.</span>
-                            </h1>
-                            <p className="text-[#a1a1a1] text-[18px] leading-[1.56] mt-6 max-w-xl font-geist">
-                                {links.length === 0
-                                    ? <>Pin design files, deployments, repos, or any reference URL the client should see.</>
-                                    : <>Resources visible to the client on their portal.</>}
-                            </p>
-                        </section>
-
-                        {/* ===== LIST ===== */}
-                        <section className="space-y-6">
-                            <div
-                                className="flex items-end justify-between gap-4 pb-5"
-                                style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 1px 0px' }}
-                            >
-                                <div>
-                                    <span className="font-geistmono text-[11px] font-medium uppercase text-[#737373] mb-2 block">Resources</span>
-                                    <h2
-                                        className="text-white font-semibold font-geist leading-[1.0]"
-                                        style={{ fontSize: '32px', letterSpacing: '-1.28px' }}
-                                    >
-                                        All links
-                                    </h2>
-                                </div>
-                                {links.length > 0 && (
-                                    <span className="font-geistmono text-[11px] uppercase text-[#737373] tabular-nums pb-1">
-                                        {links.length} <span className="text-[#525252]">total</span>
-                                    </span>
-                                )}
-                            </div>
-
-                            {links.length === 0 ? (
-                                <div
-                                    className="rounded-lg py-20 px-6 text-center"
-                                    style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
-                                >
-                                    <div
-                                        className="inline-flex w-12 h-12 items-center justify-center rounded-md mb-5"
-                                        style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
-                                    >
-                                        <Link2 size={18} className="text-[#a1a1a1]" strokeWidth={2} />
-                                    </div>
-                                    <p className="text-white text-[20px] font-semibold font-geist" style={{ letterSpacing: '-0.4px' }}>
-                                        No links yet
-                                    </p>
-                                    <p className="text-[#a1a1a1] text-[14px] mt-2 max-w-sm mx-auto font-geist">
-                                        Click &quot;New link&quot; to attach a URL to this project.
-                                    </p>
-                                </div>
-                            ) : (
-                                <div
-                                    className="rounded-lg"
-                                    style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
-                                >
-                                    {links.map((link, index) => {
-                                        const isFirst = index === 0;
-                                        const isLast = index === links.length - 1;
-                                        return (
-                                            <motion.div
-                                                key={index}
-                                                initial={{ opacity: 0 }}
-                                                animate={{ opacity: 1 }}
-                                                transition={{ delay: index * 0.04, duration: 0.25 }}
-                                                className={`group flex items-center justify-between gap-3 px-5 sm:px-6 py-4 hover:bg-[#0c0c0c] transition-colors ${isFirst ? 'rounded-t-lg' : ''} ${isLast ? 'rounded-b-lg' : ''}`}
-                                                style={{ boxShadow: index > 0 ? 'rgba(255,255,255,0.08) 0px 1px 0px inset' : undefined }}
-                                            >
-                                                <div className="flex items-center gap-4 min-w-0 flex-1">
-                                                    <div
-                                                        className="shrink-0 w-9 h-9 rounded-md flex items-center justify-center bg-[#111]"
-                                                        style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
-                                                    >
-                                                        <Link2 size={14} className="text-[#a1a1a1]" strokeWidth={2} />
-                                                    </div>
-                                                    <div className="min-w-0 flex-1">
-                                                        <h4 className="text-white text-[15px] font-semibold font-geist truncate" style={{ letterSpacing: '-0.3px' }}>
-                                                            {link.title}
-                                                        </h4>
-                                                        <a
-                                                            href={link.url}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="text-[#737373] hover:text-[#0a72ef] text-[12px] font-geistmono truncate block transition-colors mt-0.5"
-                                                        >
-                                                            {link.url}
-                                                        </a>
+                                                    <div className="text-[11.5px] font-semibold mt-1.5 tabular-nums" style={{ color: '#9A937F' }}>
+                                                        {project.stats?.completedFeatures ?? 0}/{project.stats?.totalFeatures ?? 0} features done
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-1 shrink-0">
-                                                    <a
-                                                        href={link.url}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        aria-label="Open link"
-                                                        className="h-8 w-8 rounded-md flex items-center justify-center text-[#737373] hover:text-white hover:bg-[#181818] transition-colors"
-                                                    >
-                                                        <ArrowUpRight size={13} strokeWidth={2} />
-                                                    </a>
+
+                                                {/* Money */}
+                                                <div className="lg:text-right">
+                                                    {total > 0 ? (
+                                                        <>
+                                                            <div className="font-bold tabular-nums" style={{ fontSize: 15 }}>{fmtINR(total)}</div>
+                                                            <div className="text-[11.5px] font-semibold tabular-nums mt-0.5" style={{ color: pending > 0 ? T.accent : T.green }}>
+                                                                {pending > 0 ? `${fmtINR(pending)} due` : `${projPaidPct}% paid`}
+                                                            </div>
+                                                        </>
+                                                    ) : (
+                                                        <div style={{ color: '#B9B19C', fontWeight: 600, fontSize: 14 }}>{isPkgClient ? 'covered' : '—'}</div>
+                                                    )}
+                                                </div>
+
+                                                {/* Actions */}
+                                                <div className="flex items-center gap-1.5 lg:justify-end flex-wrap">
                                                     <button
-                                                        onClick={() => { setEditingLinkIndex(index); setFormData({ link_title: link.title, link_url: link.url }); setShowModal(true); }}
-                                                        aria-label="Edit link"
-                                                        className="h-8 w-8 rounded-md flex items-center justify-center text-[#737373] hover:text-white hover:bg-[#181818] transition-colors"
+                                                        onClick={() => handleProjectLinksSelect(project)}
+                                                        className="rounded-full h-9 px-4 text-[12.5px] font-bold flex items-center gap-1.5 transition-colors hover:bg-[rgba(22,20,15,0.06)]"
+                                                        style={{ border: `1px solid ${T.hairline}`, color: '#5B5448' }}
                                                     >
-                                                        <Pencil size={13} strokeWidth={2} />
+                                                        <Link2 size={13} strokeWidth={2} /> Links
                                                     </button>
                                                     <button
-                                                        onClick={() => handleDeleteLink(index)}
-                                                        aria-label="Delete link"
-                                                        className="h-8 w-8 rounded-md flex items-center justify-center text-[#737373] hover:text-[#ff5b4f] hover:bg-[#181818] transition-colors"
+                                                        onClick={() => handleProjectSelect(project)}
+                                                        className="rounded-full h-9 px-4 text-[12.5px] font-bold text-white flex items-center gap-1.5 whitespace-nowrap transition-opacity hover:opacity-90"
+                                                        style={{ background: T.dark }}
                                                     >
-                                                        <Trash2 size={13} strokeWidth={2} />
+                                                        Features <ArrowRight size={13} strokeWidth={2.5} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleEditProject(project)}
+                                                        aria-label="Edit project"
+                                                        className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(22,20,15,0.06)]"
+                                                        style={{ color: '#857D69' }}
+                                                    >
+                                                        <Pencil size={14} strokeWidth={2} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(project.id, 'projects')}
+                                                        aria-label="Delete project"
+                                                        className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(179,51,29,0.08)]"
+                                                        style={{ color: '#857D69' }}
+                                                        onMouseEnter={e => { e.currentTarget.style.color = '#B3331D'; }}
+                                                        onMouseLeave={e => { e.currentTarget.style.color = '#857D69'; }}
+                                                    >
+                                                        <Trash2 size={14} strokeWidth={2} />
                                                     </button>
                                                 </div>
-                                            </motion.div>
+                                            </motion.article>
                                         );
                                     })}
+                                </section>
+                            </div>
+                        );
+                    })()}
+
+                    {/* ========== LINKS VIEW ========== */}
+                    {view === 'links' && !loading && (
+                        <div>
+                            {/* ===== TOP BAR ===== */}
+                            <header className="flex items-center gap-3">
+                                <button onClick={handleBack} aria-label="Back to projects" className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(22,20,15,0.06)] shrink-0" style={{ border: `1px solid ${T.hairline}`, color: '#857D69' }}>
+                                    <ArrowLeft size={15} strokeWidth={2} />
+                                </button>
+                                <div className="text-[11.5px] font-extrabold uppercase truncate" style={{ letterSpacing: '0.14em', color: T.label }}>
+                                    {selectedClient?.name || 'Admin'} — <span style={{ color: T.ink }}>Links</span>
                                 </div>
-                            )}
-                        </section>
-                    </div>
-                )}
-
-                {/* ========== FEATURES VIEW ========== */}
-                {view === 'features' && !loading && (() => {
-                    const featuresCount = features.length;
-                    const completedCount = features.filter(f => f.status === 'Completed').length;
-                    const totalAmount = features.reduce((a, f) => a + (Number(f.amount) || 0), 0);
-                    const paidAmount = features.reduce((a, f) => a + (Number(f.paid_amount) || 0), 0);
-                    const pendingAmount = Math.max(totalAmount - paidAmount, 0);
-                    const paidPct = totalAmount > 0 ? Math.round((paidAmount / totalAmount) * 100) : 0;
-                    const ratePending = features.filter(f => f.payment_confirmed === false).length;
-                    const formatINR = (n: number) => `₹${(n ?? 0).toLocaleString('en-IN')}`;
-
-                    const sorted = [...features].sort((a, b) => {
-                        let cmp = 0;
-                        if (sortField === 'amount') cmp = (a.amount || 0) - (b.amount || 0);
-                        else if (sortField === 'status') {
-                            const order = ['Requested', 'Approved', 'Working', 'Updating', 'Completed'];
-                            cmp = order.indexOf(a.status) - order.indexOf(b.status);
-                        } else if (sortField === 'created_at') {
-                            cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-                        }
-                        return sortOrder === 'asc' ? cmp : -cmp;
-                    });
-
-                    const stageFor = (status: string) => {
-                        if (status === 'Completed') return { color: '#ff5b4f', label: 'Shipped' };
-                        if (status === 'Working' || status === 'Updating') return { color: '#de1d8d', label: status === 'Updating' ? 'Updating' : 'Preview' };
-                        if (status === 'Approved') return { color: '#0a72ef', label: 'Approved' };
-                        return { color: '#737373', label: 'Requested' };
-                    };
-
-                    return (
-                        <div className="space-y-12">
-                            {/* ===== COMMAND BAR ===== */}
-                            <header className="flex items-center justify-between gap-3 -mt-2">
-                                <div className="flex items-center gap-2 min-w-0">
-                                    <button
-                                        onClick={handleBack}
-                                        aria-label="Back to projects"
-                                        className="h-8 w-8 rounded-md flex items-center justify-center text-[#a1a1a1] hover:text-white hover:bg-[#181818] transition-colors shrink-0"
-                                        style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
-                                    >
-                                        <ArrowLeft size={13} strokeWidth={2} />
-                                    </button>
-                                    <span className="font-geistmono text-[12px] font-medium uppercase text-[#a1a1a1] truncate tracking-[0.02em] ml-1">
-                                        admin
-                                        <span className="text-[#404040] mx-1.5">/</span>
-                                        <span className="text-[#737373]">{selectedClient?.name || '—'}</span>
-                                        <span className="text-[#404040] mx-1.5">/</span>
-                                        <button type="button" onClick={handleBack} className="hover:text-white transition-colors uppercase">projects</button>
-                                        <span className="text-[#404040] mx-1.5">/</span>
-                                        <span className="text-white">features</span>
-                                    </span>
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                    <button
-                                        onClick={async () => { await supabaseAdmin.auth.signOut(); router.push('/admin'); }}
-                                        className="h-9 px-3 rounded-md bg-transparent hover:bg-[#181818] text-[#a1a1a1] hover:text-white flex items-center justify-center gap-2 transition-colors text-[13px] font-medium font-geist"
-                                        style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
-                                        aria-label="Sign out"
-                                    >
-                                        <LogOut size={13} strokeWidth={2} />
-                                        <span className="hidden sm:inline">Sign out</span>
-                                    </button>
+                                <div className="ml-auto shrink-0">
                                     <button
                                         onClick={() => { setFormData({}); setEditingId(null); setEditingLinkIndex(null); setShowModal(true); }}
-                                        className="h-9 px-3.5 rounded-md bg-white hover:bg-[#ededed] text-[#0a0a0a] flex items-center justify-center gap-1.5 transition-colors text-[13px] font-medium font-geist"
+                                        className="rounded-full h-11 px-5 text-[14px] font-bold text-white flex items-center gap-2 whitespace-nowrap transition-opacity hover:opacity-90"
+                                        style={{ background: T.dark }}
                                     >
-                                        <Plus size={13} strokeWidth={2.5} />
-                                        New feature
+                                        <Plus size={15} strokeWidth={2.5} /> New link
                                     </button>
                                 </div>
                             </header>
 
-                            {/* ===== HERO ===== */}
-                            <section className="pt-6 pb-2 max-w-3xl">
-                                <h1
-                                    className="text-white font-semibold font-geist leading-[0.95] break-words"
-                                    style={{ fontSize: 'clamp(40px, 5.6vw, 64px)', letterSpacing: '-0.05em', fontFeatureSettings: '"liga"' }}
-                                >
+                            {/* ===== EDITORIAL HERO ===== */}
+                            <div className="mt-10 mb-9 max-w-3xl">
+                                <h1 className="font-extrabold break-words" style={{ fontSize: 'clamp(32px, 4vw, 52px)', letterSpacing: '-0.04em', lineHeight: 1.02, margin: 0 }}>
                                     {selectedProject?.description || 'Project'}.<br />
-                                    <span className="text-[#525252]">{featuresCount} {featuresCount === 1 ? 'feature' : 'features'}.</span>
+                                    <span style={{ color: '#B9B19C' }}>{links.length} {links.length === 1 ? 'link' : 'links'}.</span>
                                 </h1>
-                                <p className="text-[#a1a1a1] text-[18px] leading-[1.56] mt-6 max-w-xl font-geist">
-                                    {featuresCount === 0
-                                        ? <>Add the first feature to break this project into deliverables.</>
-                                        : totalAmount > 0
-                                            ? <>Tracking <span className="text-white tabular-nums">{formatINR(totalAmount)}</span> across this project. <span className="text-white tabular-nums">{paidPct}%</span> collected.</>
-                                            : <>{completedCount} shipped · {featuresCount - completedCount} in flight. Rates pending on {ratePending}.</>}
+                                <p className="text-[15.5px] mt-5 leading-[1.55] max-w-xl" style={{ color: T.muted }}>
+                                    {links.length === 0
+                                        ? 'Pin design files, deployments, repos, or any reference URL the client should see.'
+                                        : 'Resources visible to the client on their portal.'}
                                 </p>
-                            </section>
+                            </div>
 
-                            {/* ===== AGGREGATE METRICS ===== */}
-                            {featuresCount > 0 && (() => {
-                                const cells = [
-                                    { label: 'Features', value: featuresCount.toString(), meta: `${completedCount} shipped` },
-                                    { label: 'Total', value: formatINR(totalAmount), meta: '—' },
-                                    { label: 'Paid', value: formatINR(paidAmount), meta: totalAmount > 0 ? `${paidPct}%` : '—' },
-                                    { label: 'Pending', value: formatINR(pendingAmount), meta: ratePending > 0 ? `${ratePending} rate-pending` : (totalAmount > 0 ? `${100 - paidPct}%` : '—') },
-                                ];
-                                // 2x2 mobile / 1x4 desktop. Cell shadow needs differ:
-                                //   0: mobile right+bottom, desktop right
-                                //   1: mobile bottom,        desktop right
-                                //   2: mobile right,         desktop right
-                                //   3: nothing
-                                const shadowCls = [
-                                    'shadow-[inset_-1px_0_0_0_rgba(255,255,255,0.08),inset_0_-1px_0_0_rgba(255,255,255,0.08)] md:shadow-[inset_-1px_0_0_0_rgba(255,255,255,0.08)]',
-                                    'shadow-[inset_0_-1px_0_0_rgba(255,255,255,0.08)] md:shadow-[inset_-1px_0_0_0_rgba(255,255,255,0.08)]',
-                                    'shadow-[inset_-1px_0_0_0_rgba(255,255,255,0.08)] md:shadow-[inset_-1px_0_0_0_rgba(255,255,255,0.08)]',
-                                    '',
-                                ];
-                                return (
-                                    <section
-                                        className="grid grid-cols-2 md:grid-cols-4 rounded-lg overflow-hidden"
-                                        style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
+                            {/* ===== LINK LIST ===== */}
+                            <section>
+                                <SectionHead title="All links" meta={links.length > 0 ? `${links.length} total` : undefined} />
+                                {links.length === 0 ? (
+                                    <EmptyBlock icon={<Link2 size={18} strokeWidth={2} />} title="No links yet" sub={'Click "New link" to attach a URL to this project.'} />
+                                ) : links.map((link, index) => (
+                                    <motion.div
+                                        key={index}
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        transition={{ delay: Math.min(index * 0.04, 0.3), duration: 0.25 }}
+                                        className="flex items-center gap-4 py-[18px]"
+                                        style={{ borderBottom: `1px solid ${T.hairline}` }}
                                     >
-                                        {cells.map((cell, i) => (
-                                            <div
-                                                key={cell.label}
-                                                className={`p-5 sm:p-6 flex flex-col gap-2 sm:gap-2.5 min-w-0 ${shadowCls[i]}`}
+                                        <div className="shrink-0 w-10 h-10 rounded-xl grid place-items-center" style={{ background: '#F0EEE8', color: '#6E6759' }}>
+                                            <Link2 size={15} strokeWidth={2} />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <h4 className="font-bold truncate" style={{ fontSize: 15 }}>{link.title}</h4>
+                                            <a
+                                                href={link.url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="font-jbmono text-[12px] truncate block mt-0.5 transition-colors"
+                                                style={{ color: '#857D69' }}
+                                                onMouseEnter={e => { e.currentTarget.style.color = T.accent; }}
+                                                onMouseLeave={e => { e.currentTarget.style.color = '#857D69'; }}
                                             >
-                                                <span className="font-geistmono text-[10px] font-medium uppercase text-[#737373]">{cell.label}</span>
-                                                <span
-                                                    className="text-white font-semibold tabular-nums font-geist truncate"
-                                                    style={{ fontSize: 'clamp(18px, 2.4vw, 26px)', letterSpacing: '-0.5px', lineHeight: 1.1 }}
-                                                >
-                                                    {cell.value}
-                                                </span>
-                                                <span className="font-geistmono text-[10px] uppercase text-[#525252] tabular-nums truncate">{cell.meta}</span>
-                                            </div>
-                                        ))}
-                                    </section>
-                                );
-                            })()}
+                                                {link.url}
+                                            </a>
+                                        </div>
+                                        <div className="flex items-center gap-1 shrink-0">
+                                            <a
+                                                href={link.url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                aria-label="Open link"
+                                                className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(22,20,15,0.06)]"
+                                                style={{ color: '#857D69' }}
+                                            >
+                                                <ArrowUpRight size={14} strokeWidth={2} />
+                                            </a>
+                                            <button
+                                                onClick={() => { setEditingLinkIndex(index); setFormData({ link_title: link.title, link_url: link.url }); setShowModal(true); }}
+                                                aria-label="Edit link"
+                                                className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(22,20,15,0.06)]"
+                                                style={{ color: '#857D69' }}
+                                            >
+                                                <Pencil size={14} strokeWidth={2} />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteLink(index)}
+                                                aria-label="Delete link"
+                                                className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(179,51,29,0.08)]"
+                                                style={{ color: '#857D69' }}
+                                                onMouseEnter={e => { e.currentTarget.style.color = '#B3331D'; }}
+                                                onMouseLeave={e => { e.currentTarget.style.color = '#857D69'; }}
+                                            >
+                                                <Trash2 size={14} strokeWidth={2} />
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </section>
+                        </div>
+                    )}
 
-                            {/* ===== TABLE ===== */}
-                            <section className="space-y-6">
-                                <div
-                                    className="flex items-end justify-between gap-4 pb-5 flex-wrap"
-                                    style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 1px 0px' }}
-                                >
-                                    <div>
-                                        <span className="font-geistmono text-[11px] font-medium uppercase text-[#737373] mb-2 block">Backlog</span>
-                                        <h2
-                                            className="text-white font-semibold font-geist leading-[1.0]"
-                                            style={{ fontSize: '32px', letterSpacing: '-1.28px' }}
-                                        >
-                                            All features
-                                        </h2>
+                    {/* ========== FEATURES VIEW ========== */}
+                    {view === 'features' && !loading && (() => {
+                        const featuresCount = features.length;
+                        const completedCount = features.filter(f => f.status === 'Completed').length;
+                        const totalAmount = features.reduce((a, f) => a + (Number(f.amount) || 0), 0);
+                        const paidAmount = features.reduce((a, f) => a + (Number(f.paid_amount) || 0), 0);
+                        const pendingAmount = Math.max(totalAmount - paidAmount, 0);
+                        const paidPct = totalAmount > 0 ? Math.round((paidAmount / totalAmount) * 100) : 0;
+                        const ratePendingCount = features.filter(f => f.payment_confirmed === false).length;
+                        const fmtINR = (n: number) => `₹${(n ?? 0).toLocaleString('en-IN')}`;
+
+                        const sorted = [...features].sort((a, b) => {
+                            let cmp = 0;
+                            if (sortField === 'amount') cmp = (a.amount || 0) - (b.amount || 0);
+                            else if (sortField === 'status') {
+                                const order = ['Requested', 'Approved', 'Working', 'Updating', 'Completed'];
+                                cmp = order.indexOf(a.status) - order.indexOf(b.status);
+                            } else if (sortField === 'created_at') {
+                                cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+                            }
+                            return sortOrder === 'asc' ? cmp : -cmp;
+                        });
+
+                        const payColor = (s: string) => s === 'Paid' ? T.green : s === 'Partial' ? T.amber : T.accent;
+
+                        return (
+                            <div>
+                                {/* ===== TOP BAR ===== */}
+                                <header className="flex items-center gap-3">
+                                    <button onClick={handleBack} aria-label="Back to projects" className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(22,20,15,0.06)] shrink-0" style={{ border: `1px solid ${T.hairline}`, color: '#857D69' }}>
+                                        <ArrowLeft size={15} strokeWidth={2} />
+                                    </button>
+                                    <div className="text-[11.5px] font-extrabold uppercase truncate" style={{ letterSpacing: '0.14em', color: T.label }}>
+                                        {selectedClient?.name || 'Admin'} — <span style={{ color: T.ink }}>Features</span>
                                     </div>
-                                    {featuresCount > 1 && (
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-geistmono text-[10px] uppercase text-[#737373] tracking-[0.02em]">Sort</span>
-                                            <div className="flex items-center gap-1 rounded-md p-0.5" style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}>
+                                    <div className="ml-auto shrink-0">
+                                        <button
+                                            onClick={() => { setFormData({}); setEditingId(null); setEditingLinkIndex(null); setShowModal(true); }}
+                                            className="rounded-full h-11 px-5 text-[14px] font-bold text-white flex items-center gap-2 whitespace-nowrap transition-opacity hover:opacity-90"
+                                            style={{ background: T.dark }}
+                                        >
+                                            <Plus size={15} strokeWidth={2.5} /> New feature
+                                        </button>
+                                    </div>
+                                </header>
+
+                                {/* ===== EDITORIAL HERO + METRIC CLUSTER ===== */}
+                                <div className="flex flex-wrap items-end gap-x-10 gap-y-8 mt-10 mb-9">
+                                    <div className="max-w-xl">
+                                        <h1 className="font-extrabold break-words" style={{ fontSize: 'clamp(32px, 4vw, 52px)', letterSpacing: '-0.04em', lineHeight: 1.02, margin: 0 }}>
+                                            {selectedProject?.description || 'Project'}.<br />
+                                            <span style={{ color: '#B9B19C' }}>{featuresCount} {featuresCount === 1 ? 'feature' : 'features'}.</span>
+                                        </h1>
+                                        <p className="text-[15.5px] mt-5 leading-[1.55]" style={{ color: T.muted }}>
+                                            {featuresCount === 0
+                                                ? 'Add the first feature to break this project into deliverables.'
+                                                : totalAmount > 0
+                                                    ? <>Tracking <span className="font-bold tabular-nums" style={{ color: T.ink }}>{fmtINR(totalAmount)}</span> across this project — <span className="font-bold tabular-nums" style={{ color: T.ink }}>{paidPct}%</span> collected.</>
+                                                    : <>{completedCount} shipped · {featuresCount - completedCount} in flight{ratePendingCount > 0 ? ` · rate pending on ${ratePendingCount}` : ''}.</>}
+                                        </p>
+                                    </div>
+                                    {featuresCount > 0 && (
+                                        <div className="ml-auto flex flex-wrap gap-7 lg:gap-9 pb-1">
+                                            {[
+                                                { v: String(featuresCount), l: 'Features', c: T.ink },
+                                                { v: fmtINR(totalAmount), l: 'Total', c: T.ink },
+                                                { v: fmtINR(paidAmount), l: 'Paid', c: T.green },
+                                                { v: fmtINR(pendingAmount), l: 'Pending', c: pendingAmount > 0 ? T.accent : T.ink },
+                                            ].map((s, i) => (
+                                                <div key={i} style={{ borderLeft: `1px solid ${T.hairline}`, paddingLeft: 18 }}>
+                                                    <div className="font-extrabold tabular-nums" style={{ fontSize: 26, letterSpacing: '-0.03em', lineHeight: 1, color: s.c }}>{s.v}</div>
+                                                    <div className="text-[11.5px] font-extrabold uppercase mt-1.5" style={{ letterSpacing: '0.14em', color: T.label }}>{s.l}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* ===== FEATURE TABLE ===== */}
+                                <section>
+                                    <SectionHead
+                                        title="All features"
+                                        meta={featuresCount > 0 ? `${completedCount} shipped of ${featuresCount}` : undefined}
+                                        right={featuresCount > 1 ? (
+                                            <div className="flex items-center gap-1 rounded-full p-1" style={{ border: `1px solid ${T.hairline}` }}>
                                                 {(['amount', 'status', 'created_at'] as SortField[]).map(field => (
                                                     <button
                                                         key={field}
@@ -2556,633 +2285,450 @@ export default function AdminDashboard() {
                                                             if (sortField === field) setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
                                                             else { setSortField(field); setSortOrder('asc'); }
                                                         }}
-                                                        className={`px-2.5 h-7 rounded text-[11px] font-medium font-geistmono uppercase tracking-[0.02em] flex items-center gap-1 transition-colors ${
-                                                            sortField === field
-                                                                ? 'bg-white text-[#0a0a0a]'
-                                                                : 'text-[#a1a1a1] hover:text-white hover:bg-[#181818]'
-                                                        }`}
+                                                        className="rounded-full h-7 px-3 text-[11px] font-extrabold uppercase flex items-center gap-1 transition-colors"
+                                                        style={sortField === field
+                                                            ? { background: T.dark, color: '#fff', letterSpacing: '0.05em' }
+                                                            : { color: '#857D69', letterSpacing: '0.05em' }}
                                                     >
                                                         {field === 'created_at' ? 'Date' : field}
                                                         {sortField === field && (sortOrder === 'asc' ? <ArrowUp size={10} strokeWidth={2.5} /> : <ArrowDown size={10} strokeWidth={2.5} />)}
                                                     </button>
                                                 ))}
                                             </div>
-                                        </div>
-                                    )}
-                                </div>
+                                        ) : undefined}
+                                    />
 
-                                {featuresCount === 0 ? (
-                                    <div
-                                        className="rounded-lg py-20 px-6 text-center"
-                                        style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
-                                    >
-                                        <div
-                                            className="inline-flex w-12 h-12 items-center justify-center rounded-md mb-5"
-                                            style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
-                                        >
-                                            <Zap size={18} className="text-[#a1a1a1]" strokeWidth={2} />
-                                        </div>
-                                        <p className="text-white text-[20px] font-semibold font-geist" style={{ letterSpacing: '-0.4px' }}>
-                                            No features yet
-                                        </p>
-                                        <p className="text-[#a1a1a1] text-[14px] mt-2 max-w-sm mx-auto font-geist">
-                                            Click &quot;New feature&quot; to break this project into deliverables.
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <>
-                                        {/* Desktop table */}
-                                        <div
-                                            className="hidden lg:block rounded-lg"
-                                            style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
-                                        >
-                                            <div
-                                                className="grid grid-cols-12 gap-4 px-6 h-10 items-center font-geistmono text-[10px] font-medium uppercase text-[#737373] rounded-t-lg"
-                                                style={{ boxShadow: 'rgba(255,255,255,0.08) 0px -1px 0px inset', background: 'rgba(255,255,255,0.015)' }}
-                                            >
-                                                <div className="col-span-4">Description</div>
-                                                <div className="col-span-1">Date</div>
-                                                <div className="col-span-1">Estimate</div>
-                                                <div className="col-span-2 text-right">Amount</div>
-                                                <div className="col-span-1">Type</div>
-                                                <div className="col-span-2">Status</div>
-                                                <div className="col-span-1 text-right">Actions</div>
-                                            </div>
-                                            {sorted.map((feature, idx) => {
-                                                const isLast = idx === sorted.length - 1;
-                                                const stage = stageFor(feature.status);
-                                                const ratePending = feature.payment_confirmed === false;
-                                                return (
-                                                    <motion.div
-                                                        key={feature.id}
-                                                        initial={{ opacity: 0 }}
-                                                        animate={{ opacity: 1 }}
-                                                        transition={{ delay: idx * 0.025, duration: 0.2 }}
-                                                        className={`group grid grid-cols-12 gap-4 items-center px-6 py-4 hover:bg-[#0c0c0c] transition-colors ${isLast ? 'rounded-b-lg' : ''}`}
-                                                        style={{ boxShadow: idx > 0 ? 'rgba(255,255,255,0.08) 0px 1px 0px inset' : undefined }}
-                                                    >
-                                                        <div className="col-span-4 min-w-0">
-                                                            <p className="text-white text-[14px] font-medium font-geist truncate" style={{ letterSpacing: '-0.28px' }}>
-                                                                {feature.description}
-                                                            </p>
-                                                            {feature.estimation && (
-                                                                <p className="text-[#525252] text-[11px] font-geistmono uppercase mt-0.5 lg:hidden">
-                                                                    {feature.estimation}
-                                                                </p>
-                                                            )}
-                                                        </div>
-                                                        <div className="col-span-1">
-                                                            <span className="font-geistmono text-[11px] uppercase text-[#a1a1a1] tabular-nums">
-                                                                {feature.created_at ? new Date(feature.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—'}
-                                                            </span>
-                                                        </div>
-                                                        <div className="col-span-1">
-                                                            <span className="font-geistmono text-[11px] uppercase text-[#737373]">
-                                                                {feature.estimation || '—'}
-                                                            </span>
-                                                        </div>
-                                                        <div className="col-span-2 text-right">
-                                                            {ratePending ? (
-                                                                <span className="inline-flex items-center gap-1.5 px-2 h-5 rounded-full whitespace-nowrap font-geistmono text-[10px] uppercase font-medium" style={{ background: 'rgba(255,164,43,0.12)', color: '#ffa42b' }}>
-                                                                    <span className="w-1 h-1 rounded-full bg-[#ffa42b] animate-pulse" />
-                                                                    Rate pending
-                                                                </span>
-                                                            ) : (
-                                                                <div className="font-geist">
-                                                                    <span className="text-white text-[14px] font-semibold tabular-nums" style={{ letterSpacing: '-0.28px' }}>
-                                                                        {formatINR(feature.amount || 0)}
-                                                                    </span>
-                                                                    {(feature.paid_amount || 0) > 0 && (feature.paid_amount || 0) < (feature.amount || 0) && (
-                                                                        <div className="text-[#737373] text-[10px] font-geistmono tabular-nums">
-                                                                            {formatINR(feature.paid_amount || 0)} paid
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                        <div className="col-span-1">
-                                                            <span
-                                                                className="inline-flex px-2 h-5 items-center rounded-full whitespace-nowrap font-geistmono text-[10px] uppercase font-medium"
-                                                                style={feature.is_new_request
-                                                                    ? { background: 'rgba(222,29,141,0.12)', color: '#de1d8d' }
-                                                                    : { background: 'rgba(10,114,239,0.12)', color: '#3a8dff' }}
-                                                            >
-                                                                {feature.is_new_request ? 'Extra' : 'Core'}
-                                                            </span>
-                                                        </div>
-                                                        <div className="col-span-2 flex items-center gap-2">
-                                                            <span
-                                                                className="inline-flex items-center gap-1.5 px-2 h-5 rounded-full whitespace-nowrap font-geistmono text-[10px] uppercase font-medium"
-                                                                style={{ background: `${stage.color}1f`, color: stage.color }}
-                                                            >
-                                                                <span className="w-1 h-1 rounded-full" style={{ background: stage.color }} />
-                                                                {stage.label}
-                                                            </span>
-                                                            {!ratePending && (
-                                                                <span
-                                                                    className="font-geistmono text-[10px] uppercase tabular-nums"
-                                                                    style={{ color: feature.payment_status === 'Paid' ? '#ff5b4f' : feature.payment_status === 'Partial' ? '#de1d8d' : '#737373' }}
-                                                                >
-                                                                    · {feature.payment_status}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <div className="col-span-1 flex items-center justify-end gap-1">
-                                                            <button
-                                                                onClick={() => handleEditFeature(feature)}
-                                                                aria-label="Edit feature"
-                                                                className="h-7 w-7 rounded-md flex items-center justify-center text-[#737373] hover:text-white hover:bg-[#181818] transition-colors"
-                                                            >
-                                                                <Pencil size={12} strokeWidth={2} />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleDelete(feature.id, 'features')}
-                                                                aria-label="Delete feature"
-                                                                className="h-7 w-7 rounded-md flex items-center justify-center text-[#737373] hover:text-[#ff5b4f] hover:bg-[#181818] transition-colors"
-                                                            >
-                                                                <Trash2 size={12} strokeWidth={2} />
-                                                            </button>
-                                                        </div>
-                                                    </motion.div>
-                                                );
-                                            })}
-                                        </div>
-
-                                        {/* Mobile cards */}
-                                        <div className="lg:hidden space-y-3">
-                                            {sorted.map((feature, idx) => {
-                                                const stage = stageFor(feature.status);
-                                                const ratePending = feature.payment_confirmed === false;
-                                                return (
-                                                    <motion.div
-                                                        key={feature.id}
-                                                        initial={{ opacity: 0, y: 4 }}
-                                                        animate={{ opacity: 1, y: 0 }}
-                                                        transition={{ delay: idx * 0.03, duration: 0.2 }}
-                                                        className="rounded-lg p-5 space-y-4"
-                                                        style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
-                                                    >
-                                                        <div className="flex items-start justify-between gap-3">
-                                                            <h4 className="text-white text-[15px] font-semibold font-geist flex-1 leading-snug" style={{ letterSpacing: '-0.3px' }}>
-                                                                {feature.description}
-                                                            </h4>
-                                                            <div className="flex items-center gap-1 shrink-0">
-                                                                <button onClick={() => handleEditFeature(feature)} className="h-7 w-7 rounded-md flex items-center justify-center text-[#737373] hover:text-white hover:bg-[#181818] transition-colors" aria-label="Edit">
-                                                                    <Pencil size={12} strokeWidth={2} />
-                                                                </button>
-                                                                <button onClick={() => handleDelete(feature.id, 'features')} className="h-7 w-7 rounded-md flex items-center justify-center text-[#737373] hover:text-[#ff5b4f] hover:bg-[#181818] transition-colors" aria-label="Delete">
-                                                                    <Trash2 size={12} strokeWidth={2} />
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex flex-wrap items-center gap-2">
-                                                            <span
-                                                                className="inline-flex items-center gap-1.5 px-2 h-5 rounded-full whitespace-nowrap font-geistmono text-[10px] uppercase font-medium"
-                                                                style={{ background: `${stage.color}1f`, color: stage.color }}
-                                                            >
-                                                                <span className="w-1 h-1 rounded-full" style={{ background: stage.color }} />
-                                                                {stage.label}
-                                                            </span>
-                                                            <span
-                                                                className="inline-flex px-2 h-5 items-center rounded-full whitespace-nowrap font-geistmono text-[10px] uppercase font-medium"
-                                                                style={feature.is_new_request
-                                                                    ? { background: 'rgba(222,29,141,0.12)', color: '#de1d8d' }
-                                                                    : { background: 'rgba(10,114,239,0.12)', color: '#3a8dff' }}
-                                                            >
-                                                                {feature.is_new_request ? 'Extra' : 'Core'}
-                                                            </span>
-                                                            {feature.estimation && (
-                                                                <span className="font-geistmono text-[10px] uppercase text-[#737373]">
-                                                                    Est · {feature.estimation}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <div
-                                                            className="grid grid-cols-3 rounded-md"
-                                                            style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
+                                    {featuresCount === 0 ? (
+                                        <EmptyBlock icon={<Zap size={18} strokeWidth={2} />} title="No features yet" sub={'Click "New feature" to break this project into deliverables.'} />
+                                    ) : (
+                                        <>
+                                            {/* Desktop — hairline table */}
+                                            <div className="hidden lg:block">
+                                                <div className="grid grid-cols-[minmax(0,2.6fr)_0.9fr_0.9fr_1.3fr_0.8fr_1.6fr_84px] gap-x-4 items-center pt-4 pb-2.5 text-[10.5px] font-extrabold uppercase" style={{ letterSpacing: '0.12em', color: T.label, borderBottom: `1px solid ${T.hairline}` }}>
+                                                    <div>Description</div>
+                                                    <div>Date</div>
+                                                    <div>Estimate</div>
+                                                    <div className="text-right">Amount</div>
+                                                    <div>Type</div>
+                                                    <div>Status</div>
+                                                    <div className="text-right">Actions</div>
+                                                </div>
+                                                {sorted.map((feature, idx) => {
+                                                    const tone = FEATURE_STAGE[feature.status] || FEATURE_STAGE.Requested;
+                                                    const ratePending = feature.payment_confirmed === false;
+                                                    return (
+                                                        <motion.div
+                                                            key={feature.id}
+                                                            initial={{ opacity: 0 }}
+                                                            animate={{ opacity: 1 }}
+                                                            transition={{ delay: Math.min(idx * 0.025, 0.3), duration: 0.2 }}
+                                                            className="grid grid-cols-[minmax(0,2.6fr)_0.9fr_0.9fr_1.3fr_0.8fr_1.6fr_84px] gap-x-4 items-center py-4 transition-colors hover:bg-[rgba(22,20,15,0.02)]"
+                                                            style={{ borderBottom: `1px solid ${T.hairline}` }}
                                                         >
-                                                            <div className="p-3 flex flex-col gap-1" style={{ boxShadow: 'rgba(255,255,255,0.08) -1px 0px 0px inset' }}>
-                                                                <span className="font-geistmono text-[9px] font-medium uppercase text-[#737373]">Amount</span>
+                                                            <div className="min-w-0">
+                                                                <p className="font-semibold truncate" style={{ fontSize: 14.5 }}>{feature.description}</p>
+                                                            </div>
+                                                            <div className="font-jbmono text-[11.5px] tabular-nums" style={{ color: '#857D69' }}>
+                                                                {feature.created_at ? new Date(feature.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—'}
+                                                            </div>
+                                                            <div className="font-jbmono text-[11.5px] truncate" style={{ color: '#9A937F' }}>
+                                                                {feature.estimation || '—'}
+                                                            </div>
+                                                            <div className="text-right">
                                                                 {ratePending ? (
-                                                                    <span className="font-geistmono text-[10px] uppercase font-medium" style={{ color: '#ffa42b' }}>Pending</span>
+                                                                    <span className="inline-flex items-center gap-1.5 rounded-full font-bold uppercase whitespace-nowrap" style={{ background: T.amberSoft, color: T.amber, padding: '3px 9px', fontSize: 10, letterSpacing: '0.05em' }}>
+                                                                        <span className="w-[5px] h-[5px] rounded-full animate-pulse" style={{ background: T.amber }} />
+                                                                        Rate pending
+                                                                    </span>
                                                                 ) : (
-                                                                    <span className="text-white text-[14px] font-semibold tabular-nums font-geist" style={{ letterSpacing: '-0.28px' }}>{formatINR(feature.amount || 0)}</span>
+                                                                    <>
+                                                                        <div className="font-bold tabular-nums" style={{ fontSize: 14.5 }}>{fmtINR(feature.amount || 0)}</div>
+                                                                        {(feature.paid_amount || 0) > 0 && (feature.paid_amount || 0) < (feature.amount || 0) && (
+                                                                            <div className="font-jbmono text-[10.5px] tabular-nums" style={{ color: '#9A937F' }}>{fmtINR(feature.paid_amount || 0)} paid</div>
+                                                                        )}
+                                                                    </>
                                                                 )}
                                                             </div>
-                                                            <div className="p-3 flex flex-col gap-1" style={{ boxShadow: 'rgba(255,255,255,0.08) -1px 0px 0px inset' }}>
-                                                                <span className="font-geistmono text-[9px] font-medium uppercase text-[#737373]">Paid</span>
-                                                                {ratePending ? (
-                                                                    <span className="text-[#525252] text-[14px] font-geist">—</span>
-                                                                ) : (
-                                                                    <span className="text-[14px] font-semibold tabular-nums font-geist" style={{ letterSpacing: '-0.28px', color: (feature.paid_amount || 0) > 0 ? '#ff5b4f' : '#525252' }}>{formatINR(feature.paid_amount || 0)}</span>
+                                                            <div>
+                                                                <span className="inline-flex rounded-full font-extrabold uppercase whitespace-nowrap" style={feature.is_new_request
+                                                                    ? { background: T.accentSoft, color: T.accent, padding: '3px 9px', fontSize: 10, letterSpacing: '0.06em' }
+                                                                    : { background: '#F0EEE8', color: '#6E6759', padding: '3px 9px', fontSize: 10, letterSpacing: '0.06em' }}>
+                                                                    {feature.is_new_request ? 'Extra' : 'Core'}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2 min-w-0">
+                                                                <StagePill label={feature.status} tone={tone} size="sm" />
+                                                                {!ratePending && (
+                                                                    <span className="font-jbmono text-[10px] font-medium uppercase tabular-nums truncate" style={{ color: payColor(feature.payment_status) }}>
+                                                                        {feature.payment_status}
+                                                                    </span>
                                                                 )}
                                                             </div>
-                                                            <div className="p-3 flex flex-col gap-1">
-                                                                <span className="font-geistmono text-[9px] font-medium uppercase text-[#737373]">Date</span>
-                                                                <span className="text-[#a1a1a1] text-[12px] font-geistmono uppercase tabular-nums">{feature.created_at ? new Date(feature.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—'}</span>
+                                                            <div className="flex items-center justify-end gap-1">
+                                                                <button onClick={() => handleEditFeature(feature)} aria-label="Edit feature" className="w-8 h-8 rounded-full grid place-items-center transition-colors hover:bg-[rgba(22,20,15,0.06)]" style={{ color: '#857D69' }}>
+                                                                    <Pencil size={13} strokeWidth={2} />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleDelete(feature.id, 'features')}
+                                                                    aria-label="Delete feature"
+                                                                    className="w-8 h-8 rounded-full grid place-items-center transition-colors hover:bg-[rgba(179,51,29,0.08)]"
+                                                                    style={{ color: '#857D69' }}
+                                                                    onMouseEnter={e => { e.currentTarget.style.color = '#B3331D'; }}
+                                                                    onMouseLeave={e => { e.currentTarget.style.color = '#857D69'; }}
+                                                                >
+                                                                    <Trash2 size={13} strokeWidth={2} />
+                                                                </button>
                                                             </div>
-                                                        </div>
-                                                    </motion.div>
-                                                );
-                                            })}
-                                        </div>
-                                    </>
-                                )}
-                            </section>
-                        </div>
-                    );
-                })()}
+                                                        </motion.div>
+                                                    );
+                                                })}
+                                            </div>
 
-                {/* ========== ACTIVITY VIEW ========== */}
-                {view === 'activity' && !loading && selectedClient && (() => {
-                    const sentCount = activityLogs.filter(l => !!l.notified_at).length;
-                    const hiddenCount = activityLogs.filter(l => !!l.is_hidden).length;
-                    const totalLogs = activityLogs.length;
-                    const pendingCount = totalLogs - sentCount;
+                                            {/* Mobile — white cards on beige */}
+                                            <div className="lg:hidden space-y-3 pt-4">
+                                                {sorted.map((feature, idx) => {
+                                                    const tone = FEATURE_STAGE[feature.status] || FEATURE_STAGE.Requested;
+                                                    const ratePending = feature.payment_confirmed === false;
+                                                    return (
+                                                        <motion.div
+                                                            key={feature.id}
+                                                            initial={{ opacity: 0, y: 4 }}
+                                                            animate={{ opacity: 1, y: 0 }}
+                                                            transition={{ delay: Math.min(idx * 0.03, 0.3), duration: 0.2 }}
+                                                            className="rounded-[18px] bg-white p-4"
+                                                            style={{ boxShadow: `0 0 0 1px ${T.border}, 0 1px 2px rgba(28,26,23,0.04)` }}
+                                                        >
+                                                            <div className="flex items-start justify-between gap-3">
+                                                                <h4 className="font-bold flex-1 leading-snug" style={{ fontSize: 15 }}>{feature.description}</h4>
+                                                                <div className="flex items-center gap-1 shrink-0">
+                                                                    <button onClick={() => handleEditFeature(feature)} aria-label="Edit" className="w-8 h-8 rounded-full grid place-items-center transition-colors hover:bg-[rgba(22,20,15,0.06)]" style={{ color: '#857D69' }}>
+                                                                        <Pencil size={13} strokeWidth={2} />
+                                                                    </button>
+                                                                    <button onClick={() => handleDelete(feature.id, 'features')} aria-label="Delete" className="w-8 h-8 rounded-full grid place-items-center transition-colors hover:bg-[rgba(179,51,29,0.08)]" style={{ color: '#B3331D' }}>
+                                                                        <Trash2 size={13} strokeWidth={2} />
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex flex-wrap items-center gap-2 mt-3">
+                                                                <StagePill label={feature.status} tone={tone} size="sm" />
+                                                                <span className="inline-flex rounded-full font-extrabold uppercase" style={feature.is_new_request
+                                                                    ? { background: T.accentSoft, color: T.accent, padding: '3px 9px', fontSize: 10, letterSpacing: '0.06em' }
+                                                                    : { background: '#F0EEE8', color: '#6E6759', padding: '3px 9px', fontSize: 10, letterSpacing: '0.06em' }}>
+                                                                    {feature.is_new_request ? 'Extra' : 'Core'}
+                                                                </span>
+                                                                {feature.estimation && (
+                                                                    <span className="font-jbmono text-[10.5px] uppercase" style={{ color: '#9A937F' }}>Est · {feature.estimation}</span>
+                                                                )}
+                                                            </div>
+                                                            <div className="grid grid-cols-3 mt-4 pt-3" style={{ borderTop: `1px solid ${T.borderSoft}` }}>
+                                                                <div>
+                                                                    <div className="text-[10px] font-extrabold uppercase mb-1" style={{ letterSpacing: '0.1em', color: T.label }}>Amount</div>
+                                                                    {ratePending
+                                                                        ? <span className="font-bold uppercase text-[10.5px]" style={{ color: T.amber }}>Pending</span>
+                                                                        : <span className="font-bold tabular-nums" style={{ fontSize: 14 }}>{fmtINR(feature.amount || 0)}</span>}
+                                                                </div>
+                                                                <div>
+                                                                    <div className="text-[10px] font-extrabold uppercase mb-1" style={{ letterSpacing: '0.1em', color: T.label }}>Paid</div>
+                                                                    {ratePending
+                                                                        ? <span style={{ color: '#B9B19C' }}>—</span>
+                                                                        : <span className="font-bold tabular-nums" style={{ fontSize: 14, color: (feature.paid_amount || 0) > 0 ? T.green : '#B9B19C' }}>{fmtINR(feature.paid_amount || 0)}</span>}
+                                                                </div>
+                                                                <div>
+                                                                    <div className="text-[10px] font-extrabold uppercase mb-1" style={{ letterSpacing: '0.1em', color: T.label }}>Date</div>
+                                                                    <span className="font-jbmono text-[11.5px] tabular-nums" style={{ color: '#857D69' }}>
+                                                                        {feature.created_at ? new Date(feature.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—'}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </motion.div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </>
+                                    )}
+                                </section>
+                            </div>
+                        );
+                    })()}
 
-                    const actionColor: Record<string, string> = {
-                        payment_received: '#ff5b4f',
-                        rate_confirmed: '#ff5b4f',
-                        feature_added: '#0a72ef',
-                        feature_updated: '#de1d8d',
-                        rate_pending: '#ffa42b',
-                        link_added: '#0a72ef',
-                        link_updated: '#de1d8d',
-                        link_removed: '#ff5b4f',
-                        status_changed: '#de1d8d',
-                    };
+                    {/* ========== ACTIVITY VIEW ========== */}
+                    {view === 'activity' && !loading && selectedClient && (() => {
+                        const sentCount = activityLogs.filter(l => !!l.notified_at).length;
+                        const hiddenCount = activityLogs.filter(l => !!l.is_hidden).length;
+                        const totalLogs = activityLogs.length;
+                        const pendingCount = totalLogs - sentCount;
 
-                    return (
-                        <div className="space-y-12">
-                            {/* ===== COMMAND BAR ===== */}
-                            <header className="flex items-center justify-between gap-3 -mt-2">
-                                <div className="flex items-center gap-2 min-w-0">
-                                    <button
-                                        onClick={handleBack}
-                                        aria-label="Back to clients"
-                                        className="h-8 w-8 rounded-md flex items-center justify-center text-[#a1a1a1] hover:text-white hover:bg-[#181818] transition-colors shrink-0"
-                                        style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
-                                    >
-                                        <ArrowLeft size={13} strokeWidth={2} />
+                        // Warm-palette action colors (money green, new things accent, shipped ink)
+                        const warmAction: Record<string, string> = {
+                            payment_received: T.green, rate_confirmed: T.green,
+                            rate_pending: T.amber,
+                            feature_added: T.accent, link_added: T.accent, project_created: T.accent, package_started: T.accent,
+                            feature_completed: T.dark, project_completed: T.dark,
+                            feature_deleted: '#B3331D', link_removed: '#B3331D',
+                            feature_updated: '#5B5448', link_updated: '#5B5448', project_updated: '#5B5448', status_changed: '#5B5448', package_reverted: '#5B5448',
+                        };
+
+                        return (
+                            <div>
+                                {/* ===== TOP BAR ===== */}
+                                <header className="flex items-center gap-3">
+                                    <button onClick={handleBack} aria-label="Back to clients" className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(22,20,15,0.06)] shrink-0" style={{ border: `1px solid ${T.hairline}`, color: '#857D69' }}>
+                                        <ArrowLeft size={15} strokeWidth={2} />
                                     </button>
-                                    <span className="font-geistmono text-[12px] font-medium uppercase text-[#a1a1a1] truncate tracking-[0.02em] ml-1">
-                                        admin
-                                        <span className="text-[#404040] mx-1.5">/</span>
-                                        <span className="text-[#737373]">{selectedClient?.name || '—'}</span>
-                                        <span className="text-[#404040] mx-1.5">/</span>
-                                        <span className="text-white">activity</span>
-                                    </span>
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                    <button
-                                        onClick={async () => { await supabaseAdmin.auth.signOut(); router.push('/admin'); }}
-                                        className="h-9 px-3 rounded-md bg-transparent hover:bg-[#181818] text-[#a1a1a1] hover:text-white flex items-center justify-center gap-2 transition-colors text-[13px] font-medium font-geist"
-                                        style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
-                                        aria-label="Sign out"
-                                    >
-                                        <LogOut size={13} strokeWidth={2} />
-                                        <span className="hidden sm:inline">Sign out</span>
-                                    </button>
-                                </div>
-                            </header>
-
-                            {/* ===== HERO ===== */}
-                            <section className="pt-6 pb-2 max-w-3xl">
-                                <h1
-                                    className="text-white font-semibold font-geist leading-[0.95] break-words"
-                                    style={{ fontSize: 'clamp(40px, 5.6vw, 64px)', letterSpacing: '-0.05em', fontFeatureSettings: '"liga"' }}
-                                >
-                                    {selectedClient?.name}.<br />
-                                    <span className="text-[#525252]">Activity log.</span>
-                                </h1>
-                                <p className="text-[#a1a1a1] text-[18px] leading-[1.56] mt-6 max-w-xl font-geist">
-                                    {totalLogs === 0
-                                        ? <>No activity recorded yet for this client.</>
-                                        : <><span className="text-white tabular-nums">{totalLogs}</span> {totalLogs === 1 ? 'event' : 'events'} captured · <span className="text-white tabular-nums">{sentCount}</span> notified · <span className="tabular-nums">{pendingCount}</span> awaiting send.</>}
-                                </p>
-                            </section>
-
-                            {/* ===== EMAIL STATUS ===== */}
-                            {!selectedClient.email ? (
-                                <div
-                                    className="rounded-lg p-5 flex items-center gap-4"
-                                    style={{ boxShadow: 'rgba(255,164,43,0.32) 0px 0px 0px 1px, rgba(255,164,43,0.04) 0px 0px 0px 9999px inset' }}
-                                >
-                                    <div
-                                        className="shrink-0 w-9 h-9 rounded-md flex items-center justify-center"
-                                        style={{ background: 'rgba(255,164,43,0.12)' }}
-                                    >
-                                        <Mail size={15} className="text-[#ffa42b]" strokeWidth={2} />
+                                    <div className="text-[11.5px] font-extrabold uppercase truncate" style={{ letterSpacing: '0.14em', color: T.label }}>
+                                        {selectedClient?.name || 'Admin'} — <span style={{ color: T.ink }}>Activity</span>
                                     </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-geistmono text-[10px] uppercase font-medium text-[#ffa42b] tracking-[0.04em] mb-1">No email on file</p>
-                                        <p className="text-[#a1a1a1] text-[13px] font-geist leading-[1.4]">Add an email to enable notifications and digests.</p>
-                                    </div>
-                                    <button
-                                        onClick={() => handleEditClient(selectedClient)}
-                                        className="h-8 px-3 rounded-md text-[13px] font-medium font-geist text-[#ffa42b] hover:bg-[#181818] transition-colors flex items-center gap-1.5"
-                                        style={{ boxShadow: 'rgba(255,164,43,0.32) 0px 0px 0px 1px' }}
-                                    >
-                                        <Plus size={12} strokeWidth={2.5} />
-                                        Add email
-                                    </button>
-                                </div>
-                            ) : (
-                                <div
-                                    className="rounded-lg px-5 py-4 flex items-center gap-3"
-                                    style={{ boxShadow: 'rgba(10,114,239,0.28) 0px 0px 0px 1px' }}
-                                >
-                                    <MailCheck size={14} className="text-[#3a8dff] shrink-0" strokeWidth={2} />
-                                    <p className="text-[#a1a1a1] text-[13px] font-geist">
-                                        Notifications go to <span className="text-white font-geistmono">{selectedClient.email}</span>
+                                </header>
+
+                                {/* ===== EDITORIAL HERO ===== */}
+                                <div className="mt-10 mb-9 max-w-3xl">
+                                    <h1 className="font-extrabold break-words" style={{ fontSize: 'clamp(32px, 4vw, 52px)', letterSpacing: '-0.04em', lineHeight: 1.02, margin: 0 }}>
+                                        {selectedClient?.name}.<br />
+                                        <span style={{ color: '#B9B19C' }}>Activity log.</span>
+                                    </h1>
+                                    <p className="text-[15.5px] mt-5 leading-[1.55] max-w-xl" style={{ color: T.muted }}>
+                                        {totalLogs === 0
+                                            ? 'No activity recorded yet for this client.'
+                                            : <><span className="font-bold tabular-nums" style={{ color: T.ink }}>{totalLogs}</span> {totalLogs === 1 ? 'event' : 'events'} captured · <span className="font-bold tabular-nums" style={{ color: T.ink }}>{sentCount}</span> notified · <span className="tabular-nums">{pendingCount}</span> awaiting send.</>}
                                     </p>
                                 </div>
-                            )}
 
-                            {/* ===== BATCH ACTIONS ===== */}
-                            {selectedLogIds.size > 0 && selectedClient.email && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: -6 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="sticky top-3 z-20 rounded-lg px-4 py-3 flex items-center justify-between bg-[#161616]"
-                                    style={{ boxShadow: 'rgba(10,114,239,0.5) 0px 0px 0px 1px, rgba(0,0,0,0.7) 0px 12px 32px -4px' }}
-                                >
-                                    <span className="font-geistmono text-[12px] uppercase font-medium text-white tracking-[0.02em]">
-                                        {selectedLogIds.size} <span className="text-[#a1a1a1]">selected</span>
-                                    </span>
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            onClick={() => setSelectedLogIds(new Set())}
-                                            className="h-8 px-3 rounded-md text-[12px] font-medium font-geist text-[#a1a1a1] hover:text-white hover:bg-[#181818] transition-colors"
-                                            style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
-                                        >
-                                            Clear
-                                        </button>
-                                        <button
-                                            onClick={handleSendDigest}
-                                            disabled={sendingDigest}
-                                            className="h-8 px-3.5 rounded-md bg-white hover:bg-[#ededed] text-[#0a0a0a] flex items-center gap-1.5 transition-colors text-[12px] font-medium font-geist disabled:opacity-50"
-                                        >
-                                            {sendingDigest ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} strokeWidth={2.5} />}
-                                            Send digest
-                                        </button>
-                                    </div>
-                                </motion.div>
-                            )}
-
-                            {/* ===== TIMELINE ===== */}
-                            <section className="space-y-6">
-                                <div
-                                    className="flex items-end justify-between gap-4 pb-5 flex-wrap"
-                                    style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 1px 0px' }}
-                                >
-                                    <div>
-                                        <span className="font-geistmono text-[11px] font-medium uppercase text-[#737373] mb-2 block">Timeline</span>
-                                        <h2
-                                            className="text-white font-semibold font-geist leading-[1.0]"
-                                            style={{ fontSize: '32px', letterSpacing: '-1.28px' }}
-                                        >
-                                            All events
-                                        </h2>
-                                    </div>
-                                    {totalLogs > 0 && (
-                                        <div className="flex items-center gap-3 pb-1 font-geistmono text-[11px] uppercase text-[#737373] tabular-nums">
-                                            <span><span className="text-white">{sentCount}</span> sent</span>
-                                            <span className="text-[#404040]">·</span>
-                                            <span><span className="text-white">{pendingCount}</span> pending</span>
-                                            {hiddenCount > 0 && (
-                                                <>
-                                                    <span className="text-[#404040]">·</span>
-                                                    <span><span className="text-white">{hiddenCount}</span> hidden</span>
-                                                </>
-                                            )}
+                                {/* ===== EMAIL STATUS ===== */}
+                                {!selectedClient.email ? (
+                                    <div className="rounded-[18px] p-5 flex flex-wrap items-center gap-4 mb-8" style={{ background: T.amberSoft, border: '1px solid #E8D5B5' }}>
+                                        <div className="shrink-0 w-10 h-10 rounded-xl grid place-items-center" style={{ background: 'rgba(168,107,45,0.14)', color: T.amber }}>
+                                            <Mail size={16} strokeWidth={2} />
                                         </div>
-                                    )}
-                                </div>
-
-                                {loadingLogs ? (
-                                    <div className="flex justify-center py-16">
-                                        <Loader2 className="animate-spin text-[#0a72ef]" size={22} />
-                                    </div>
-                                ) : totalLogs === 0 ? (
-                                    <div
-                                        className="rounded-lg py-20 px-6 text-center"
-                                        style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
-                                    >
-                                        <div
-                                            className="inline-flex w-12 h-12 items-center justify-center rounded-md mb-5"
-                                            style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
-                                        >
-                                            <Activity size={18} className="text-[#a1a1a1]" strokeWidth={2} />
+                                        <div className="flex-1 min-w-[180px]">
+                                            <p className="text-[10.5px] font-extrabold uppercase mb-0.5" style={{ letterSpacing: '0.12em', color: T.amber }}>No email on file</p>
+                                            <p className="text-[13px] leading-[1.45]" style={{ color: '#7A5A24' }}>Add an email to enable notifications and digests.</p>
                                         </div>
-                                        <p className="text-white text-[20px] font-semibold font-geist" style={{ letterSpacing: '-0.4px' }}>
-                                            No activity yet
-                                        </p>
-                                        <p className="text-[#a1a1a1] text-[14px] mt-2 max-w-sm mx-auto font-geist">
-                                            Events will appear here as you make changes to projects, features, and payments.
-                                        </p>
+                                        <button
+                                            onClick={() => handleEditClient(selectedClient)}
+                                            className="rounded-full h-9 px-4 text-[12.5px] font-bold flex items-center gap-1.5 text-white transition-opacity hover:opacity-90"
+                                            style={{ background: T.amber }}
+                                        >
+                                            <Plus size={13} strokeWidth={2.5} /> Add email
+                                        </button>
                                     </div>
                                 ) : (
-                                    <div
-                                        className="rounded-lg"
-                                        style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
-                                    >
-                                        {activityLogs.map((log, idx) => {
-                                            const meta = getActivityMeta(log.action_type);
-                                            const stageColor = actionColor[log.action_type] || '#737373';
-                                            const isSent = !!log.notified_at;
-                                            const isSending = sendingIds.has(log.id);
-                                            const isSelected = selectedLogIds.has(log.id);
-                                            const isHidden = !!log.is_hidden;
-                                            const isFirst = idx === 0;
-                                            const isLast = idx === activityLogs.length - 1;
-
-                                            return (
-                                                <div
-                                                    key={log.id}
-                                                    className={`group flex flex-wrap items-start gap-3 px-5 sm:px-6 py-5 transition-colors ${isSelected ? 'bg-[rgba(10,114,239,0.06)]' : 'hover:bg-[#0c0c0c]'} ${isHidden ? 'opacity-60' : ''} ${isFirst ? 'rounded-t-lg' : ''} ${isLast ? 'rounded-b-lg' : ''}`}
-                                                    style={{ boxShadow: idx > 0 ? 'rgba(255,255,255,0.08) 0px 1px 0px inset' : undefined }}
-                                                >
-                                                    <label className="pt-1 shrink-0 cursor-pointer">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={isSelected}
-                                                            onChange={() => toggleLogSelection(log.id)}
-                                                            className="w-4 h-4 rounded accent-[#0a72ef] cursor-pointer"
-                                                        />
-                                                    </label>
-
-                                                    <div
-                                                        className="shrink-0 w-8 h-8 rounded-md flex items-center justify-center mt-0.5"
-                                                        style={{ background: `${stageColor}1f`, color: stageColor, boxShadow: `${stageColor}33 0px 0px 0px 1px` }}
-                                                    >
-                                                        {meta.icon}
-                                                    </div>
-
-                                                    <div className="flex-1 min-w-0 basis-[60%] sm:basis-auto">
-                                                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                                            <span
-                                                                className="inline-flex items-center px-2 h-5 rounded-full whitespace-nowrap font-geistmono text-[10px] uppercase font-medium tracking-[0.02em]"
-                                                                style={{ background: `${stageColor}1f`, color: stageColor }}
-                                                            >
-                                                                {meta.label}
-                                                            </span>
-                                                            {isHidden && (
-                                                                <span className="inline-flex items-center gap-1 px-2 h-5 rounded-full whitespace-nowrap font-geistmono text-[10px] uppercase font-medium text-[#737373]" style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}>
-                                                                    <EyeOff size={9} />
-                                                                    Hidden
-                                                                </span>
-                                                            )}
-                                                            {log.action_type === 'payment_received' && log.metadata?.paidAmount != null && (
-                                                                <span className="inline-flex items-center px-2 h-5 rounded-full whitespace-nowrap font-geistmono text-[10px] uppercase font-medium tabular-nums" style={{ background: 'rgba(255,91,79,0.12)', color: '#ff5b4f' }}>
-                                                                    +₹{Number(log.metadata.paidAmount - (log.metadata.oldPaidAmount || 0)).toLocaleString('en-IN')}
-                                                                </span>
-                                                            )}
-                                                            {log.action_type === 'feature_added' && log.metadata?.amount > 0 && (
-                                                                <span className="inline-flex items-center px-2 h-5 rounded-full whitespace-nowrap font-geistmono text-[10px] uppercase font-medium tabular-nums" style={{ background: 'rgba(10,114,239,0.12)', color: '#3a8dff' }}>
-                                                                    ₹{Number(log.metadata.amount).toLocaleString('en-IN')}
-                                                                </span>
-                                                            )}
-                                                            {log.action_type === 'feature_updated' && log.metadata?.oldAmount !== undefined && log.metadata?.amount !== log.metadata?.oldAmount && (
-                                                                <span className="inline-flex items-center gap-1 px-2 h-5 rounded-full whitespace-nowrap font-geistmono text-[10px] uppercase font-medium tabular-nums" style={{ background: 'rgba(255,164,43,0.12)', color: '#ffa42b' }}>
-                                                                    ₹{Number(log.metadata.oldAmount).toLocaleString('en-IN')}<ArrowRight size={9} />₹{Number(log.metadata.amount).toLocaleString('en-IN')}
-                                                                </span>
-                                                            )}
-                                                            {log.action_type === 'rate_confirmed' && log.metadata?.amount > 0 && (
-                                                                <span className="inline-flex items-center px-2 h-5 rounded-full whitespace-nowrap font-geistmono text-[10px] uppercase font-medium tabular-nums" style={{ background: 'rgba(255,91,79,0.12)', color: '#ff5b4f' }}>
-                                                                    ₹{Number(log.metadata.amount).toLocaleString('en-IN')}
-                                                                </span>
-                                                            )}
-                                                            <span className="font-geistmono text-[10px] uppercase text-[#525252] tabular-nums">{getRelativeTime(log.created_at)}</span>
-                                                        </div>
-                                                        <p className="text-white text-[14px] font-semibold font-geist leading-snug" style={{ letterSpacing: '-0.28px' }}>
-                                                            {log.title}
-                                                        </p>
-                                                        {log.description && (
-                                                            <p className="text-[#a1a1a1] text-[12px] mt-1 line-clamp-2 font-geist leading-[1.5]">
-                                                                {log.description}
-                                                            </p>
-                                                        )}
-
-                                                        {log.metadata?.changes && Object.keys(log.metadata.changes).length > 0 && (
-                                                            <div
-                                                                className="mt-2 space-y-1 rounded-md p-2.5"
-                                                                style={{ boxShadow: 'rgba(255,255,255,0.06) 0px 0px 0px 1px' }}
-                                                            >
-                                                                {Object.entries(log.metadata.changes).map(([key, diff]: [string, any], i) => (
-                                                                    <div key={i} className="flex items-center gap-1.5 text-[10px] font-geistmono">
-                                                                        <span className="text-[#737373] uppercase">{key}</span>
-                                                                        <span className="text-[#525252] line-through">{diff.old || 'none'}</span>
-                                                                        <ArrowRight size={9} className="text-[#404040]" />
-                                                                        <span className="font-medium tabular-nums" style={{ color: '#3a8dff' }}>{diff.new}</span>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
-
-                                                        {log.action_type === 'payment_received' && log.metadata?.amount > 0 && (
-                                                            <div className="mt-2 flex items-center gap-2">
-                                                                <div className="flex-1 h-[2px] rounded-full overflow-hidden max-w-[140px]" style={{ background: '#181818' }}>
-                                                                    <div
-                                                                        className="h-full rounded-full transition-all"
-                                                                        style={{ width: `${Math.min((Number(log.metadata.paidAmount) / Number(log.metadata.amount)) * 100, 100)}%`, background: '#ff5b4f' }}
-                                                                    />
-                                                                </div>
-                                                                <span className="text-[10px] text-[#737373] font-geistmono tabular-nums">
-                                                                    ₹{Number(log.metadata.paidAmount).toLocaleString('en-IN')}<span className="text-[#404040]">/</span>₹{Number(log.metadata.amount).toLocaleString('en-IN')}
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    <div className="w-full sm:w-auto sm:shrink-0 flex items-center sm:flex-col sm:items-end gap-2 justify-end pl-11 sm:pl-0 mt-1 sm:mt-0">
-                                                        {isSent && (
-                                                            <span className="inline-flex items-center gap-1 px-2 h-5 rounded-full whitespace-nowrap font-geistmono text-[10px] uppercase font-medium shrink-0" style={{ background: 'rgba(10,114,239,0.12)', color: '#3a8dff' }}>
-                                                                <MailCheck size={9} />
-                                                                <span className="hidden sm:inline">Sent · {getRelativeTime(log.notified_at!)}</span>
-                                                                <span className="sm:hidden">Sent</span>
-                                                            </span>
-                                                        )}
-                                                        <div className="flex items-center gap-1 shrink-0">
-                                                            <button
-                                                                onClick={() => handleSendSingle(log.id)}
-                                                                disabled={isSending || !selectedClient?.email}
-                                                                className="h-7 px-2 rounded-md text-[11px] font-medium font-geist flex items-center gap-1 transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-[#a1a1a1] hover:text-white hover:bg-[#181818]"
-                                                                style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
-                                                                title={!selectedClient?.email ? 'Add client email first' : isSent ? 'Resend' : 'Send'}
-                                                            >
-                                                                {isSending ? <Loader2 size={10} className="animate-spin" /> : <Send size={10} strokeWidth={2} />}
-                                                                {isSent ? 'Resend' : 'Send'}
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleToggleHideLog(log.id, !isHidden)}
-                                                                className="h-7 w-7 rounded-md flex items-center justify-center text-[#737373] hover:text-white hover:bg-[#181818] transition-colors"
-                                                                title={isHidden ? 'Unhide' : 'Hide from client'}
-                                                                aria-label={isHidden ? 'Unhide log' : 'Hide log'}
-                                                            >
-                                                                {isHidden ? <Eye size={11} strokeWidth={2} /> : <EyeOff size={11} strokeWidth={2} />}
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleDeleteLog(log.id)}
-                                                                className="h-7 w-7 rounded-md flex items-center justify-center text-[#737373] hover:text-[#ff5b4f] hover:bg-[#181818] transition-colors"
-                                                                title="Delete"
-                                                                aria-label="Delete log"
-                                                            >
-                                                                <Trash2 size={11} strokeWidth={2} />
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
+                                    <div className="rounded-[18px] px-5 py-4 flex items-center gap-3 mb-8" style={{ background: T.greenSoft, border: '1px solid #CBE4D6' }}>
+                                        <MailCheck size={15} className="shrink-0" style={{ color: T.green }} strokeWidth={2} />
+                                        <p className="text-[13px]" style={{ color: '#1C5E40' }}>
+                                            Notifications go to <span className="font-jbmono font-medium" style={{ color: T.ink }}>{selectedClient.email}</span>
+                                        </p>
                                     </div>
                                 )}
-                            </section>
-                        </div>
-                    );
-                })()}
+
+                                {/* ===== BATCH ACTIONS ===== */}
+                                {selectedLogIds.size > 0 && selectedClient.email && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -6 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className="sticky top-3 z-20 rounded-2xl px-5 py-3.5 flex items-center justify-between gap-3 mb-8 text-white"
+                                        style={{ background: T.dark, boxShadow: '0 16px 40px -12px rgba(22,20,15,0.45)' }}
+                                    >
+                                        <span className="text-[12px] font-extrabold uppercase tabular-nums" style={{ letterSpacing: '0.1em' }}>
+                                            {selectedLogIds.size} <span style={{ color: 'rgba(255,255,255,0.55)' }}>selected</span>
+                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => setSelectedLogIds(new Set())}
+                                                className="rounded-full h-9 px-4 text-[12.5px] font-bold transition-colors hover:bg-white/10"
+                                                style={{ border: '1px solid rgba(255,255,255,0.25)', color: 'rgba(255,255,255,0.85)' }}
+                                            >
+                                                Clear
+                                            </button>
+                                            <button
+                                                onClick={handleSendDigest}
+                                                disabled={sendingDigest}
+                                                className="rounded-full h-9 px-4 text-[12.5px] font-bold bg-white flex items-center gap-1.5 transition-opacity hover:opacity-90 disabled:opacity-50"
+                                                style={{ color: T.ink }}
+                                            >
+                                                {sendingDigest ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} strokeWidth={2.5} />}
+                                                Send digest
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                )}
+
+                                {/* ===== TIMELINE ===== */}
+                                <section>
+                                    <SectionHead
+                                        title="All events"
+                                        meta={totalLogs > 0 ? `${sentCount} sent · ${pendingCount} pending${hiddenCount > 0 ? ` · ${hiddenCount} hidden` : ''}` : undefined}
+                                    />
+                                    {loadingLogs ? (
+                                        <div className="flex justify-center py-16">
+                                            <Loader2 className="animate-spin" size={22} style={{ color: T.accent }} />
+                                        </div>
+                                    ) : totalLogs === 0 ? (
+                                        <EmptyBlock icon={<Activity size={18} strokeWidth={2} />} title="No activity yet" sub="Events will appear here as you make changes to projects, features, and payments." />
+                                    ) : activityLogs.map((log) => {
+                                        const meta = getActivityMeta(log.action_type);
+                                        const tone = warmAction[log.action_type] || '#5B5448';
+                                        const isSent = !!log.notified_at;
+                                        const isSending = sendingIds.has(log.id);
+                                        const isSelected = selectedLogIds.has(log.id);
+                                        const isHidden = !!log.is_hidden;
+                                        return (
+                                            <div
+                                                key={log.id}
+                                                className={`flex flex-wrap items-start gap-3 py-5 transition-colors ${isHidden ? 'opacity-55' : ''}`}
+                                                style={{ borderBottom: `1px solid ${T.hairline}`, background: isSelected ? 'rgba(232,85,46,0.05)' : 'transparent' }}
+                                            >
+                                                <label className="pt-1.5 shrink-0 cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isSelected}
+                                                        onChange={() => toggleLogSelection(log.id)}
+                                                        className="w-4 h-4 rounded cursor-pointer"
+                                                    />
+                                                </label>
+
+                                                <div className="shrink-0 w-9 h-9 rounded-xl grid place-items-center mt-0.5" style={{ background: log.action_type.includes('completed') ? T.dark : `${tone}1f`, color: log.action_type.includes('completed') ? '#fff' : tone }}>
+                                                    {meta.icon}
+                                                </div>
+
+                                                <div className="flex-1 min-w-0 basis-[58%] sm:basis-auto">
+                                                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                                        <span className="inline-flex items-center rounded-full font-extrabold uppercase whitespace-nowrap" style={{ background: log.action_type.includes('completed') ? T.dark : `${tone}1a`, color: log.action_type.includes('completed') ? '#fff' : tone, padding: '3px 9px', fontSize: 10, letterSpacing: '0.06em' }}>
+                                                            {meta.label}
+                                                        </span>
+                                                        {isHidden && (
+                                                            <span className="inline-flex items-center gap-1 rounded-full font-extrabold uppercase" style={{ border: `1px solid ${T.hairline}`, color: '#857D69', padding: '2px 8px', fontSize: 10, letterSpacing: '0.06em' }}>
+                                                                <EyeOff size={9} /> Hidden
+                                                            </span>
+                                                        )}
+                                                        {log.action_type === 'payment_received' && log.metadata?.paidAmount != null && (
+                                                            <span className="inline-flex items-center rounded-full font-extrabold uppercase tabular-nums" style={{ background: T.greenSoft, color: T.green, padding: '3px 9px', fontSize: 10, letterSpacing: '0.04em' }}>
+                                                                +₹{Number(log.metadata.paidAmount - (log.metadata.oldPaidAmount || 0)).toLocaleString('en-IN')}
+                                                            </span>
+                                                        )}
+                                                        {log.action_type === 'feature_added' && log.metadata?.amount > 0 && (
+                                                            <span className="inline-flex items-center rounded-full font-extrabold uppercase tabular-nums" style={{ background: T.accentSoft, color: T.accent, padding: '3px 9px', fontSize: 10, letterSpacing: '0.04em' }}>
+                                                                ₹{Number(log.metadata.amount).toLocaleString('en-IN')}
+                                                            </span>
+                                                        )}
+                                                        {log.action_type === 'rate_confirmed' && log.metadata?.amount > 0 && (
+                                                            <span className="inline-flex items-center rounded-full font-extrabold uppercase tabular-nums" style={{ background: T.greenSoft, color: T.green, padding: '3px 9px', fontSize: 10, letterSpacing: '0.04em' }}>
+                                                                ₹{Number(log.metadata.amount).toLocaleString('en-IN')}
+                                                            </span>
+                                                        )}
+                                                        <span className="font-jbmono text-[10px] uppercase tabular-nums" style={{ color: T.faint }}>{getRelativeTime(log.created_at)}</span>
+                                                    </div>
+                                                    <p className="font-bold leading-snug" style={{ fontSize: 14.5 }}>{log.title}</p>
+                                                    {log.description && (
+                                                        <p className="text-[12.5px] mt-1 line-clamp-2 leading-[1.5]" style={{ color: T.muted }}>{log.description}</p>
+                                                    )}
+
+                                                    {log.metadata?.changes && Object.keys(log.metadata.changes).length > 0 && (
+                                                        <div className="mt-2.5 space-y-1 rounded-xl p-3" style={{ background: '#F6F4F0' }}>
+                                                            {Object.entries(log.metadata.changes).map(([key, diff]: [string, any], i) => (
+                                                                <div key={i} className="flex items-center gap-1.5 text-[10.5px] font-jbmono flex-wrap">
+                                                                    <span className="uppercase" style={{ color: '#9A937F' }}>{key}</span>
+                                                                    <span className="line-through" style={{ color: T.faint }}>{diff.old || 'none'}</span>
+                                                                    <ArrowRight size={9} style={{ color: T.faint }} />
+                                                                    <span className="font-medium tabular-nums" style={{ color: T.ink }}>{diff.new}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+
+                                                    {log.action_type === 'payment_received' && log.metadata?.amount > 0 && (
+                                                        <div className="mt-2.5 flex items-center gap-2.5">
+                                                            <div className="flex-1 h-[4px] rounded-full overflow-hidden max-w-[140px]" style={{ background: T.borderSoft }}>
+                                                                <div className="h-full rounded-full transition-all" style={{ width: `${Math.min((Number(log.metadata.paidAmount) / Number(log.metadata.amount)) * 100, 100)}%`, background: T.green }} />
+                                                            </div>
+                                                            <span className="text-[10.5px] font-jbmono tabular-nums" style={{ color: '#9A937F' }}>
+                                                                ₹{Number(log.metadata.paidAmount).toLocaleString('en-IN')}/₹{Number(log.metadata.amount).toLocaleString('en-IN')}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div className="w-full sm:w-auto sm:shrink-0 flex items-center sm:flex-col sm:items-end gap-2 justify-end pl-12 sm:pl-0 mt-1 sm:mt-0">
+                                                    {isSent && (
+                                                        <span className="inline-flex items-center gap-1 rounded-full font-extrabold uppercase whitespace-nowrap shrink-0" style={{ background: T.greenSoft, color: T.green, padding: '3px 9px', fontSize: 10, letterSpacing: '0.05em' }}>
+                                                            <MailCheck size={9} />
+                                                            <span className="hidden sm:inline">Sent · {getRelativeTime(log.notified_at!)}</span>
+                                                            <span className="sm:hidden">Sent</span>
+                                                        </span>
+                                                    )}
+                                                    <div className="flex items-center gap-1 shrink-0">
+                                                        <button
+                                                            onClick={() => handleSendSingle(log.id)}
+                                                            disabled={isSending || !selectedClient?.email}
+                                                            className="rounded-full h-8 px-3 text-[11.5px] font-bold flex items-center gap-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[rgba(22,20,15,0.06)]"
+                                                            style={{ border: `1px solid ${T.hairline}`, color: '#5B5448' }}
+                                                            title={!selectedClient?.email ? 'Add client email first' : isSent ? 'Resend' : 'Send'}
+                                                        >
+                                                            {isSending ? <Loader2 size={10} className="animate-spin" /> : <Send size={10} strokeWidth={2.2} />}
+                                                            {isSent ? 'Resend' : 'Send'}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleToggleHideLog(log.id, !isHidden)}
+                                                            className="w-8 h-8 rounded-full grid place-items-center transition-colors hover:bg-[rgba(22,20,15,0.06)]"
+                                                            style={{ color: '#857D69' }}
+                                                            title={isHidden ? 'Unhide' : 'Hide from client'}
+                                                            aria-label={isHidden ? 'Unhide log' : 'Hide log'}
+                                                        >
+                                                            {isHidden ? <Eye size={12} strokeWidth={2} /> : <EyeOff size={12} strokeWidth={2} />}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteLog(log.id)}
+                                                            className="w-8 h-8 rounded-full grid place-items-center transition-colors hover:bg-[rgba(179,51,29,0.08)]"
+                                                            style={{ color: '#857D69' }}
+                                                            onMouseEnter={e => { e.currentTarget.style.color = '#B3331D'; }}
+                                                            onMouseLeave={e => { e.currentTarget.style.color = '#857D69'; }}
+                                                            title="Delete"
+                                                            aria-label="Delete log"
+                                                        >
+                                                            <Trash2 size={12} strokeWidth={2} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </section>
+                            </div>
+                        );
+                    })()}
+                </div>
             </main>
 
-            {/* ========== CREATE MODAL ========== */}
+            {/* ========== CREATE / EDIT MODAL ========== */}
             <AnimatePresence>
                 {showModal && (() => {
                     const entityLabel = view === 'clients' ? 'client' : view === 'projects' ? 'project' : view === 'links' ? 'link' : 'feature';
                     const isEditing = !!(editingId || editingLinkIndex !== null);
-                    const inputCls = "w-full h-10 px-3 rounded-md bg-transparent text-[14px] text-white placeholder:text-[#525252] outline-none transition-shadow font-geist";
-                    const inputStyle: React.CSSProperties = { boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' };
-                    const inputFocus = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => { e.currentTarget.style.boxShadow = 'rgba(10,114,239,0.6) 0px 0px 0px 1px, rgba(10,114,239,0.20) 0px 0px 0px 3px'; };
-                    const inputBlur = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => { e.currentTarget.style.boxShadow = 'rgba(255,255,255,0.10) 0px 0px 0px 1px'; };
-                    const labelCls = "block font-geistmono text-[10px] font-medium uppercase text-[#737373] tracking-[0.04em] mb-2";
-                    const helpCls = "text-[11px] text-[#525252] mt-1.5 font-geist";
+                    const helpCls = 'text-[11.5px] mt-1.5';
                     return (
-                        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/60 backdrop-blur-sm">
+                        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 backdrop-blur-sm" style={{ background: 'rgba(22,20,15,0.5)' }}>
                             <motion.div
                                 initial={{ opacity: 0, y: 30, scale: 0.98 }}
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
                                 exit={{ opacity: 0, y: 30, scale: 0.98 }}
                                 transition={{ type: 'spring', damping: 26, stiffness: 320 }}
-                                className="font-geist bg-[#0a0a0a] text-[#ededed] w-full sm:max-w-md rounded-t-lg sm:rounded-lg overflow-hidden max-h-[92vh] sm:max-h-[88vh] flex flex-col"
-                                style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px, rgba(0,0,0,0.7) 0px 24px 64px -8px, rgba(0,0,0,0.5) 0px 8px 16px -4px' }}
+                                className="font-hanken w-full sm:max-w-md rounded-t-[22px] sm:rounded-[22px] overflow-hidden max-h-[92vh] sm:max-h-[88vh] flex flex-col"
+                                style={{ background: '#FCFBF9', color: T.ink, boxShadow: `0 0 0 1px ${T.border}, 0 24px 64px -12px rgba(22,20,15,0.4)` }}
                             >
-                                <div
-                                    className="px-5 sm:px-6 py-4 flex justify-between items-center shrink-0"
-                                    style={{ boxShadow: 'rgba(255,255,255,0.08) 0px -1px 0px inset' }}
-                                >
+                                <div className="px-5 sm:px-6 py-4 flex justify-between items-center shrink-0" style={{ borderBottom: `1px solid ${T.borderSoft}` }}>
                                     <div className="flex items-center gap-2 min-w-0">
-                                        <span className="font-geistmono text-[10px] font-medium uppercase text-[#0a72ef] tracking-[0.04em]">
+                                        <span className="text-[10.5px] font-extrabold uppercase" style={{ letterSpacing: '0.12em', color: T.accent }}>
                                             {isEditing ? 'Edit' : 'New'}
                                         </span>
-                                        <span className="text-[#404040]">/</span>
-                                        <h3 className="font-geist text-[15px] text-white font-semibold capitalize truncate" style={{ letterSpacing: '-0.3px' }}>
-                                            {entityLabel}
-                                        </h3>
+                                        <span style={{ color: T.faint }}>/</span>
+                                        <h3 className="text-[15.5px] font-bold capitalize truncate">{entityLabel}</h3>
                                     </div>
                                     <button
                                         onClick={() => { setShowModal(false); setEditingId(null); setEditingLinkIndex(null); }}
                                         aria-label="Close"
-                                        className="h-8 w-8 rounded-md flex items-center justify-center text-[#737373] hover:text-white hover:bg-[#181818] transition-colors"
+                                        className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(22,20,15,0.06)]"
+                                        style={{ color: '#857D69' }}
                                     >
-                                        <X size={14} strokeWidth={2} />
+                                        <X size={15} strokeWidth={2} />
                                     </button>
                                 </div>
 
@@ -3191,18 +2737,18 @@ export default function AdminDashboard() {
                                     {view === 'clients' && (
                                         <>
                                             <div>
-                                                <label className={labelCls}>Client name</label>
-                                                <input value={formData.name || ''} autoComplete="off" data-form-type="other" placeholder="Acme Studio" className={inputCls} style={inputStyle} onFocus={inputFocus} onBlur={inputBlur} onChange={e => setFormData({ ...formData, name: e.target.value })} />
+                                                <label className={wLabelCls} style={{ color: T.label }}>Client name</label>
+                                                <input value={formData.name || ''} autoComplete="off" data-form-type="other" placeholder="Acme Studio" className={wInputCls} style={wInputStyle} onFocus={wFocus} onBlur={wBlur} onChange={e => setFormData({ ...formData, name: e.target.value })} />
                                             </div>
                                             <div>
-                                                <label className={labelCls}>Access key</label>
-                                                <input value={formData.access_key || ''} autoComplete="off" data-form-type="other" placeholder="acme-9281" className={`${inputCls} font-geistmono`} style={inputStyle} onFocus={inputFocus} onBlur={inputBlur} onChange={e => setFormData({ ...formData, access_key: e.target.value })} />
-                                                <p className={helpCls}>Unique identifier the client will use to log in.</p>
+                                                <label className={wLabelCls} style={{ color: T.label }}>Access key</label>
+                                                <input value={formData.access_key || ''} autoComplete="off" data-form-type="other" placeholder="acme-9281" className={`${wInputCls} font-jbmono`} style={wInputStyle} onFocus={wFocus} onBlur={wBlur} onChange={e => setFormData({ ...formData, access_key: e.target.value })} />
+                                                <p className={helpCls} style={{ color: T.faint }}>Unique identifier the client will use to log in.</p>
                                             </div>
                                             <div>
-                                                <label className={labelCls}>Email <span className="text-[#525252] normal-case">(optional)</span></label>
-                                                <input value={formData.email || ''} type="email" autoComplete="off" data-form-type="other" placeholder="hello@acme.com" className={inputCls} style={inputStyle} onFocus={inputFocus} onBlur={inputBlur} onChange={e => setFormData({ ...formData, email: e.target.value })} />
-                                                <p className={helpCls}>Required for sending notifications.</p>
+                                                <label className={wLabelCls} style={{ color: T.label }}>Email <span className="normal-case" style={{ color: T.faint }}>(optional)</span></label>
+                                                <input value={formData.email || ''} type="email" autoComplete="off" data-form-type="other" placeholder="hello@acme.com" className={wInputCls} style={wInputStyle} onFocus={wFocus} onBlur={wBlur} onChange={e => setFormData({ ...formData, email: e.target.value })} />
+                                                <p className={helpCls} style={{ color: T.faint }}>Required for sending notifications.</p>
                                             </div>
                                         </>
                                     )}
@@ -3211,15 +2757,15 @@ export default function AdminDashboard() {
                                     {view === 'projects' && (
                                         <>
                                             <div>
-                                                <label className={labelCls}>Description</label>
-                                                <input value={formData.description || ''} placeholder="Marketing site redesign" className={inputCls} style={inputStyle} onFocus={inputFocus} onBlur={inputBlur} onChange={e => setFormData({ ...formData, description: e.target.value })} />
+                                                <label className={wLabelCls} style={{ color: T.label }}>Description</label>
+                                                <input value={formData.description || ''} placeholder="Marketing site redesign" className={wInputCls} style={wInputStyle} onFocus={wFocus} onBlur={wBlur} onChange={e => setFormData({ ...formData, description: e.target.value })} />
                                             </div>
                                             <div>
-                                                <label className={labelCls}>Category</label>
-                                                <input value={formData.category || ''} placeholder="Web Development" className={inputCls} style={inputStyle} onFocus={inputFocus} onBlur={inputBlur} onChange={e => setFormData({ ...formData, category: e.target.value })} />
+                                                <label className={wLabelCls} style={{ color: T.label }}>Category</label>
+                                                <input value={formData.category || ''} placeholder="Web Development" className={wInputCls} style={wInputStyle} onFocus={wFocus} onBlur={wBlur} onChange={e => setFormData({ ...formData, category: e.target.value })} />
                                             </div>
                                             <div>
-                                                <label className={labelCls}>Status</label>
+                                                <label className={wLabelCls} style={{ color: T.label }}>Status</label>
                                                 <Select
                                                     value={formData.status_override || ''}
                                                     onChange={v => setFormData({ ...formData, status_override: v })}
@@ -3229,7 +2775,7 @@ export default function AdminDashboard() {
                                                         { value: 'Cancelled', label: 'Cancelled' },
                                                     ]}
                                                 />
-                                                <p className="text-[11px] text-[#737373] mt-1.5 font-geist">Status is set automatically from feature progress (Not Started → In Progress → Completed). Use an override only to pause or cancel.</p>
+                                                <p className={helpCls} style={{ color: T.muted }}>Status is set automatically from feature progress (Not Started → In Progress → Completed). Use an override only to pause or cancel.</p>
                                             </div>
                                         </>
                                     )}
@@ -3238,12 +2784,12 @@ export default function AdminDashboard() {
                                     {view === 'links' && (
                                         <>
                                             <div>
-                                                <label className={labelCls}>Title</label>
-                                                <input value={formData.link_title || ''} placeholder="Figma design" className={inputCls} style={inputStyle} onFocus={inputFocus} onBlur={inputBlur} onChange={e => setFormData({ ...formData, link_title: e.target.value })} />
+                                                <label className={wLabelCls} style={{ color: T.label }}>Title</label>
+                                                <input value={formData.link_title || ''} placeholder="Figma design" className={wInputCls} style={wInputStyle} onFocus={wFocus} onBlur={wBlur} onChange={e => setFormData({ ...formData, link_title: e.target.value })} />
                                             </div>
                                             <div>
-                                                <label className={labelCls}>URL</label>
-                                                <input value={formData.link_url || ''} placeholder="https://..." className={`${inputCls} font-geistmono`} style={inputStyle} onFocus={inputFocus} onBlur={inputBlur} onChange={e => setFormData({ ...formData, link_url: e.target.value })} />
+                                                <label className={wLabelCls} style={{ color: T.label }}>URL</label>
+                                                <input value={formData.link_url || ''} placeholder="https://..." className={`${wInputCls} font-jbmono`} style={wInputStyle} onFocus={wFocus} onBlur={wBlur} onChange={e => setFormData({ ...formData, link_url: e.target.value })} />
                                             </div>
                                         </>
                                     )}
@@ -3252,15 +2798,15 @@ export default function AdminDashboard() {
                                     {view === 'features' && (
                                         <>
                                             <div>
-                                                <label className={labelCls}>Feature description</label>
-                                                <input value={formData.description || ''} placeholder="Dark mode toggle" className={inputCls} style={inputStyle} onFocus={inputFocus} onBlur={inputBlur} onChange={e => setFormData({ ...formData, description: e.target.value })} />
+                                                <label className={wLabelCls} style={{ color: T.label }}>Feature description</label>
+                                                <input value={formData.description || ''} placeholder="Dark mode toggle" className={wInputCls} style={wInputStyle} onFocus={wFocus} onBlur={wBlur} onChange={e => setFormData({ ...formData, description: e.target.value })} />
                                             </div>
                                             <div>
-                                                <label className={labelCls}>Estimation</label>
-                                                <input value={formData.estimation || ''} placeholder="2 days" className={inputCls} style={inputStyle} onFocus={inputFocus} onBlur={inputBlur} onChange={e => setFormData({ ...formData, estimation: e.target.value })} />
+                                                <label className={wLabelCls} style={{ color: T.label }}>Estimation</label>
+                                                <input value={formData.estimation || ''} placeholder="2 days" className={wInputCls} style={wInputStyle} onFocus={wFocus} onBlur={wBlur} onChange={e => setFormData({ ...formData, estimation: e.target.value })} />
                                             </div>
                                             <div>
-                                                <label className={labelCls}>Type</label>
+                                                <label className={wLabelCls} style={{ color: T.label }}>Type</label>
                                                 <Select
                                                     value={formData.is_new_request || 'false'}
                                                     onChange={v => setFormData({ ...formData, is_new_request: v })}
@@ -3271,7 +2817,7 @@ export default function AdminDashboard() {
                                                 />
                                             </div>
                                             <div>
-                                                <label className={labelCls}>Status</label>
+                                                <label className={wLabelCls} style={{ color: T.label }}>Status</label>
                                                 <Select
                                                     value={formData.status || 'Requested'}
                                                     onChange={v => setFormData({ ...formData, status: v })}
@@ -3280,17 +2826,14 @@ export default function AdminDashboard() {
                                             </div>
 
                                             {/* Payment Confirmed Toggle */}
-                                            <div
-                                                className="rounded-md p-4"
-                                                style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px' }}
-                                            >
+                                            <div className="rounded-2xl p-4 bg-white" style={{ boxShadow: `0 0 0 1px ${T.border}` }}>
                                                 <div className="flex items-center justify-between gap-4">
                                                     <div className="min-w-0">
-                                                        <label className="block font-geistmono text-[10px] font-medium uppercase text-[#737373] tracking-[0.04em] mb-1">Payment confirmed</label>
-                                                        <p className="text-[12px] text-[#a1a1a1] font-geist leading-[1.4]">
+                                                        <label className={wLabelCls.replace('mb-2', 'mb-1')} style={{ color: T.label }}>Payment confirmed</label>
+                                                        <p className="text-[12.5px] leading-[1.45]" style={{ color: T.muted }}>
                                                             {formData.payment_confirmed !== false
                                                                 ? 'Rate locked — amount fields visible to client.'
-                                                                : 'Rate pending — client sees “Rate pending”.'}
+                                                                : 'Rate pending — client sees "Rate pending".'}
                                                         </p>
                                                     </div>
                                                     <button
@@ -3298,15 +2841,10 @@ export default function AdminDashboard() {
                                                         role="switch"
                                                         aria-checked={formData.payment_confirmed !== false}
                                                         onClick={() => setFormData({ ...formData, payment_confirmed: !formData.payment_confirmed })}
-                                                        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full whitespace-nowrap transition-colors duration-200 focus:outline-none ${
-                                                            formData.payment_confirmed !== false ? 'bg-[#0a72ef]' : 'bg-[#262626]'
-                                                        }`}
+                                                        className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none"
+                                                        style={{ background: formData.payment_confirmed !== false ? T.accent : T.hairline }}
                                                     >
-                                                        <span
-                                                            className={`inline-block h-4 w-4 rounded-full bg-white transition-transform duration-200 ${
-                                                                formData.payment_confirmed !== false ? 'translate-x-6' : 'translate-x-1'
-                                                            }`}
-                                                        />
+                                                        <span className={`inline-block h-4 w-4 rounded-full bg-white transition-transform duration-200 ${formData.payment_confirmed !== false ? 'translate-x-6' : 'translate-x-1'}`} />
                                                     </button>
                                                 </div>
                                             </div>
@@ -3315,12 +2853,12 @@ export default function AdminDashboard() {
                                             {formData.payment_confirmed !== false && (
                                                 <div className="grid grid-cols-2 gap-3">
                                                     <div>
-                                                        <label className={labelCls}>Amount <span className="text-[#525252] normal-case">(₹)</span></label>
-                                                        <input value={formData.amount ?? ''} type="number" placeholder="5000" className={`${inputCls} tabular-nums font-geistmono`} style={inputStyle} onFocus={inputFocus} onBlur={inputBlur} onChange={e => setFormData({ ...formData, amount: e.target.value })} />
+                                                        <label className={wLabelCls} style={{ color: T.label }}>Amount <span className="normal-case" style={{ color: T.faint }}>(₹)</span></label>
+                                                        <input value={formData.amount ?? ''} type="number" placeholder="5000" className={`${wInputCls} tabular-nums font-jbmono`} style={wInputStyle} onFocus={wFocus} onBlur={wBlur} onChange={e => setFormData({ ...formData, amount: e.target.value })} />
                                                     </div>
                                                     <div>
-                                                        <label className={labelCls}>Paid <span className="text-[#525252] normal-case">(₹)</span></label>
-                                                        <input value={formData.paid_amount ?? ''} type="number" placeholder="2500" className={`${inputCls} tabular-nums font-geistmono`} style={inputStyle} onFocus={inputFocus} onBlur={inputBlur} onChange={e => setFormData({ ...formData, paid_amount: e.target.value })} />
+                                                        <label className={wLabelCls} style={{ color: T.label }}>Paid <span className="normal-case" style={{ color: T.faint }}>(₹)</span></label>
+                                                        <input value={formData.paid_amount ?? ''} type="number" placeholder="2500" className={`${wInputCls} tabular-nums font-jbmono`} style={wInputStyle} onFocus={wFocus} onBlur={wBlur} onChange={e => setFormData({ ...formData, paid_amount: e.target.value })} />
                                                     </div>
                                                 </div>
                                             )}
@@ -3331,15 +2869,16 @@ export default function AdminDashboard() {
                                     <div className="flex items-center gap-2 pt-2">
                                         <button
                                             onClick={() => { setShowModal(false); setEditingId(null); setEditingLinkIndex(null); }}
-                                            className="h-10 px-4 rounded-md bg-transparent hover:bg-[#181818] text-[#a1a1a1] hover:text-white flex items-center justify-center transition-colors text-[13px] font-medium font-geist"
-                                            style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
+                                            className="rounded-full h-11 px-5 text-[13.5px] font-bold transition-colors hover:bg-[rgba(22,20,15,0.06)]"
+                                            style={{ border: `1px solid ${T.hairline}`, color: '#5B5448' }}
                                         >
                                             Cancel
                                         </button>
                                         <button
                                             onClick={view === 'clients' ? handleSaveClient : view === 'projects' ? handleSaveProject : view === 'links' ? handleAddLink : handleSaveFeature}
                                             disabled={saving}
-                                            className="flex-1 h-10 px-4 rounded-md bg-white hover:bg-[#ededed] text-[#0a0a0a] flex items-center justify-center gap-1.5 transition-colors text-[13px] font-medium font-geist disabled:opacity-50 disabled:cursor-not-allowed"
+                                            className="flex-1 rounded-full h-11 px-5 text-[13.5px] font-bold text-white flex items-center justify-center gap-1.5 transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            style={{ background: T.dark }}
                                         >
                                             {saving ? <><Loader2 size={13} className="animate-spin" /> Saving</> : isEditing ? 'Update' : 'Create'}
                                         </button>
@@ -3374,35 +2913,29 @@ export default function AdminDashboard() {
 
                 const close = () => setPackageClient(null);
 
-                const inputCls = "w-full h-10 px-3 rounded-md bg-transparent text-[14px] text-white placeholder:text-[#525252] outline-none transition-shadow font-geist";
-                const inputStyle: React.CSSProperties = { boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' };
-                const inputFocus = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => { e.currentTarget.style.boxShadow = 'rgba(10,114,239,0.6) 0px 0px 0px 1px, rgba(10,114,239,0.20) 0px 0px 0px 3px'; };
-                const inputBlur = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => { e.currentTarget.style.boxShadow = 'rgba(255,255,255,0.10) 0px 0px 0px 1px'; };
-                const labelCls = "block font-geistmono text-[10px] font-medium uppercase text-[#737373] tracking-[0.04em] mb-2";
-
                 return (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={close}>
-                        <div className="w-full max-w-lg rounded-xl bg-[#0a0a0a] overflow-hidden" style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }} onClick={e => e.stopPropagation()}>
-                            <div className="px-6 py-5 flex items-center justify-between" style={{ boxShadow: 'rgba(255,255,255,0.08) 0px -1px 0px inset' }}>
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 backdrop-blur-sm font-hanken" style={{ background: 'rgba(22,20,15,0.5)' }} onClick={close}>
+                        <div className="w-full max-w-lg rounded-[22px] overflow-hidden" style={{ background: '#FCFBF9', color: T.ink, boxShadow: `0 0 0 1px ${T.border}, 0 24px 64px -12px rgba(22,20,15,0.4)` }} onClick={e => e.stopPropagation()}>
+                            <div className="px-6 py-5 flex items-center justify-between" style={{ borderBottom: `1px solid ${T.borderSoft}` }}>
                                 <div className="min-w-0">
-                                    <p className="font-geistmono text-[10px] uppercase text-[#0a72ef] font-medium">Convert to Monthly Package</p>
-                                    <h3 className="text-white text-[16px] font-semibold font-geist mt-0.5 truncate">{packageClient.name}</h3>
-                                    <p className="text-[11px] text-[#737373] font-geist mt-0.5">Retainer covers all of this client&apos;s projects</p>
+                                    <p className="text-[10.5px] font-extrabold uppercase" style={{ letterSpacing: '0.12em', color: T.accent }}>Convert to Monthly Package</p>
+                                    <h3 className="text-[16.5px] font-bold mt-0.5 truncate">{packageClient.name}</h3>
+                                    <p className="text-[11.5px] mt-0.5" style={{ color: T.muted }}>Retainer covers all of this client&apos;s projects</p>
                                 </div>
-                                <button onClick={close} aria-label="Close" className="h-8 w-8 shrink-0 rounded-md flex items-center justify-center text-[#737373] hover:text-white hover:bg-[#181818]"><X size={16} /></button>
+                                <button onClick={close} aria-label="Close" className="w-9 h-9 shrink-0 rounded-full grid place-items-center transition-colors hover:bg-[rgba(22,20,15,0.06)]" style={{ color: '#857D69' }}><X size={16} /></button>
                             </div>
 
                             <div className="px-6 py-5 flex flex-col gap-4">
                                 <div>
-                                    <label className={labelCls}>Start / first billing date</label>
+                                    <label className={wLabelCls} style={{ color: T.label }}>Start / first billing date</label>
                                     <DatePicker value={packageForm.startDate} onChange={v => setPackageForm({ ...packageForm, startDate: v })} />
                                 </div>
                                 <div>
-                                    <label className={labelCls}>Monthly fee (₹)</label>
-                                    <input type="number" min="0" value={packageForm.fee} placeholder="20000" className={inputCls} style={inputStyle} onFocus={inputFocus} onBlur={inputBlur} onChange={e => setPackageForm({ ...packageForm, fee: e.target.value })} />
+                                    <label className={wLabelCls} style={{ color: T.label }}>Monthly fee (₹)</label>
+                                    <input type="number" min="0" value={packageForm.fee} placeholder="20000" className={`${wInputCls} tabular-nums font-jbmono`} style={wInputStyle} onFocus={wFocus} onBlur={wBlur} onChange={e => setPackageForm({ ...packageForm, fee: e.target.value })} />
                                 </div>
                                 <div>
-                                    <label className={labelCls}>Existing pending balance</label>
+                                    <label className={wLabelCls} style={{ color: T.label }}>Existing pending balance</label>
                                     <Select
                                         value={packageForm.disposition}
                                         onChange={v => setPackageForm({ ...packageForm, disposition: v })}
@@ -3415,27 +2948,29 @@ export default function AdminDashboard() {
                                     />
                                 </div>
 
-                                <div className="rounded-lg p-4 flex flex-col gap-3" style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px', background: '#0d0d0d' }}>
-                                    <p className="font-geistmono text-[10px] uppercase text-[#737373] font-medium">Preview · nothing is saved yet</p>
+                                <div className="rounded-[16px] p-4 flex flex-col gap-3" style={{ background: '#F6F4F0', border: `1px solid ${T.borderSoft}` }}>
+                                    <p className="text-[10.5px] font-extrabold uppercase" style={{ letterSpacing: '0.12em', color: T.label }}>Preview · nothing is saved yet</p>
                                     <div className="grid grid-cols-3 gap-2 text-center">
-                                        <div><p className="text-[10px] text-[#737373] uppercase">Total</p><p className="text-white text-[14px] font-semibold tabular-nums">{fmt(before.total)}</p></div>
-                                        <div><p className="text-[10px] text-[#737373] uppercase">Paid</p><p className="text-[#ff5b4f] text-[14px] font-semibold tabular-nums">{fmt(before.paid)}</p></div>
-                                        <div><p className="text-[10px] text-[#737373] uppercase">Pending</p><p className="text-[#de1d8d] text-[14px] font-semibold tabular-nums">{fmt(before.pending)}</p></div>
+                                        <div><p className="text-[10px] font-extrabold uppercase" style={{ letterSpacing: '0.08em', color: T.label }}>Total</p><p className="text-[14.5px] font-bold tabular-nums mt-0.5">{fmt(before.total)}</p></div>
+                                        <div><p className="text-[10px] font-extrabold uppercase" style={{ letterSpacing: '0.08em', color: T.label }}>Paid</p><p className="text-[14.5px] font-bold tabular-nums mt-0.5" style={{ color: T.green }}>{fmt(before.paid)}</p></div>
+                                        <div><p className="text-[10px] font-extrabold uppercase" style={{ letterSpacing: '0.08em', color: T.label }}>Pending</p><p className="text-[14.5px] font-bold tabular-nums mt-0.5" style={{ color: before.pending > 0 ? T.accent : T.ink }}>{fmt(before.pending)}</p></div>
                                     </div>
-                                    <div className="h-px bg-[#222]" />
-                                    <p className="text-[#a1a1a1] text-[12.5px] font-geist leading-relaxed">{balanceLine}</p>
-                                    <ul className="text-[12.5px] text-[#a1a1a1] font-geist flex flex-col gap-1">
-                                        <li>Monthly fee: <span className="text-white font-semibold">{fmt(fee)}</span></li>
-                                        <li>First charge: <span className="text-white font-semibold">{fmt(firstCharge)}</span> on <span className="text-white">{start}</span> · for <span className="text-white">{new Date(coveragePeriod(start, 'monthly').start + 'T00:00:00').toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</span></li>
-                                        <li>Then <span className="text-white font-semibold">{fmt(fee)}</span> on <span className="text-white">{sched.nextChargeDate}</span> · for <span className="text-white">{new Date(coveragePeriod(sched.nextChargeDate, 'monthly').start + 'T00:00:00').toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</span></li>
-                                        {sched.duePeriodStarts.length > 1 && <li className="text-[#de1d8d]">{sched.duePeriodStarts.length} months already due — bill them in Manage package.</li>}
+                                    <div className="h-px" style={{ background: T.hairline }} />
+                                    <p className="text-[12.5px] leading-relaxed" style={{ color: T.muted }}>{balanceLine}</p>
+                                    <ul className="text-[12.5px] flex flex-col gap-1" style={{ color: T.muted }}>
+                                        <li>Monthly fee: <span className="font-bold" style={{ color: T.ink }}>{fmt(fee)}</span></li>
+                                        <li>First charge: <span className="font-bold" style={{ color: T.ink }}>{fmt(firstCharge)}</span> on <span style={{ color: T.ink }}>{start}</span> · for <span style={{ color: T.ink }}>{new Date(coveragePeriod(start, 'monthly').start + 'T00:00:00').toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</span></li>
+                                        <li>Then <span className="font-bold" style={{ color: T.ink }}>{fmt(fee)}</span> on <span style={{ color: T.ink }}>{sched.nextChargeDate}</span> · for <span style={{ color: T.ink }}>{new Date(coveragePeriod(sched.nextChargeDate, 'monthly').start + 'T00:00:00').toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</span></li>
+                                        {sched.duePeriodStarts.length > 1 && <li className="font-semibold" style={{ color: T.accent }}>{sched.duePeriodStarts.length} months already due — bill them in Manage package.</li>}
                                     </ul>
                                 </div>
                             </div>
 
-                            <div className="px-6 py-4 flex items-center gap-2" style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 1px 0px inset' }}>
-                                <button onClick={close} disabled={packageSaving} className="h-10 px-4 rounded-md text-[#a1a1a1] hover:text-white hover:bg-[#181818] text-[13px] font-medium font-geist disabled:opacity-50" style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}>Cancel</button>
-                                <button onClick={handleConfirmPackage} disabled={packageSaving || fee <= 0 || !start} className="flex-1 h-10 px-4 rounded-md bg-white hover:bg-[#ededed] text-[#0a0a0a] text-[13px] font-medium font-geist disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5">{packageSaving ? <><Loader2 size={13} className="animate-spin" /> Converting…</> : 'Confirm conversion'}</button>
+                            <div className="px-6 py-4 flex items-center gap-2" style={{ borderTop: `1px solid ${T.borderSoft}` }}>
+                                <button onClick={close} disabled={packageSaving} className="rounded-full h-11 px-5 text-[13.5px] font-bold transition-colors hover:bg-[rgba(22,20,15,0.06)] disabled:opacity-50" style={{ border: `1px solid ${T.hairline}`, color: '#5B5448' }}>Cancel</button>
+                                <button onClick={handleConfirmPackage} disabled={packageSaving || fee <= 0 || !start} className="flex-1 rounded-full h-11 px-5 text-[13.5px] font-bold text-white flex items-center justify-center gap-1.5 transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed" style={{ background: T.dark }}>
+                                    {packageSaving ? <><Loader2 size={13} className="animate-spin" /> Converting…</> : 'Confirm conversion'}
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -3449,8 +2984,11 @@ export default function AdminDashboard() {
                 const fmt = (n: number) => `₹${(n || 0).toLocaleString('en-IN')}`;
                 const fmtDate = (iso?: string | null) => iso ? new Date(iso + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
                 const close = () => setManagePackageClient(null);
-                const badgeFor = (s: string) => s === 'Paid' ? 'bg-emerald-500/15 text-emerald-400' : s === 'Partial' ? 'bg-blue-500/15 text-blue-400' : 'bg-amber-500/15 text-amber-400';
-                const inputStyle: React.CSSProperties = { boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' };
+                const badgeFor = (s: string): React.CSSProperties => s === 'Paid'
+                    ? { background: T.greenSoft, color: T.green }
+                    : s === 'Partial'
+                        ? { background: T.amberSoft, color: T.amber }
+                        : { background: T.accentSoft, color: T.accent };
 
                 // Detect periods that are already due but not yet generated.
                 const mToday = todayLocalISO();
@@ -3465,63 +3003,71 @@ export default function AdminDashboard() {
                     .filter(s => !existingStarts.has(s));
 
                 return (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={close}>
-                        <div className="w-full max-w-xl rounded-xl bg-[#0a0a0a] overflow-hidden flex flex-col max-h-[85vh]" style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }} onClick={e => e.stopPropagation()}>
-                            <div className="px-6 py-5 flex items-center justify-between shrink-0" style={{ boxShadow: 'rgba(255,255,255,0.08) 0px -1px 0px inset' }}>
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 backdrop-blur-sm font-hanken" style={{ background: 'rgba(22,20,15,0.5)' }} onClick={close}>
+                        <div className="w-full max-w-xl rounded-[22px] overflow-hidden flex flex-col max-h-[85vh]" style={{ background: '#FCFBF9', color: T.ink, boxShadow: `0 0 0 1px ${T.border}, 0 24px 64px -12px rgba(22,20,15,0.4)` }} onClick={e => e.stopPropagation()}>
+                            <div className="px-6 py-5 flex items-center justify-between shrink-0" style={{ borderBottom: `1px solid ${T.borderSoft}` }}>
                                 <div className="min-w-0">
-                                    <p className="font-geistmono text-[10px] uppercase text-[#0a72ef] font-medium">Manage Package</p>
-                                    <h3 className="text-white text-[16px] font-semibold font-geist mt-0.5 truncate">{client.name} · {fmt(fee)}/mo</h3>
+                                    <p className="text-[10.5px] font-extrabold uppercase" style={{ letterSpacing: '0.12em', color: T.accent }}>Manage Package</p>
+                                    <h3 className="text-[16.5px] font-bold mt-0.5 truncate">{client.name} · {fmt(fee)}/mo</h3>
                                 </div>
-                                <button onClick={close} aria-label="Close" className="h-8 w-8 shrink-0 rounded-md flex items-center justify-center text-[#737373] hover:text-white hover:bg-[#181818]"><X size={16} /></button>
+                                <button onClick={close} aria-label="Close" className="w-9 h-9 shrink-0 rounded-full grid place-items-center transition-colors hover:bg-[rgba(22,20,15,0.06)]" style={{ color: '#857D69' }}><X size={16} /></button>
                             </div>
 
-                            <div className="px-6 py-4 flex items-center justify-between shrink-0" style={{ boxShadow: 'rgba(255,255,255,0.08) 0px -1px 0px inset' }}>
-                                <span className="font-geistmono text-[10px] uppercase text-[#737373] font-medium">{managePeriods.length} billing period{managePeriods.length === 1 ? '' : 's'}</span>
+                            <div className="px-6 py-4 flex items-center justify-between gap-3 shrink-0" style={{ borderBottom: `1px solid ${T.borderSoft}` }}>
+                                <span className="text-[10.5px] font-extrabold uppercase" style={{ letterSpacing: '0.12em', color: T.label }}>{managePeriods.length} billing period{managePeriods.length === 1 ? '' : 's'}</span>
                                 <button
                                     onClick={() => generateNextPeriod(client)}
                                     disabled={packageSaving || periodsLoading}
-                                    className="h-8 px-3 rounded-md flex items-center gap-1.5 text-[12px] font-medium font-geist text-[#0a0a0a] bg-white hover:bg-[#ededed] disabled:opacity-50"
+                                    className="rounded-full h-9 px-4 flex items-center gap-1.5 text-[12.5px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                                    style={{ background: T.dark }}
                                 >
-                                    <Plus size={13} /> Generate next period
+                                    <Plus size={13} strokeWidth={2.5} /> Generate next period
                                 </button>
                             </div>
 
                             {!periodsLoading && missingStarts.length > 0 && (
-                                <div className="mx-6 mt-3 rounded-lg p-3 flex items-center justify-between gap-3 shrink-0" style={{ boxShadow: 'rgba(245,158,11,0.4) 0px 0px 0px 1px', background: 'rgba(245,158,11,0.08)' }}>
-                                    <span className="text-[12.5px] text-amber-300 font-geist">{missingStarts.length} due period{missingStarts.length === 1 ? '' : 's'} not yet generated.</span>
-                                    <button onClick={() => generateMissingPeriods(client, missingStarts)} disabled={packageSaving || periodsLoading} className="h-8 px-3 rounded-md text-[12px] font-medium font-geist text-[#0a0a0a] bg-amber-400 hover:bg-amber-300 disabled:opacity-50 whitespace-nowrap">Generate {missingStarts.length}</button>
+                                <div className="mx-6 mt-4 rounded-[14px] p-3.5 flex items-center justify-between gap-3 shrink-0" style={{ background: T.amberSoft, border: '1px solid #E8D5B5' }}>
+                                    <span className="text-[12.5px] font-semibold" style={{ color: '#7A5A24' }}>{missingStarts.length} due period{missingStarts.length === 1 ? '' : 's'} not yet generated.</span>
+                                    <button onClick={() => generateMissingPeriods(client, missingStarts)} disabled={packageSaving || periodsLoading} className="rounded-full h-8 px-3.5 text-[12px] font-bold text-white whitespace-nowrap transition-opacity hover:opacity-90 disabled:opacity-50" style={{ background: T.amber }}>
+                                        Generate {missingStarts.length}
+                                    </button>
                                 </div>
                             )}
 
-                            <div className="px-6 py-4 overflow-y-auto flex flex-col gap-3">
-                                {managePeriods.length === 0 && (
-                                    <p className="text-[13px] text-[#737373] font-geist text-center py-6">No billing periods yet. Click &quot;Generate next period&quot; to create one.</p>
+                            <div className="px-6 py-4 overflow-y-auto custom-scrollbar flex flex-col gap-3">
+                                {periodsLoading && (
+                                    <div className="flex justify-center py-8"><Loader2 className="animate-spin" size={20} style={{ color: T.accent }} /></div>
+                                )}
+                                {!periodsLoading && managePeriods.length === 0 && (
+                                    <p className="text-[13px] text-center py-6" style={{ color: T.muted }}>No billing periods yet. Click &quot;Generate next period&quot; to create one.</p>
                                 )}
                                 {managePeriods.map(p => (
-                                    <div key={p.id} className="rounded-lg p-4 flex flex-col gap-3" style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 0px 0px 1px', background: '#0d0d0d' }}>
+                                    <div key={p.id} className="rounded-[16px] p-4 flex flex-col gap-3 bg-white" style={{ boxShadow: `0 0 0 1px ${T.border}` }}>
                                         <div className="flex items-center justify-between gap-2">
                                             <div className="min-w-0">
-                                                <p className="text-white text-[13px] font-semibold font-geist">{fmtDate(p.period_start)} – {fmtDate(p.period_end)}</p>
-                                                {p.note && <p className="text-[11px] text-[#737373] font-geist mt-0.5">{p.note}</p>}
+                                                <p className="text-[13.5px] font-bold">{fmtDate(p.period_start)} – {fmtDate(p.period_end)}</p>
+                                                {p.note && <p className="text-[11.5px] mt-0.5" style={{ color: T.muted }}>{p.note}</p>}
                                             </div>
-                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${badgeFor(p.payment_status)}`}>{p.payment_status}</span>
+                                            <span className="rounded-full font-extrabold uppercase shrink-0" style={{ ...badgeFor(p.payment_status), padding: '4px 10px', fontSize: 10, letterSpacing: '0.06em' }}>{p.payment_status}</span>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <span className="text-[11px] text-[#737373] font-geistmono whitespace-nowrap">Paid of {fmt(Number(p.fee_amount) || 0)}</span>
+                                            <span className="text-[11.5px] font-jbmono whitespace-nowrap" style={{ color: T.muted }}>Paid of {fmt(Number(p.fee_amount) || 0)}</span>
                                             <input
                                                 type="number"
                                                 min="0"
                                                 value={periodPayInputs[p.id] ?? ''}
                                                 onChange={e => setPeriodPayInputs({ ...periodPayInputs, [p.id]: e.target.value })}
-                                                className="flex-1 h-9 px-3 rounded-md bg-transparent text-[13px] text-white outline-none font-geist"
-                                                style={inputStyle}
+                                                className="flex-1 h-10 px-3.5 rounded-xl bg-white text-[13.5px] outline-none tabular-nums font-jbmono transition-shadow"
+                                                style={wInputStyle}
+                                                onFocus={wFocus}
+                                                onBlur={wBlur}
                                                 placeholder="0"
                                             />
                                             <button
                                                 onClick={() => recordPeriodPayment(p)}
                                                 disabled={packageSaving}
-                                                className="h-9 px-3 rounded-md text-[12px] font-medium font-geist text-white hover:bg-[#181818] disabled:opacity-50"
-                                                style={inputStyle}
+                                                className="rounded-full h-10 px-4 text-[12.5px] font-bold transition-colors hover:bg-[rgba(22,20,15,0.06)] disabled:opacity-50"
+                                                style={{ border: `1px solid ${T.hairline}`, color: '#5B5448' }}
                                             >
                                                 Save
                                             </button>
@@ -3530,8 +3076,8 @@ export default function AdminDashboard() {
                                 ))}
                             </div>
 
-                            <div className="px-6 py-4 shrink-0 flex justify-end" style={{ boxShadow: 'rgba(255,255,255,0.08) 0px 1px 0px inset' }}>
-                                <button onClick={close} className="h-10 px-4 rounded-md text-[#a1a1a1] hover:text-white hover:bg-[#181818] text-[13px] font-medium font-geist" style={inputStyle}>Done</button>
+                            <div className="px-6 py-4 shrink-0 flex justify-end" style={{ borderTop: `1px solid ${T.borderSoft}` }}>
+                                <button onClick={close} className="rounded-full h-11 px-6 text-[13.5px] font-bold text-white transition-opacity hover:opacity-90" style={{ background: T.dark }}>Done</button>
                             </div>
                         </div>
                     </div>
@@ -3540,3 +3086,4 @@ export default function AdminDashboard() {
         </div>
     );
 }
+

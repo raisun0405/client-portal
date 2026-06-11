@@ -5,7 +5,16 @@ import { ChevronDown, Check } from 'lucide-react';
 
 export type SelectOption = { value: string; label: string };
 
-// Dark-themed custom dropdown replacing native <select> in the admin shell.
+// Warm-editorial custom dropdown (Inspo Option C palette) — admin shell only.
+const C = {
+    ink: '#1C1A17',
+    muted: '#8A857C',
+    faint: '#B5B0A6',
+    border: '#E9E5DD',
+    hoverBg: '#F6F4F0',
+    accent: '#E8552E',
+};
+
 export function Select({
     value,
     onChange,
@@ -52,17 +61,17 @@ export function Select({
                 disabled={disabled}
                 aria-haspopup="listbox"
                 aria-expanded={open}
-                className="w-full h-10 px-3 rounded-md bg-[#0a0a0a] text-[14px] font-geist flex items-center justify-between gap-2 transition-shadow outline-none disabled:opacity-50"
-                style={{ boxShadow: open ? 'rgba(10,114,239,0.6) 0px 0px 0px 1px, rgba(10,114,239,0.20) 0px 0px 0px 3px' : 'rgba(255,255,255,0.10) 0px 0px 0px 1px' }}
+                className="w-full h-10 px-3.5 rounded-xl bg-white text-[14px] flex items-center justify-between gap-2 transition-shadow outline-none disabled:opacity-50"
+                style={{ boxShadow: open ? `0 0 0 1px ${C.accent}, 0 0 0 3px rgba(232,85,46,0.15)` : `0 0 0 1px ${C.border}` }}
             >
-                <span className={selected ? 'text-white truncate' : 'text-[#525252] truncate'}>{selected ? selected.label : (placeholder || 'Select…')}</span>
-                <ChevronDown size={15} className={`text-[#737373] shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+                <span className="truncate" style={{ color: selected ? C.ink : C.faint }}>{selected ? selected.label : (placeholder || 'Select…')}</span>
+                <ChevronDown size={15} className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} style={{ color: C.muted }} />
             </button>
             {open && (
                 <div
                     role="listbox"
-                    className={`absolute z-[70] w-full rounded-md bg-[#161616] p-1 max-h-60 overflow-y-auto ${flipUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5'}`}
-                    style={{ boxShadow: 'rgba(255,255,255,0.10) 0px 0px 0px 1px, rgba(0,0,0,0.7) 0px 12px 32px -4px, rgba(0,0,0,0.5) 0px 4px 8px -2px' }}
+                    className={`absolute z-[70] w-full rounded-xl bg-white p-1.5 max-h-60 overflow-y-auto ${flipUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5'}`}
+                    style={{ boxShadow: `0 0 0 1px ${C.border}, 0 16px 40px -8px rgba(22,20,15,0.25)` }}
                 >
                     {options.map(o => (
                         <button
@@ -71,10 +80,13 @@ export function Select({
                             role="option"
                             aria-selected={o.value === value}
                             onClick={() => { onChange(o.value); setOpen(false); }}
-                            className={`w-full flex items-center justify-between gap-2 text-left px-2.5 py-2 text-[13px] rounded transition-colors font-geist ${o.value === value ? 'bg-[#222] text-white' : 'text-[#a1a1a1] hover:text-white hover:bg-[#222]'}`}
+                            className="w-full flex items-center justify-between gap-2 text-left px-3 py-2 text-[13px] rounded-lg transition-colors"
+                            style={o.value === value ? { background: C.hoverBg, color: C.ink, fontWeight: 700 } : { color: '#5B5448' }}
+                            onMouseEnter={e => { if (o.value !== value) e.currentTarget.style.background = C.hoverBg; }}
+                            onMouseLeave={e => { if (o.value !== value) e.currentTarget.style.background = 'transparent'; }}
                         >
                             <span className="truncate">{o.label}</span>
-                            {o.value === value && <Check size={13} className="text-[#0a72ef] shrink-0" strokeWidth={2.5} />}
+                            {o.value === value && <Check size={13} className="shrink-0" style={{ color: C.accent }} strokeWidth={2.5} />}
                         </button>
                     ))}
                 </div>
