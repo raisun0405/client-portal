@@ -32,7 +32,10 @@ export default function AdminLoginPage() {
             setLoading(false);
         } else {
             setIsNavigating(true);
-            router.push('/admin/dashboard');
+            // Return to the originally requested deep-link if present, else the dashboard.
+            // Only internal /admin/ paths are honoured (prevents open-redirects).
+            const rt = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('returnTo') : null;
+            router.push(rt && rt.startsWith('/admin/') ? rt : '/admin/dashboard');
         }
     };
 

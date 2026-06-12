@@ -249,14 +249,18 @@ function RailBtn({ icon: Icon, active, disabled, onClick, title }: { icon: React
         <button
             onClick={onClick}
             disabled={disabled}
-            title={title}
             aria-label={title}
-            className="w-11 h-11 rounded-[14px] grid place-items-center transition-colors disabled:opacity-35 disabled:cursor-not-allowed"
+            className="flex items-center h-10 w-full rounded-[12px] transition-colors disabled:opacity-35 disabled:cursor-not-allowed"
             style={active ? { background: T.dark, color: '#fff' } : { color: '#828A99' }}
             onMouseEnter={e => { if (!active && !disabled) e.currentTarget.style.background = 'rgba(26,29,37,0.06)'; }}
             onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent'; }}
         >
-            <Icon size={19} strokeWidth={1.8} />
+            <span className="w-[40px] grid place-items-center shrink-0">
+                <Icon size={19} strokeWidth={1.8} />
+            </span>
+            <span className="text-[13.5px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                {title}
+            </span>
         </button>
     );
 }
@@ -323,18 +327,37 @@ export default function AdminDashboard() {
     const [selectedLogIds, setSelectedLogIds] = useState<Set<string>>(new Set());
     const [sendingDigest, setSendingDigest] = useState(false);
 
+    // --- URL-driven navigation ---
+    // The current view/selection is encoded in the URL query (?client=&project=&tab=)
+    // so deep-links, refresh, and the browser back/forward buttons all work. `nav`
+    // mirrors those params; a reconcile effect below turns `nav` into view + data.
+    const [nav, setNav] = useState<{ clientId: string | null; projectId: string | null; tab: string | null }>({ clientId: null, projectId: null, tab: null });
+    const [clientsLoaded, setClientsLoaded] = useState(false);
+
     useEffect(() => {
         // Check Supabase Auth Session
         const checkAuth = async () => {
             const { data: { session } } = await supabaseAdmin.auth.getSession();
             if (!session) {
-                router.push('/admin');
+                // Remember the deep-link so login can send the admin straight back to it.
+                const returnTo = window.location.pathname + window.location.search;
+                router.push(`/admin?returnTo=${encodeURIComponent(returnTo)}`);
             } else {
                 fetchClients();
             }
         };
         checkAuth();
     }, [router]);
+
+    // Keep `nav` in sync with the address bar: read it on mount, and update on
+    // browser back/forward (popstate). In-app navigation goes through navigate().
+    useEffect(() => {
+        const sync = () => setNav(parseLocation());
+        sync();
+        window.addEventListener('popstate', sync);
+        return () => window.removeEventListener('popstate', sync);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Close dropdown menus on outside click / escape
     useEffect(() => {
@@ -361,7 +384,7 @@ export default function AdminDashboard() {
     const fetchClients = async () => {
         setLoading(true);
         const { data: clientsData } = await supabaseAdmin.from('clients').select('*').order('created_at', { ascending: false });
-        if (!clientsData) { setClients([]); setLoading(false); return; }
+        if (!clientsData) { setClients([]); setClientsLoaded(true); setLoading(false); return; }
 
         // Fetch all projects and features in parallel for aggregate stats
         // (+ the latest activity across all clients for the overview's Recent column)
@@ -413,6 +436,7 @@ export default function AdminDashboard() {
         });
 
         setClients(withStats);
+        setClientsLoaded(true);
         setLoading(false);
     };
 
@@ -482,10 +506,13 @@ export default function AdminDashboard() {
                 };
             });
             setProjects(enhancedProjects);
+            setLoading(false);
+            return enhancedProjects;
         } else {
             setProjects([]);
+            setLoading(false);
+            return [] as ProjectWithStats[];
         }
-        setLoading(false);
     };
 
     const fetchFeatures = async (projectId: string) => {
@@ -495,48 +522,110 @@ export default function AdminDashboard() {
         setLoading(false);
     };
 
-    // --- Handlers ---
+    // --- URL helpers ---
+    const parseLocation = () => {
+        if (typeof window === 'undefined') return { clientId: null, projectId: null, tab: null };
+        const sp = new URLSearchParams(window.location.search);
+        return { clientId: sp.get('client'), projectId: sp.get('project'), tab: sp.get('tab') };
+    };
+    const buildAdminUrl = (p: { client?: string | null; project?: string | null; tab?: string | null }) => {
+        const sp = new URLSearchParams();
+        if (p.client) sp.set('client', p.client);
+        if (p.project) sp.set('project', p.project);
+        if (p.tab) sp.set('tab', p.tab);
+        const qs = sp.toString();
+        return qs ? `/admin/dashboard?${qs}` : '/admin/dashboard';
+    };
+    const navigate = (p: { client?: string | null; project?: string | null; tab?: string | null }, replace = false) => {
+        const url = buildAdminUrl(p);
+        if (replace) window.history.replaceState(null, '', url);
+        else window.history.pushState(null, '', url);
+        setNav({ clientId: p.client ?? null, projectId: p.project ?? null, tab: p.tab ?? null });
+    };
+
+    // --- Handlers (navigation goes through the URL; the reconcile effect loads data) ---
     const handleClientSelect = (client: Client) => {
-        setSelectedClient(client);
-        fetchProjects(client.id);
-        setView('projects');
+        setSelectedClient(client);          // optimistic, so the name renders instantly
+        navigate({ client: client.id });
     };
 
     const handleProjectSelect = (project: ProjectWithStats) => {
         setSelectedProject(project);
-        fetchFeatures(project.id);
-        setView('features');
+        navigate({ client: selectedClient?.id, project: project.id });
     };
 
     const handleProjectLinksSelect = (project: ProjectWithStats) => {
         setSelectedProject(project);
         setLinks(project.links || []);
-        setView('links');
+        navigate({ client: selectedClient?.id, project: project.id, tab: 'links' });
     };
 
     // Jump straight back to the overview from anywhere (icon rail home).
-    const goOverview = () => {
-        setView('clients');
-        setSelectedClient(null);
-        setSelectedProject(null);
-        setFeatures([]);
-        setLinks([]);
-        setActivityLogs([]);
-    };
+    const goOverview = () => { navigate({}); };
 
     const handleBack = () => {
-        if (view === 'features' || view === 'links') {
-            setView('projects');
-            setSelectedProject(null);
-            setFeatures([]);
-            setLinks([]);
-        } else if (view === 'projects' || view === 'activity') {
-            setView('clients');
-            setSelectedClient(null);
-            setProjects([]);
-            setActivityLogs([]);
-        }
+        if (view === 'features' || view === 'links') navigate({ client: selectedClient?.id });
+        else if (view === 'projects' || view === 'activity') navigate({});
     };
+
+    // Reconcile state from the URL: resolve the selected client/project (loading
+    // them when deep-linked or refreshed) and switch to the matching view. Runs on
+    // every nav change and once the client list has loaded.
+    useEffect(() => {
+        let cancelled = false;
+        const reconcile = async () => {
+            const { clientId, projectId, tab } = nav;
+            if (!clientId) {
+                setView('clients');
+                setSelectedClient(null);
+                setSelectedProject(null);
+                setProjects([]);
+                setFeatures([]);
+                setLinks([]);
+                setActivityLogs([]);
+                return;
+            }
+            if (!clientsLoaded) return; // wait for the client list before resolving ids
+            const client = clients.find(c => c.id === clientId) || null;
+            if (!client) { navigate({}, true); return; } // unknown client → overview
+            setSelectedClient(prev => (prev && prev.id === client.id ? prev : client));
+
+            if (!projectId) {
+                setSelectedProject(null);
+                if (tab === 'activity') {
+                    setView('activity');
+                    setSelectedLogIds(new Set());
+                    fetchActivityLogs(client.id);
+                } else {
+                    setView('projects');
+                    fetchProjects(client.id);
+                }
+                return;
+            }
+
+            // Project view: use the optimistic selection if it matches, else load.
+            let proj: ProjectWithStats | null =
+                selectedProject && selectedProject.id === projectId ? selectedProject
+                    : projects.find(p => p.id === projectId) || null;
+            if (!proj) {
+                const list = await fetchProjects(client.id);
+                if (cancelled) return;
+                proj = (list || []).find(p => p.id === projectId) || null;
+            }
+            if (!proj) { navigate({ client: client.id }, true); return; } // unknown project
+            setSelectedProject(proj);
+            if (tab === 'links') {
+                setView('links');
+                setLinks(proj.links || []);
+            } else {
+                setView('features');
+                fetchFeatures(projectId);
+            }
+        };
+        reconcile();
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [nav.clientId, nav.projectId, nav.tab, clientsLoaded]);
 
     // --- Edit Handlers (opens modal with existing data) ---
     const handleEditClient = (client: Client) => {
@@ -1348,9 +1437,7 @@ export default function AdminDashboard() {
 
     const handleViewActivity = (client: Client) => {
         setSelectedClient(client);
-        fetchActivityLogs(client.id);
-        setView('activity');
-        setSelectedLogIds(new Set());
+        navigate({ client: client.id, tab: 'activity' });
     };
 
     const handleSendSingle = async (logId: string) => {
@@ -1460,7 +1547,7 @@ export default function AdminDashboard() {
     const signOut = async () => { await supabaseAdmin.auth.signOut(); router.push('/admin'); };
 
     return (
-        <div className={`${hankenFont.variable} ${jbMonoFont.variable} warm-root font-hanken min-h-screen antialiased`} style={{ background: T.bg, color: T.ink }}>
+        <div className={`${hankenFont.variable} ${jbMonoFont.variable} warm-root font-hanken min-h-screen antialiased overflow-x-clip`} style={{ background: T.bg, color: T.ink }}>
             {/* Cool Slate canvas (reference palette) — Hanken Grotesk + JetBrains Mono */}
             <style>{`
                 .font-hanken { font-family: var(--font-hanken), 'Hanken Grotesk', system-ui, sans-serif; }
@@ -1474,33 +1561,30 @@ export default function AdminDashboard() {
                 .warm-root input[type=number]::-webkit-outer-spin-button, .warm-root input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
             `}</style>
 
-            {/* ===== ICON RAIL (desktop) ===== */}
+            {/* ===== ICON RAIL (desktop) — collapsed to icons, expands with labels on hover ===== */}
             <aside
-                className="hidden md:flex fixed left-0 top-0 bottom-0 w-[76px] flex-col items-center py-7 z-40"
+                className="hidden md:flex group fixed left-0 top-0 bottom-0 w-[60px] hover:w-[212px] flex-col py-5 px-2.5 z-40 overflow-hidden transition-[width,box-shadow] duration-300 ease-out hover:shadow-[10px_0_44px_-16px_rgba(26,29,37,0.22)]"
                 style={{ borderRight: `1px solid ${T.railBorder}`, background: T.bg }}
             >
-                <button
-                    onClick={goOverview}
-                    title="Overview"
-                    className="w-[38px] h-[38px] rounded-xl grid place-items-center text-white font-extrabold text-[18px] mb-9 transition-transform hover:scale-105"
-                    style={{ background: T.accent }}
-                >
-                    R
-                </button>
-                <nav className="flex flex-col gap-2.5">
+                <nav className="flex flex-col gap-1.5">
                     <RailBtn icon={Home} title="Overview" active={view === 'clients'} onClick={goOverview} />
                     <RailBtn icon={Folder} title="Projects" active={view === 'projects'} disabled={!selectedClient} onClick={() => selectedClient && handleClientSelect(selectedClient)} />
                     <RailBtn icon={Zap} title="Features" active={view === 'features'} disabled={!selectedProject} onClick={() => selectedProject && handleProjectSelect(selectedProject)} />
                     <RailBtn icon={Link2} title="Links" active={view === 'links'} disabled={!selectedProject} onClick={() => selectedProject && handleProjectLinksSelect(selectedProject)} />
                     <RailBtn icon={Activity} title="Activity log" active={view === 'activity'} disabled={!selectedClient} onClick={() => selectedClient && handleViewActivity(selectedClient)} />
                 </nav>
-                <div className="mt-auto flex flex-col items-center gap-3">
+                <div className="mt-auto flex flex-col gap-1.5">
                     <RailBtn icon={LogOut} title="Sign out" onClick={signOut} />
-                    <div className="w-10 h-10 rounded-full grid place-items-center text-white font-bold text-[15px] select-none" style={{ background: '#4A515E' }}>R</div>
+                    <div className="flex items-center h-11 select-none">
+                        <span className="w-[40px] grid place-items-center shrink-0">
+                            <span className="w-[30px] h-[30px] rounded-full grid place-items-center text-white font-bold text-[12.5px]" style={{ background: '#4A515E' }}>R</span>
+                        </span>
+                        <span className="text-[13.5px] font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200" style={{ color: T.ink }}>Admin</span>
+                    </div>
                 </div>
             </aside>
 
-            <main className="md:pl-[76px]">
+            <main className="md:pl-[60px]">
                 <div className="max-w-[1240px] mx-auto px-4 sm:px-8 lg:px-12 py-6 md:py-8">
                     {/* Mobile top bar (rail is hidden) */}
                     <div className="md:hidden flex items-center gap-3 mb-6">
@@ -1619,26 +1703,26 @@ export default function AdminDashboard() {
                                 {/* ===== EDITORIAL HERO ===== */}
                                 <div className="flex flex-wrap items-end gap-x-10 gap-y-8 mt-10 mb-9">
                                     {totalClients === 0 ? (
-                                        <h1 className="font-extrabold" style={{ fontSize: 'clamp(40px, 5.2vw, 74px)', letterSpacing: '-0.045em', lineHeight: 0.98, margin: 0 }}>
+                                        <h1 className="font-extrabold break-words" style={{ fontSize: 'clamp(30px, 8.5vw, 74px)', letterSpacing: '-0.045em', lineHeight: 0.98, margin: 0 }}>
                                             Empty<br /><span style={{ color: '#AAB1BE' }}>portfolio.</span>
                                         </h1>
                                     ) : (
-                                        <h1 className="font-extrabold tabular-nums" style={{ fontSize: 'clamp(40px, 5.2vw, 74px)', letterSpacing: '-0.045em', lineHeight: 0.98, margin: 0 }}>
+                                        <h1 className="font-extrabold tabular-nums break-words" style={{ fontSize: 'clamp(30px, 8.5vw, 74px)', letterSpacing: '-0.045em', lineHeight: 0.98, margin: 0 }}>
                                             {fmtINR(totalValue)}<br />
                                             <span style={{ color: '#AAB1BE' }}>in contracted work.</span>
                                         </h1>
                                     )}
                                     {totalClients > 0 && (
-                                    <div className="ml-auto flex flex-wrap gap-7 lg:gap-9 pb-2">
+                                    <div className="w-full sm:w-auto sm:ml-auto flex flex-nowrap justify-between sm:justify-start gap-2 sm:gap-7 lg:gap-9 pb-2">
                                         {[
                                             { v: totalClients, l: 'Clients' },
                                             { v: totalProjects, l: 'Projects' },
                                             { v: activeProjects, l: 'Active' },
                                             { v: shippedProjects, l: 'Shipped' },
                                         ].map((s, i) => (
-                                            <div key={i} style={{ borderLeft: `1px solid ${T.hairline}`, paddingLeft: 18 }}>
-                                                <div className="font-extrabold tabular-nums" style={{ fontSize: 34, letterSpacing: '-0.03em', lineHeight: 1 }}>{s.v}</div>
-                                                <div className="text-[11.5px] font-extrabold uppercase mt-1.5" style={{ letterSpacing: '0.14em', color: T.label }}>{s.l}</div>
+                                            <div key={i} className="border-l pl-3 sm:pl-[18px]" style={{ borderColor: T.hairline }}>
+                                                <div className="font-extrabold tabular-nums text-[27px] sm:text-[34px]" style={{ letterSpacing: '-0.03em', lineHeight: 1 }}>{s.v}</div>
+                                                <div className="text-[10px] sm:text-[11.5px] font-extrabold uppercase mt-1 sm:mt-1.5 tracking-[0.07em] sm:tracking-[0.14em]" style={{ color: T.label }}>{s.l}</div>
                                             </div>
                                         ))}
                                     </div>
@@ -1721,9 +1805,17 @@ export default function AdminDashboard() {
                                                     animate={{ opacity: 1 }}
                                                     transition={{ delay: Math.min(idx * 0.03, 0.3), duration: 0.2 }}
                                                     className="py-[18px]"
-                                                    style={{ borderBottom: `1px solid ${T.hairline}`, background: client.pinned ? 'rgba(238,77,45,0.05)' : 'transparent' }}
+                                                    style={{
+                                                        borderBottom: `1px solid ${T.hairline}`,
+                                                        // Pinned highlight: solid in the centre, fading to transparent at the
+                                                        // left/right edges so the band has no hard edge to misalign with the
+                                                        // hairline above and the avatar isn't pressed against a colour edge.
+                                                        background: client.pinned
+                                                            ? 'linear-gradient(90deg, rgba(238,77,45,0) 0px, rgba(238,77,45,0.055) 44px, rgba(238,77,45,0.055) calc(100% - 44px), rgba(238,77,45,0) 100%)'
+                                                            : 'transparent',
+                                                    }}
                                                 >
-                                                    <div className="grid grid-cols-[1fr_auto] lg:grid-cols-[2.1fr_1.2fr_0.7fr_1.6fr_44px] gap-x-4 gap-y-3 items-center">
+                                                    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,auto)] lg:grid-cols-[2.1fr_1.2fr_0.7fr_1.6fr_44px] gap-x-4 gap-y-3 items-center">
                                                         {/* Profile */}
                                                         <div className="flex items-center gap-3.5 min-w-0">
                                                             <WarmAvatar name={client.name} size={44} />
@@ -1778,7 +1870,7 @@ export default function AdminDashboard() {
                                                         </div>
 
                                                         {/* Projects */}
-                                                        <div className="tabular-nums" style={{ fontSize: 15, fontWeight: 700 }}>
+                                                        <div className="tabular-nums min-w-0" style={{ fontSize: 15, fontWeight: 700 }}>
                                                             {client.stats.projectCount > 0 ? (
                                                                 <>
                                                                     <span className="lg:hidden text-[11px] font-extrabold uppercase mr-2" style={{ letterSpacing: '0.1em', color: T.label }}>Projects</span>
@@ -1790,7 +1882,7 @@ export default function AdminDashboard() {
                                                         </div>
 
                                                         {/* Contract + stage */}
-                                                        <div className="flex items-center gap-4 lg:justify-self-end">
+                                                        <div className="flex items-center justify-end flex-wrap gap-x-4 gap-y-1.5 min-w-0 lg:justify-self-end lg:flex-nowrap">
                                                             <div className="lg:text-right">
                                                                 {isPkg ? (
                                                                     <>
@@ -1961,7 +2053,7 @@ export default function AdminDashboard() {
                                     <button onClick={handleBack} aria-label="Back to clients" className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(26,29,37,0.06)] shrink-0" style={{ border: `1px solid ${T.hairline}`, color: '#6E7686' }}>
                                         <ArrowLeft size={15} strokeWidth={2} />
                                     </button>
-                                    <div className="text-[11.5px] font-extrabold uppercase truncate" style={{ letterSpacing: '0.14em', color: T.label }}>
+                                    <div className="text-[11.5px] font-extrabold uppercase truncate min-w-0 flex-1" style={{ letterSpacing: '0.14em', color: T.label }}>
                                         Admin — <span style={{ color: T.ink }}>{selectedClient?.name || '—'}</span>
                                     </div>
                                     <div className="ml-auto shrink-0">
@@ -1977,7 +2069,7 @@ export default function AdminDashboard() {
 
                                 {/* ===== EDITORIAL HERO ===== */}
                                 <div className="mt-10 mb-9 max-w-3xl">
-                                    <h1 className="font-extrabold break-words" style={{ fontSize: 'clamp(34px, 4.4vw, 56px)', letterSpacing: '-0.04em', lineHeight: 1.0, margin: 0 }}>
+                                    <h1 className="font-extrabold break-words" style={{ fontSize: 'clamp(28px, 7vw, 56px)', letterSpacing: '-0.04em', lineHeight: 1.0, margin: 0 }}>
                                         {selectedClient?.name || 'Client'}.<br />
                                         <span style={{ color: '#AAB1BE' }}>
                                             {projectsCount === 0 ? 'No projects yet.' : `${projectsCount} ${projectsCount === 1 ? 'project' : 'projects'}.`}
@@ -2015,12 +2107,13 @@ export default function AdminDashboard() {
                                         const pending = project.stats?.pending ?? Math.max(total - paid, 0);
                                         const projPaidPct = total > 0 ? Math.round((paid / total) * 100) : 0;
                                         return (
+                                          <div key={project.id}>
+                                            {/* Desktop — hairline grid row */}
                                             <motion.article
-                                                key={project.id}
                                                 initial={{ opacity: 0 }}
                                                 animate={{ opacity: 1 }}
                                                 transition={{ delay: Math.min(idx * 0.04, 0.3), duration: 0.25 }}
-                                                className="grid grid-cols-1 lg:grid-cols-[44px_minmax(0,2.2fr)_minmax(0,1.5fr)_minmax(0,1.1fr)_auto] gap-x-5 gap-y-4 lg:items-center py-6"
+                                                className="hidden lg:grid lg:grid-cols-[44px_minmax(0,2.2fr)_minmax(0,1.5fr)_minmax(0,1.1fr)_auto] gap-x-5 lg:items-center py-6"
                                                 style={{ borderBottom: `1px solid ${T.hairline}` }}
                                             >
                                                 {/* Index */}
@@ -2108,6 +2201,94 @@ export default function AdminDashboard() {
                                                     </button>
                                                 </div>
                                             </motion.article>
+
+                                            {/* Mobile — white card */}
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 4 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ delay: Math.min(idx * 0.04, 0.3), duration: 0.25 }}
+                                                className="lg:hidden rounded-[18px] bg-white p-4 mt-3 lg:mt-0"
+                                                style={{ boxShadow: `0 0 0 1px ${T.border}, 0 1px 2px rgba(28,33,40,0.04)` }}
+                                            >
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="min-w-0">
+                                                        <h3 className="font-bold leading-snug" style={{ fontSize: 16, letterSpacing: '-0.01em' }}>{project.description}</h3>
+                                                        <div className="text-[10.5px] font-extrabold uppercase mt-1" style={{ letterSpacing: '0.1em', color: T.label }}>
+                                                            {project.category} <span style={{ color: '#BFC5D0' }}>·</span> {new Date(project.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                        </div>
+                                                    </div>
+                                                    <StagePill label={ds} tone={tone} size="sm" />
+                                                </div>
+
+                                                {/* Progress */}
+                                                <div className="mt-3.5">
+                                                    <div className="flex items-center gap-2.5">
+                                                        <div className="flex-1 h-[5px] rounded-full overflow-hidden" style={{ background: T.borderSoft }}>
+                                                            <motion.div
+                                                                initial={{ width: 0 }}
+                                                                animate={{ width: `${progress}%` }}
+                                                                transition={{ duration: 0.7, ease: 'easeOut', delay: 0.1 + Math.min(idx * 0.04, 0.3) }}
+                                                                className="h-full rounded-full"
+                                                                style={{ background: progress === 100 ? T.green : T.dark }}
+                                                            />
+                                                        </div>
+                                                        <span className="text-[12px] font-semibold tabular-nums shrink-0" style={{ color: T.muted }}>{progress}%</span>
+                                                    </div>
+                                                    <div className="text-[11.5px] font-semibold mt-1.5 tabular-nums" style={{ color: '#828A99' }}>
+                                                        {project.stats?.completedFeatures ?? 0}/{project.stats?.totalFeatures ?? 0} features done
+                                                    </div>
+                                                </div>
+
+                                                {/* Footer — money + actions */}
+                                                <div className="flex items-center justify-between gap-3 flex-wrap mt-4 pt-3.5" style={{ borderTop: `1px solid ${T.borderSoft}` }}>
+                                                    <div className="min-w-0">
+                                                        {total > 0 ? (
+                                                            <div className="flex items-baseline gap-2 flex-wrap">
+                                                                <span className="font-bold tabular-nums" style={{ fontSize: 15 }}>{fmtINR(total)}</span>
+                                                                <span className="text-[11.5px] font-semibold tabular-nums" style={{ color: pending > 0 ? T.accent : T.green }}>
+                                                                    {pending > 0 ? `${fmtINR(pending)} due` : `${projPaidPct}% paid`}
+                                                                </span>
+                                                            </div>
+                                                        ) : (
+                                                            <span style={{ color: '#AAB1BE', fontWeight: 600, fontSize: 13.5 }}>{isPkgClient ? 'Covered by retainer' : 'No value yet'}</span>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 shrink-0">
+                                                        <button
+                                                            onClick={() => handleProjectLinksSelect(project)}
+                                                            aria-label="Links"
+                                                            className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(26,29,37,0.06)]"
+                                                            style={{ border: `1px solid ${T.hairline}`, color: '#4A515E' }}
+                                                        >
+                                                            <Link2 size={14} strokeWidth={2} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleProjectSelect(project)}
+                                                            className="rounded-full h-9 px-3.5 text-[12.5px] font-bold text-white flex items-center gap-1.5 whitespace-nowrap transition-opacity hover:opacity-90"
+                                                            style={{ background: T.dark }}
+                                                        >
+                                                            Features <ArrowRight size={13} strokeWidth={2.5} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleEditProject(project)}
+                                                            aria-label="Edit project"
+                                                            className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(26,29,37,0.06)]"
+                                                            style={{ color: '#6E7686' }}
+                                                        >
+                                                            <Pencil size={14} strokeWidth={2} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDelete(project.id, 'projects')}
+                                                            aria-label="Delete project"
+                                                            className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(179,51,29,0.08)]"
+                                                            style={{ color: '#B3331D' }}
+                                                        >
+                                                            <Trash2 size={14} strokeWidth={2} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </motion.div>
+                                          </div>
                                         );
                                     })}
                                 </section>
@@ -2139,7 +2320,7 @@ export default function AdminDashboard() {
 
                             {/* ===== EDITORIAL HERO ===== */}
                             <div className="mt-10 mb-9 max-w-3xl">
-                                <h1 className="font-extrabold break-words" style={{ fontSize: 'clamp(32px, 4vw, 52px)', letterSpacing: '-0.04em', lineHeight: 1.02, margin: 0 }}>
+                                <h1 className="font-extrabold break-words" style={{ fontSize: 'clamp(26px, 6.5vw, 52px)', letterSpacing: '-0.04em', lineHeight: 1.02, margin: 0 }}>
                                     {selectedProject?.description || 'Project'}.<br />
                                     <span style={{ color: '#AAB1BE' }}>{links.length} {links.length === 1 ? 'link' : 'links'}.</span>
                                 </h1>
@@ -2249,7 +2430,7 @@ export default function AdminDashboard() {
                                     <button onClick={handleBack} aria-label="Back to projects" className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(26,29,37,0.06)] shrink-0" style={{ border: `1px solid ${T.hairline}`, color: '#6E7686' }}>
                                         <ArrowLeft size={15} strokeWidth={2} />
                                     </button>
-                                    <div className="text-[11.5px] font-extrabold uppercase truncate" style={{ letterSpacing: '0.14em', color: T.label }}>
+                                    <div className="text-[11.5px] font-extrabold uppercase truncate min-w-0 flex-1" style={{ letterSpacing: '0.14em', color: T.label }}>
                                         {selectedClient?.name || 'Admin'} — <span style={{ color: T.ink }}>Features</span>
                                     </div>
                                     <div className="ml-auto shrink-0">
@@ -2266,7 +2447,7 @@ export default function AdminDashboard() {
                                 {/* ===== EDITORIAL HERO + METRIC CLUSTER ===== */}
                                 <div className="flex flex-wrap items-end gap-x-10 gap-y-8 mt-10 mb-9">
                                     <div className="max-w-xl">
-                                        <h1 className="font-extrabold break-words" style={{ fontSize: 'clamp(32px, 4vw, 52px)', letterSpacing: '-0.04em', lineHeight: 1.02, margin: 0 }}>
+                                        <h1 className="font-extrabold break-words" style={{ fontSize: 'clamp(26px, 6.5vw, 52px)', letterSpacing: '-0.04em', lineHeight: 1.02, margin: 0 }}>
                                             {selectedProject?.description || 'Project'}.<br />
                                             <span style={{ color: '#AAB1BE' }}>{featuresCount} {featuresCount === 1 ? 'feature' : 'features'}.</span>
                                         </h1>
@@ -2499,14 +2680,14 @@ export default function AdminDashboard() {
                                     <button onClick={handleBack} aria-label="Back to clients" className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(26,29,37,0.06)] shrink-0" style={{ border: `1px solid ${T.hairline}`, color: '#6E7686' }}>
                                         <ArrowLeft size={15} strokeWidth={2} />
                                     </button>
-                                    <div className="text-[11.5px] font-extrabold uppercase truncate" style={{ letterSpacing: '0.14em', color: T.label }}>
+                                    <div className="text-[11.5px] font-extrabold uppercase truncate min-w-0 flex-1" style={{ letterSpacing: '0.14em', color: T.label }}>
                                         {selectedClient?.name || 'Admin'} — <span style={{ color: T.ink }}>Activity</span>
                                     </div>
                                 </header>
 
                                 {/* ===== EDITORIAL HERO ===== */}
                                 <div className="mt-10 mb-9 max-w-3xl">
-                                    <h1 className="font-extrabold break-words" style={{ fontSize: 'clamp(32px, 4vw, 52px)', letterSpacing: '-0.04em', lineHeight: 1.02, margin: 0 }}>
+                                    <h1 className="font-extrabold break-words" style={{ fontSize: 'clamp(26px, 6.5vw, 52px)', letterSpacing: '-0.04em', lineHeight: 1.02, margin: 0 }}>
                                         {selectedClient?.name}.<br />
                                         <span style={{ color: '#AAB1BE' }}>Activity log.</span>
                                     </h1>
@@ -2938,9 +3119,9 @@ export default function AdminDashboard() {
                 const close = () => setPackageClient(null);
 
                 return (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 backdrop-blur-sm font-hanken" style={{ background: 'rgba(26,29,37,0.5)' }} onClick={close}>
-                        <div className="w-full max-w-lg rounded-[22px] overflow-hidden" style={{ background: '#FBFCFE', color: T.ink, boxShadow: `0 0 0 1px ${T.border}, 0 24px 64px -12px rgba(26,29,37,0.4)` }} onClick={e => e.stopPropagation()}>
-                            <div className="px-6 py-5 flex items-center justify-between" style={{ borderBottom: `1px solid ${T.borderSoft}` }}>
+                    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4 backdrop-blur-sm font-hanken" style={{ background: 'rgba(26,29,37,0.5)' }} onClick={close}>
+                        <div className="w-full max-w-lg rounded-t-[22px] sm:rounded-[22px] overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[90vh]" style={{ background: '#FBFCFE', color: T.ink, boxShadow: `0 0 0 1px ${T.border}, 0 24px 64px -12px rgba(26,29,37,0.4)` }} onClick={e => e.stopPropagation()}>
+                            <div className="px-6 py-5 flex items-center justify-between shrink-0" style={{ borderBottom: `1px solid ${T.borderSoft}` }}>
                                 <div className="min-w-0">
                                     <p className="text-[10.5px] font-extrabold uppercase" style={{ letterSpacing: '0.12em', color: T.accent }}>Convert to Monthly Package</p>
                                     <h3 className="text-[16.5px] font-bold mt-0.5 truncate">{packageClient.name}</h3>
@@ -2949,7 +3130,7 @@ export default function AdminDashboard() {
                                 <button onClick={close} aria-label="Close" className="w-9 h-9 shrink-0 rounded-full grid place-items-center transition-colors hover:bg-[rgba(26,29,37,0.06)]" style={{ color: '#6E7686' }}><X size={16} /></button>
                             </div>
 
-                            <div className="px-6 py-5 flex flex-col gap-4">
+                            <div className="px-6 py-5 flex flex-col gap-4 overflow-y-auto custom-scrollbar min-h-0">
                                 <div>
                                     <label className={wLabelCls} style={{ color: T.label }}>Start / first billing date</label>
                                     <DatePicker value={packageForm.startDate} onChange={v => setPackageForm({ ...packageForm, startDate: v })} />
@@ -2990,7 +3171,7 @@ export default function AdminDashboard() {
                                 </div>
                             </div>
 
-                            <div className="px-6 py-4 flex items-center gap-2" style={{ borderTop: `1px solid ${T.borderSoft}` }}>
+                            <div className="px-6 py-4 flex items-center gap-2 shrink-0" style={{ borderTop: `1px solid ${T.borderSoft}` }}>
                                 <button onClick={close} disabled={packageSaving} className="rounded-full h-11 px-5 text-[13.5px] font-bold transition-colors hover:bg-[rgba(26,29,37,0.06)] disabled:opacity-50" style={{ border: `1px solid ${T.hairline}`, color: '#4A515E' }}>Cancel</button>
                                 <button onClick={handleConfirmPackage} disabled={packageSaving || fee <= 0 || !start} className="flex-1 rounded-full h-11 px-5 text-[13.5px] font-bold text-white flex items-center justify-center gap-1.5 transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed" style={{ background: T.dark }}>
                                     {packageSaving ? <><Loader2 size={13} className="animate-spin" /> Converting…</> : 'Confirm conversion'}
@@ -3027,8 +3208,8 @@ export default function AdminDashboard() {
                     .filter(s => !existingStarts.has(s));
 
                 return (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 backdrop-blur-sm font-hanken" style={{ background: 'rgba(26,29,37,0.5)' }} onClick={close}>
-                        <div className="w-full max-w-xl rounded-[22px] overflow-hidden flex flex-col max-h-[85vh]" style={{ background: '#FBFCFE', color: T.ink, boxShadow: `0 0 0 1px ${T.border}, 0 24px 64px -12px rgba(26,29,37,0.4)` }} onClick={e => e.stopPropagation()}>
+                    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4 backdrop-blur-sm font-hanken" style={{ background: 'rgba(26,29,37,0.5)' }} onClick={close}>
+                        <div className="w-full max-w-xl rounded-t-[22px] sm:rounded-[22px] overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[85vh]" style={{ background: '#FBFCFE', color: T.ink, boxShadow: `0 0 0 1px ${T.border}, 0 24px 64px -12px rgba(26,29,37,0.4)` }} onClick={e => e.stopPropagation()}>
                             <div className="px-6 py-5 flex items-center justify-between shrink-0" style={{ borderBottom: `1px solid ${T.borderSoft}` }}>
                                 <div className="min-w-0">
                                     <p className="text-[10.5px] font-extrabold uppercase" style={{ letterSpacing: '0.12em', color: T.accent }}>Manage Package</p>
@@ -3037,7 +3218,7 @@ export default function AdminDashboard() {
                                 <button onClick={close} aria-label="Close" className="w-9 h-9 shrink-0 rounded-full grid place-items-center transition-colors hover:bg-[rgba(26,29,37,0.06)]" style={{ color: '#6E7686' }}><X size={16} /></button>
                             </div>
 
-                            <div className="px-6 py-4 flex items-center justify-between gap-3 shrink-0" style={{ borderBottom: `1px solid ${T.borderSoft}` }}>
+                            <div className="px-6 py-4 flex items-center justify-between flex-wrap gap-3 shrink-0" style={{ borderBottom: `1px solid ${T.borderSoft}` }}>
                                 <span className="text-[10.5px] font-extrabold uppercase" style={{ letterSpacing: '0.12em', color: T.label }}>{managePeriods.length} billing period{managePeriods.length === 1 ? '' : 's'}</span>
                                 <button
                                     onClick={() => generateNextPeriod(client)}
@@ -3074,14 +3255,14 @@ export default function AdminDashboard() {
                                             </div>
                                             <span className="rounded-full font-extrabold uppercase shrink-0" style={{ ...badgeFor(p.payment_status), padding: '4px 10px', fontSize: 10, letterSpacing: '0.06em' }}>{p.payment_status}</span>
                                         </div>
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center flex-wrap gap-2">
                                             <span className="text-[11.5px] font-jbmono whitespace-nowrap" style={{ color: T.muted }}>Paid of {fmt(Number(p.fee_amount) || 0)}</span>
                                             <input
                                                 type="number"
                                                 min="0"
                                                 value={periodPayInputs[p.id] ?? ''}
                                                 onChange={e => setPeriodPayInputs({ ...periodPayInputs, [p.id]: e.target.value })}
-                                                className="flex-1 h-10 px-3.5 rounded-xl bg-white text-[13.5px] outline-none tabular-nums font-jbmono transition-shadow"
+                                                className="flex-1 min-w-[110px] h-10 px-3.5 rounded-xl bg-white text-[13.5px] outline-none tabular-nums font-jbmono transition-shadow"
                                                 style={wInputStyle}
                                                 onFocus={wFocus}
                                                 onBlur={wBlur}
