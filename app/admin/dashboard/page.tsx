@@ -2780,7 +2780,14 @@ export default function AdminDashboard() {
                                             <div
                                                 key={log.id}
                                                 className={`flex flex-wrap items-start gap-3 py-5 transition-colors ${isHidden ? 'opacity-55' : ''}`}
-                                                style={{ borderBottom: `1px solid ${T.hairline}`, background: isSelected ? 'rgba(238,77,45,0.05)' : 'transparent' }}
+                                                style={{
+                                                    borderBottom: `1px solid ${T.hairline}`,
+                                                    // Selected highlight fades out at the left/right edges (matches the
+                                                    // pinned-client row) so the checkbox/icon isn't against a hard edge.
+                                                    background: isSelected
+                                                        ? 'linear-gradient(90deg, rgba(238,77,45,0) 0px, rgba(238,77,45,0.055) 44px, rgba(238,77,45,0.055) calc(100% - 44px), rgba(238,77,45,0) 100%)'
+                                                        : 'transparent',
+                                                }}
                                             >
                                                 <label className="pt-1.5 shrink-0 cursor-pointer">
                                                     <input
