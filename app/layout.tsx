@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { Outfit } from "next/font/google";
 import "./globals.css";
+import { PUBLIC_ORIGIN } from "@/lib/hosts";
 
 const outfit = Outfit({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://user-update.netlify.app'),
+  metadataBase: new URL(PUBLIC_ORIGIN),
   title: {
     default: "My Project Portal | Client Dashboard",
     template: "%s | My Project Portal"

@@ -1,4 +1,5 @@
 import { MetadataRoute } from 'next';
+import { PUBLIC_ORIGIN } from '@/lib/hosts';
 
 export default function robots(): MetadataRoute.Robots {
     return {
@@ -7,6 +8,6 @@ export default function robots(): MetadataRoute.Robots {
             allow: '/',
             disallow: ['/dashboard/', '/admin/', '/api/'],
         },
-        sitemap: 'https://your-domain.com/sitemap.xml', // Replace with your actual domain
+        sitemap: `${PUBLIC_ORIGIN}/sitemap.xml`,
     };
 }

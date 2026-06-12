@@ -2,6 +2,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import nodemailer from 'nodemailer';
+import { PUBLIC_ORIGIN } from '@/lib/hosts';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -173,7 +174,7 @@ ${BRAND_HEADER}
                             <table role="presentation" cellpadding="0" cellspacing="0" class="btn-full">
                                 <tr>
                                     <td style="border-radius:10px; background-color:#3B82F6;">
-                                        <a href="https://user-update.netlify.app/" style="display:inline-block; padding:13px 26px; font-size:14px; font-weight:600; color:#FFFFFF; text-decoration:none; border-radius:10px; letter-spacing:0.2px;">
+                                        <a href="${PUBLIC_ORIGIN}" style="display:inline-block; padding:13px 26px; font-size:14px; font-weight:600; color:#FFFFFF; text-decoration:none; border-radius:10px; letter-spacing:0.2px;">
                                             View on Dashboard&nbsp;&rarr;
                                         </a>
                                     </td>
@@ -293,7 +294,7 @@ ${BRAND_HEADER}
                             <table role="presentation" cellpadding="0" cellspacing="0" class="btn-full" style="width:100%;">
                                 <tr>
                                     <td align="center" style="border-radius:10px; background-color:#3B82F6;">
-                                        <a href="https://user-update.netlify.app/" style="display:inline-block; padding:13px 26px; font-size:14px; font-weight:600; color:#FFFFFF; text-decoration:none; border-radius:10px; letter-spacing:0.2px;">
+                                        <a href="${PUBLIC_ORIGIN}" style="display:inline-block; padding:13px 26px; font-size:14px; font-weight:600; color:#FFFFFF; text-decoration:none; border-radius:10px; letter-spacing:0.2px;">
                                             View Full Timeline&nbsp;&rarr;
                                         </a>
                                     </td>

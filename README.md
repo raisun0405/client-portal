@@ -3,7 +3,7 @@
 A modern, secure, and aesthetic client portal built with Next.js 14 and Supabase. This application allows clients to track real-time project progress, manage feature requests, and view financial overviews in a premium, responsive interface.
 
 ## 🚀 Live Demo
-**URL:** [https://user-update.netlify.app/](https://user-update.netlify.app/)
+**URL:** [https://track.raisun.dev/](https://track.raisun.dev/)
 
 ## ✨ Features
 

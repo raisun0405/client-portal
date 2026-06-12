@@ -1,7 +1,8 @@
 import { MetadataRoute } from 'next';
+import { PUBLIC_ORIGIN } from '@/lib/hosts';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-    const baseUrl = 'https://user-update.netlify.app';
+    const baseUrl = PUBLIC_ORIGIN;
 
     return [
         {
