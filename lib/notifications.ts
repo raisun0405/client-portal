@@ -338,7 +338,7 @@ export async function sendNotification(logId: string, clientEmail: string, clien
         const html = generateSingleActivityEmailHTML(log, clientName, projectName);
 
         await transporter.sendMail({
-            from: `"Client Portal" <${process.env.GMAIL_EMAIL}>`,
+            from: `"Project Update" <${process.env.GMAIL_EMAIL}>`,
             to: clientEmail,
             subject: log.title,
             html,
@@ -385,7 +385,7 @@ export async function sendDigestNotification(logIds: string[], clientEmail: stri
         const html = generateDigestEmailHTML(logs, clientName, projectNames);
 
         await transporter.sendMail({
-            from: `"Client Portal" <${process.env.GMAIL_EMAIL}>`,
+            from: `"Project Update" <${process.env.GMAIL_EMAIL}>`,
             to: clientEmail,
             subject: `Project Update Digest — ${logs.length} update${logs.length > 1 ? 's' : ''}`,
             html,
