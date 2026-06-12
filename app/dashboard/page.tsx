@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
@@ -11,7 +11,7 @@ import { packageSchedule, todayLocalISO, coveragePeriod, type Cadence } from '@/
 import { getClientSession, logoutClient } from '../actions'; // Import server actions
 import { LayoutGrid, LogOut, FolderOpen, Loader2, X, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Calendar, ArrowRight, TrendingUp, Wallet, CheckCircle2, Clock, FileText, Zap, CreditCard, Link2, Trash2, RefreshCw, PackagePlus, Activity, Download, Pencil } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Sector, ComposedChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ReferenceDot } from 'recharts';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -73,6 +73,32 @@ type ProjectWithStats = Project & {
     };
 };
 
+// Dark tooltip pill for the Work Momentum chart.
+function PulseTooltip({ active, payload }: { active?: boolean; payload?: any[] }) {
+    if (!active || !payload || payload.length === 0) return null;
+    const p = payload[0]?.payload;
+    if (!p) return null;
+    return (
+        <div className="rounded-xl bg-slate-900 px-3.5 py-2.5 shadow-xl ring-1 ring-black/5 min-w-[150px]">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">{p.rangeLabel}</p>
+            <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
+                    <span className="text-[11px] text-slate-300">Updates</span>
+                    <span className="text-[11px] font-bold text-white tabular-nums ml-auto pl-3">{p.updates}</span>
+                </div>
+                {p.deliveries > 0 && (
+                    <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+                        <span className="text-[11px] text-slate-300">Delivered</span>
+                        <span className="text-[11px] font-bold text-white tabular-nums ml-auto pl-3">{p.deliveries}</span>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
 export default function DashboardPage() {
     const router = useRouter();
     const [client, setClient] = useState<any>(null);
@@ -96,6 +122,63 @@ export default function DashboardPage() {
     // Activity logs state
     const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
     const [loadingLogs, setLoadingLogs] = useState(false);
+
+    // Work Momentum: timestamps + action types of all (visible) activity in the
+    // last 12 weeks. Separate from `activityLogs`, which is capped at 25 rows.
+    // null = not loaded yet, [] = loaded but empty.
+    const [pulseLogs, setPulseLogs] = useState<{ created_at: string; action_type: string }[] | null>(null);
+
+    // Work Momentum series — activity bucketed into 12 rolling 7-day weeks.
+    // Rolling (anchored to today) instead of calendar weeks, so the last point
+    // is always a FULL week and never dips just because the week isn't over.
+    // Deliveries (completed features/projects) are counted separately so the
+    // chart can mark them as dots on the curve.
+    const pulse = useMemo(() => {
+        if (!pulseLogs) return null;
+        const DAY = 86400000;
+        const WEEKS = 12;
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        const fmtDay = (t: number) => new Date(t).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+
+        const updates = new Array(WEEKS).fill(0); // index 0 = oldest week
+        const deliveries = new Array(WEEKS).fill(0);
+        for (const log of pulseLogs) {
+            const d = new Date(log.created_at); // UTC timestamp -> viewer's local day
+            const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+            const daysAgo = Math.round((todayStart - dayStart) / DAY);
+            if (daysAgo < 0 || daysAgo >= WEEKS * 7) continue;
+            const idx = WEEKS - 1 - Math.floor(daysAgo / 7);
+            updates[idx]++;
+            if (log.action_type === 'feature_completed' || log.action_type === 'project_completed') deliveries[idx]++;
+        }
+
+        const points = updates.map((u: number, i: number) => {
+            const weeksBack = WEEKS - 1 - i;
+            const end = todayStart - weeksBack * 7 * DAY;
+            const start = end - 6 * DAY;
+            return {
+                label: fmtDay(end),
+                rangeLabel: `${fmtDay(start)} – ${fmtDay(end)}`,
+                updates: u,
+                deliveries: deliveries[i] as number,
+            };
+        });
+
+        const total = updates.reduce((s: number, n: number) => s + n, 0);
+        const totalDeliveries = deliveries.reduce((s: number, n: number) => s + n, 0);
+        const thisWeek = updates[WEEKS - 1];
+        const avg = total / WEEKS;
+        const vsAvgPct = avg > 0 ? Math.round(((thisWeek - avg) / avg) * 100) : null;
+        return {
+            points,
+            total,
+            totalDeliveries,
+            thisWeek,
+            vsAvgPct,
+            ticks: [points[0].label, points[4].label, points[8].label, points[11].label],
+        };
+    }, [pulseLogs]);
 
     // Donut chart active segment index
     const [activeDonutIndex, setActiveDonutIndex] = useState<number | null>(null);
@@ -187,6 +270,10 @@ export default function DashboardPage() {
         loadActivityLogs(clientId);
     }, []);
 
+    const loadPulseLogsForClient = useCallback((clientId: string) => {
+        loadPulseLogs(clientId);
+    }, []);
+
     useEffect(() => {
         const verifySession = async () => {
             try {
@@ -201,6 +288,7 @@ export default function DashboardPage() {
                 fetchPackageInfo(session.id);
                 fetchProjects(session.id);
                 loadActivityLogs(session.id);
+                loadPulseLogs(session.id);
             } catch (err) {
                 console.error("Session verification failed", err);
                 router.push('/');
@@ -239,14 +327,14 @@ export default function DashboardPage() {
             .on(
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'activity_logs', filter: `client_id=eq.${clientId}` },
-                () => { loadActivityLogsForClient(clientId); }
+                () => { loadActivityLogsForClient(clientId); loadPulseLogsForClient(clientId); }
             )
             .subscribe();
 
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [client?.id, fetchProjectsForClient, loadActivityLogsForClient, loadPackageInfoForClient]);
+    }, [client?.id, fetchProjectsForClient, loadActivityLogsForClient, loadPackageInfoForClient, loadPulseLogsForClient]);
 
     const fetchProjects = async (clientId: string) => {
         setLoading(true);
@@ -352,6 +440,26 @@ export default function DashboardPage() {
         const logs = await fetchActivityLogs(clientId, 25);
         setActivityLogs(logs);
         setLoadingLogs(false);
+    };
+
+    // Work Momentum data: lightweight date-ranged fetch (timestamp + action type)
+    // so the 12-week chart isn't capped by the 25-row timeline fetch above.
+    const loadPulseLogs = async (clientId: string) => {
+        const now = new Date();
+        // 12 rolling weeks = 84 days including today, from local midnight.
+        const windowStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 83);
+        const { data, error } = await supabase
+            .from('activity_logs')
+            .select('created_at, action_type, is_hidden')
+            .eq('client_id', clientId)
+            .gte('created_at', windowStart.toISOString());
+        if (error) {
+            console.error('Failed to fetch activity momentum:', error.message);
+            setPulseLogs([]); // degrade to the empty state instead of loading forever
+            return;
+        }
+        // Hidden logs are excluded from the timeline, so keep the chart consistent.
+        setPulseLogs((data || []).filter(l => !l.is_hidden).map(l => ({ created_at: l.created_at, action_type: l.action_type })));
     };
 
     // Helper: get icon and color for activity type
@@ -693,8 +801,17 @@ export default function DashboardPage() {
                                     </div>
                                 </div>
 
-                                {/* Skeleton Activity Log (full-width for package clients) */}
-                                <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm mb-10">
+                                {/* Skeleton Charts Row (Momentum 3/5 + Activity 2/5 on lg) */}
+                                <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6 mb-10">
+                                {/* Skeleton Work Momentum */}
+                                <div className="lg:col-span-3 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm">
+                                    <div className="skeleton h-3 w-28 rounded-md mb-2" />
+                                    <div className="skeleton h-2.5 w-44 rounded-md mb-6" />
+                                    <div className="skeleton h-[160px] w-full rounded-xl" />
+                                </div>
+
+                                {/* Skeleton Activity Log */}
+                                <div className="lg:col-span-2 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm">
                                     <div className="skeleton h-3 w-24 rounded-md mb-2" />
                                     <div className="skeleton h-2.5 w-56 rounded-md mb-6" />
                                     <div className="space-y-4">
@@ -713,6 +830,7 @@ export default function DashboardPage() {
                                         ))}
                                     </div>
                                 </div>
+                                </div>
                             </>
                         ) : (
                             <>
@@ -727,6 +845,13 @@ export default function DashboardPage() {
                                     <div className="skeleton h-7 w-24 rounded-lg" />
                                 </div>
                             ))}
+                        </div>
+
+                        {/* Skeleton Activity Pulse */}
+                        <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm mb-4 sm:mb-6">
+                            <div className="skeleton h-3 w-28 rounded-md mb-2" />
+                            <div className="skeleton h-2.5 w-44 rounded-md mb-6" />
+                            <div className="skeleton h-[160px] w-full rounded-xl" />
                         </div>
 
                         {/* Skeleton Charts Row */}
@@ -962,8 +1087,82 @@ export default function DashboardPage() {
                                     </div>
                                     )}
 
-                                    {/* Charts Row — single full-width column for package clients */}
-                                    <div className={isPackage ? '' : 'grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6'}>
+                                    {/* Charts Row — one responsive grid. Package clients: Momentum (3/5) and
+                                        Activity (2/5) share the row. Per-feature: Momentum spans the full row
+                                        above the Donut + Activity pair. Stacks to one column on small screens. */}
+                                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
+                                    {/* Work Momentum — weekly activity wave with delivery dots, last 12 weeks */}
+                                    <div className={`${isPackage ? 'lg:col-span-3' : 'lg:col-span-5'} bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm`}>
+                                        <div className="flex items-start justify-between gap-3 mb-4">
+                                            <div>
+                                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Work Momentum</h3>
+                                                <p className="text-[11px] text-slate-400">Updates on your account per week · last 12 weeks</p>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                {pulse?.vsAvgPct != null && (
+                                                    <span className={`hidden sm:inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold ${pulse.vsAvgPct >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
+                                                        {pulse.vsAvgPct >= 0 ? '+' : ''}{pulse.vsAvgPct}% vs weekly avg
+                                                    </span>
+                                                )}
+                                                <div className="p-1.5 bg-blue-50 rounded-lg"><TrendingUp size={14} className="text-blue-600" /></div>
+                                            </div>
+                                        </div>
+                                        {!pulse ? (
+                                            <div className="skeleton h-[190px] w-full rounded-xl" />
+                                        ) : pulse.total === 0 ? (
+                                            <div className="h-[190px] flex flex-col items-center justify-center text-center">
+                                                <Activity size={22} className="text-slate-300 mb-2" />
+                                                <p className="text-sm font-medium text-slate-400">No activity in the last 12 weeks</p>
+                                                <p className="text-xs text-slate-300 mt-0.5">Updates will appear here as work happens</p>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <div className="flex items-center gap-4 mb-2">
+                                                    <span className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500"><span className="w-2 h-2 rounded-full bg-blue-500" />Updates</span>
+                                                    {pulse.totalDeliveries > 0 && (
+                                                        <span className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500"><span className="w-2 h-2 rounded-full bg-emerald-500" />Delivery</span>
+                                                    )}
+                                                    {pulse.vsAvgPct != null && (
+                                                        <span className={`sm:hidden ml-auto text-[11px] font-bold ${pulse.vsAvgPct >= 0 ? 'text-emerald-600' : 'text-slate-500'}`}>
+                                                            {pulse.vsAvgPct >= 0 ? '+' : ''}{pulse.vsAvgPct}%
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="h-[190px]">
+                                                    <ResponsiveContainer width="100%" height="100%">
+                                                        <ComposedChart data={pulse.points} margin={{ top: 8, right: 10, left: 0, bottom: 0 }}>
+                                                            <defs>
+                                                                <linearGradient id="pulseFill" x1="0" y1="0" x2="0" y2="1">
+                                                                    <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.16} />
+                                                                    <stop offset="100%" stopColor="#3b82f6" stopOpacity={0} />
+                                                                </linearGradient>
+                                                            </defs>
+                                                            <CartesianGrid vertical={false} stroke="#e8edf4" strokeDasharray="4 6" />
+                                                            <XAxis dataKey="label" ticks={pulse.ticks} interval={0} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 600 }} dy={6} />
+                                                            <YAxis width={30} axisLine={false} tickLine={false} allowDecimals={false} tick={{ fontSize: 10, fill: '#cbd5e1', fontWeight: 600 }} tickCount={4} />
+                                                            <RechartsTooltip content={<PulseTooltip />} cursor={{ stroke: '#cbd5e1', strokeDasharray: '4 4' }} />
+                                                            <Area
+                                                                type="monotone"
+                                                                dataKey="updates"
+                                                                stroke="#3b82f6"
+                                                                strokeWidth={2.5}
+                                                                fill="url(#pulseFill)"
+                                                                activeDot={{ r: 4, stroke: '#fff', strokeWidth: 2 }}
+                                                                dot={(props: any) => {
+                                                                    // Emerald dot wherever something was delivered that week.
+                                                                    const { cx, cy, payload, index } = props;
+                                                                    if (!payload?.deliveries || cx == null || cy == null) return <g key={`md-${index}`} />;
+                                                                    return <circle key={`md-${index}`} cx={cx} cy={cy} r={4.5} fill="#10b981" stroke="#fff" strokeWidth={2} />;
+                                                                }}
+                                                            />
+                                                            <ReferenceDot x={pulse.points[pulse.points.length - 1].label} y={pulse.thisWeek} r={4} fill="#3b82f6" stroke="#fff" strokeWidth={2} />
+                                                        </ComposedChart>
+                                                    </ResponsiveContainer>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+
                                         {/* Donut Chart - Payment Overview (hidden for package clients) */}
                                         {!isPackage && (
                                         <div className="lg:col-span-2 bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm">
@@ -1057,7 +1256,7 @@ export default function DashboardPage() {
                                         )}
 
                                         {/* Activity Log Timeline */}
-                                        <div ref={activityRef} className={`${isPackage ? '' : 'lg:col-span-3'} bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm scroll-mt-20`}>
+                                        <div ref={activityRef} className={`${isPackage ? 'lg:col-span-2' : 'lg:col-span-3'} bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm scroll-mt-20`}>
                                             <div className="flex items-center justify-between mb-4">
                                                 <div>
                                                     <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Activity Log</h3>
