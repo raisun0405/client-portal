@@ -1720,7 +1720,7 @@ export default function AdminDashboard() {
                                             { v: activeProjects, l: 'Active' },
                                             { v: shippedProjects, l: 'Shipped' },
                                         ].map((s, i) => (
-                                            <div key={i} className="border-l pl-3 sm:pl-[18px]" style={{ borderColor: T.hairline }}>
+                                            <div key={i} className={i > 0 ? 'border-l pl-3 sm:pl-[18px]' : ''} style={{ borderColor: T.hairline }}>
                                                 <div className="font-extrabold tabular-nums text-[27px] sm:text-[34px]" style={{ letterSpacing: '-0.03em', lineHeight: 1 }}>{s.v}</div>
                                                 <div className="text-[10px] sm:text-[11.5px] font-extrabold uppercase mt-1 sm:mt-1.5 tracking-[0.07em] sm:tracking-[0.14em]" style={{ color: T.label }}>{s.l}</div>
                                             </div>
@@ -2467,7 +2467,7 @@ export default function AdminDashboard() {
                                                 { v: fmtINR(paidAmount), l: 'Paid', c: T.green },
                                                 { v: fmtINR(pendingAmount), l: 'Pending', c: pendingAmount > 0 ? T.accent : T.ink },
                                             ].map((s, i) => (
-                                                <div key={i} style={{ borderLeft: `1px solid ${T.hairline}`, paddingLeft: 18 }}>
+                                                <div key={i} style={i > 0 ? { borderLeft: `1px solid ${T.hairline}`, paddingLeft: 18 } : undefined}>
                                                     <div className="font-extrabold tabular-nums" style={{ fontSize: 26, letterSpacing: '-0.03em', lineHeight: 1, color: s.c }}>{s.v}</div>
                                                     <div className="text-[11.5px] font-extrabold uppercase mt-1.5" style={{ letterSpacing: '0.14em', color: T.label }}>{s.l}</div>
                                                 </div>
