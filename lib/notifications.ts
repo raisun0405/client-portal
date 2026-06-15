@@ -311,9 +311,20 @@ ${SYSTEM_FOOTER}
 </html>`;
 }
 
-// Server action: Send single notification
-export async function sendNotification(logId: string, clientEmail: string, clientName: string) {
+// A single resolved recipient: the address plus the greeting name to use.
+// `name` is already resolved upstream (recipient's first name, or the
+// client's name as a fallback for legacy / un-named addresses).
+export type EmailRecipient = { email: string; name: string };
+
+// Server action: Send single notification to one or more recipients.
+// Each recipient receives their own email personalised to their name.
+export async function sendNotification(logId: string, recipients: EmailRecipient[]) {
     try {
+        const cleaned = recipients.filter(r => r.email && r.email.trim());
+        if (cleaned.length === 0) {
+            return { success: false, message: 'No recipients selected.' };
+        }
+
         // Fetch the log
         const { data: log, error: logError } = await supabaseAdmin
             .from('activity_logs')
@@ -336,31 +347,49 @@ export async function sendNotification(logId: string, clientEmail: string, clien
             projectName = project?.description || '';
         }
 
-        const html = generateSingleActivityEmailHTML(log, clientName, projectName);
+        // Send one personalised email per recipient.
+        const results = await Promise.allSettled(cleaned.map(r => {
+            const html = generateSingleActivityEmailHTML(log, r.name, projectName);
+            return transporter.sendMail({
+                from: `"Project Update" <${process.env.GMAIL_EMAIL}>`,
+                to: r.email,
+                subject: log.title,
+                html,
+            });
+        }));
 
-        await transporter.sendMail({
-            from: `"Project Update" <${process.env.GMAIL_EMAIL}>`,
-            to: clientEmail,
-            subject: log.title,
-            html,
-        });
+        const sent = results.filter(r => r.status === 'fulfilled').length;
+        const failed = cleaned.length - sent;
 
-        // Mark as notified
+        if (sent === 0) {
+            return { success: false, message: 'Failed to send to any recipient.' };
+        }
+
+        // Mark as notified once at least one email went out.
         await supabaseAdmin
             .from('activity_logs')
             .update({ notified_at: new Date().toISOString() })
             .eq('id', logId);
 
-        return { success: true, message: 'Notification sent successfully!' };
+        const message = failed > 0
+            ? `Sent to ${sent} of ${cleaned.length} recipients (${failed} failed).`
+            : `Notification sent to ${sent} recipient${sent > 1 ? 's' : ''}!`;
+        return { success: true, message };
     } catch (err: any) {
         console.error('sendNotification error:', err);
         return { success: false, message: err.message || 'Unexpected error.' };
     }
 }
 
-// Server action: Send digest (batch) notification
-export async function sendDigestNotification(logIds: string[], clientEmail: string, clientName: string) {
+// Server action: Send digest (batch) notification to one or more recipients.
+// Each recipient receives their own digest personalised to their name.
+export async function sendDigestNotification(logIds: string[], recipients: EmailRecipient[]) {
     try {
+        const cleaned = recipients.filter(r => r.email && r.email.trim());
+        if (cleaned.length === 0) {
+            return { success: false, message: 'No recipients selected.' };
+        }
+
         // Fetch all logs
         const { data: logs, error: logsError } = await supabaseAdmin
             .from('activity_logs')
@@ -383,23 +412,37 @@ export async function sendDigestNotification(logIds: string[], clientEmail: stri
             projects?.forEach(p => { projectNames[p.id] = p.description; });
         }
 
-        const html = generateDigestEmailHTML(logs, clientName, projectNames);
+        const subject = `Project Update Digest — ${logs.length} update${logs.length > 1 ? 's' : ''}`;
 
-        await transporter.sendMail({
-            from: `"Project Update" <${process.env.GMAIL_EMAIL}>`,
-            to: clientEmail,
-            subject: `Project Update Digest — ${logs.length} update${logs.length > 1 ? 's' : ''}`,
-            html,
-        });
+        // Send one personalised digest per recipient.
+        const results = await Promise.allSettled(cleaned.map(r => {
+            const html = generateDigestEmailHTML(logs, r.name, projectNames);
+            return transporter.sendMail({
+                from: `"Project Update" <${process.env.GMAIL_EMAIL}>`,
+                to: r.email,
+                subject,
+                html,
+            });
+        }));
 
-        // Mark all as notified
+        const sent = results.filter(r => r.status === 'fulfilled').length;
+        const failed = cleaned.length - sent;
+
+        if (sent === 0) {
+            return { success: false, message: 'Failed to send to any recipient.' };
+        }
+
+        // Mark all as notified once at least one email went out.
         const now = new Date().toISOString();
         await supabaseAdmin
             .from('activity_logs')
             .update({ notified_at: now })
             .in('id', logIds);
 
-        return { success: true, message: `Digest with ${logs.length} updates sent successfully!` };
+        const message = failed > 0
+            ? `Digest sent to ${sent} of ${cleaned.length} recipients (${failed} failed).`
+            : `Digest with ${logs.length} updates sent to ${sent} recipient${sent > 1 ? 's' : ''}!`;
+        return { success: true, message };
     } catch (err: any) {
         console.error('sendDigestNotification error:', err);
         return { success: false, message: err.message || 'Unexpected error.' };

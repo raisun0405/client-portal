@@ -326,6 +326,11 @@ export default function AdminDashboard() {
     const [sendingIds, setSendingIds] = useState<Set<string>>(new Set());
     const [selectedLogIds, setSelectedLogIds] = useState<Set<string>>(new Set());
     const [sendingDigest, setSendingDigest] = useState(false);
+    // Additional recipients being edited in the client form (beyond the primary email).
+    const [editRecipients, setEditRecipients] = useState<{ id?: string; email: string; first_name: string; last_name: string }[]>([]);
+    // Recipient-picker modal shown before sending when a client has more than one recipient.
+    const [sendModal, setSendModal] = useState<{ type: 'single' | 'digest'; logId?: string; items: { email: string; name: string; isPrimary: boolean; checked: boolean }[] } | null>(null);
+    const [sendModalBusy, setSendModalBusy] = useState(false);
 
     // --- URL-driven navigation ---
     // The current view/selection is encoded in the URL query (?client=&project=&tab=)
@@ -628,10 +633,53 @@ export default function AdminDashboard() {
     }, [nav.clientId, nav.projectId, nav.tab, clientsLoaded]);
 
     // --- Edit Handlers (opens modal with existing data) ---
-    const handleEditClient = (client: Client) => {
+    const handleEditClient = async (client: Client) => {
         setFormData({ name: client.name, email: client.email || '', access_key: client.access_key });
         setEditingId(client.id);
+        const { data } = await supabaseAdmin
+            .from('client_recipients')
+            .select('id, email, first_name, last_name')
+            .eq('client_id', client.id)
+            .order('created_at', { ascending: true });
+        setEditRecipients((data || []).map((r: any) => ({
+            id: r.id,
+            email: r.email || '',
+            first_name: r.first_name || '',
+            last_name: r.last_name || '',
+        })));
         setShowModal(true);
+    };
+
+    // --- Additional-recipient form helpers ---
+    const addRecipient = () => setEditRecipients(prev => [...prev, { email: '', first_name: '', last_name: '' }]);
+    const removeRecipient = (i: number) => setEditRecipients(prev => prev.filter((_, idx) => idx !== i));
+    const updateRecipient = (i: number, field: 'email' | 'first_name' | 'last_name', value: string) =>
+        setEditRecipients(prev => prev.map((r, idx) => (idx === i ? { ...r, [field]: value } : r)));
+
+    // Resolve the full recipient list for a client: the primary email (greeted with
+    // the client name) plus every additional recipient (greeted with their own first
+    // name, falling back to the client name when none is set). De-duped by email.
+    const resolveClientRecipients = async (client: Client): Promise<{ email: string; name: string; isPrimary: boolean }[]> => {
+        const list: { email: string; name: string; isPrimary: boolean }[] = [];
+        const seen = new Set<string>();
+        const primary = (client.email || '').trim();
+        if (primary) {
+            list.push({ email: primary, name: client.name, isPrimary: true });
+            seen.add(primary.toLowerCase());
+        }
+        const { data } = await supabaseAdmin
+            .from('client_recipients')
+            .select('email, first_name')
+            .eq('client_id', client.id)
+            .order('created_at', { ascending: true });
+        (data || []).forEach((r: any) => {
+            const email = (r.email || '').trim();
+            if (!email || seen.has(email.toLowerCase())) return;
+            seen.add(email.toLowerCase());
+            const first = (r.first_name || '').trim();
+            list.push({ email, name: first || client.name, isPrimary: false });
+        });
+        return list;
     };
 
     const openPackageModal = (client: ClientWithStats) => {
@@ -929,6 +977,38 @@ export default function AdminDashboard() {
     };
 
     // --- Create/Update Handlers ---
+    // De-dupe the edited recipient rows: drop blanks, anything matching the primary
+    // email, and repeated addresses (the unique constraint would otherwise reject them).
+    const buildRecipientRows = (clientId: string) => {
+        const primaryEmail = (formData.email || '').trim().toLowerCase();
+        const seen = new Set<string>();
+        const rows: { client_id: string; email: string; first_name: string | null; last_name: string | null }[] = [];
+        for (const r of editRecipients) {
+            const email = (r.email || '').trim();
+            if (!email) continue;
+            const key = email.toLowerCase();
+            if (key === primaryEmail || seen.has(key)) continue;
+            seen.add(key);
+            rows.push({
+                client_id: clientId,
+                email,
+                first_name: (r.first_name || '').trim() || null,
+                last_name: (r.last_name || '').trim() || null,
+            });
+        }
+        return rows;
+    };
+
+    // Replace-all strategy: clear the client's recipients and re-insert the current rows.
+    const persistRecipients = async (clientId: string) => {
+        await supabaseAdmin.from('client_recipients').delete().eq('client_id', clientId);
+        const rows = buildRecipientRows(clientId);
+        if (rows.length > 0) {
+            const { error } = await supabaseAdmin.from('client_recipients').insert(rows);
+            if (error) alert('Recipients error: ' + error.message);
+        }
+    };
+
     const handleSaveClient = async () => {
         if (editingId) {
             // UPDATE
@@ -938,6 +1018,7 @@ export default function AdminDashboard() {
                 access_key: formData.access_key
             }).eq('id', editingId);
             if (!error) {
+                await persistRecipients(editingId);
                 fetchClients();
             } else {
                 alert('Error: ' + error.message);
@@ -950,6 +1031,7 @@ export default function AdminDashboard() {
                 access_key: formData.access_key
             }]).select();
             if (!error && data) {
+                await persistRecipients((data[0] as Client).id);
                 const newClient: ClientWithStats = {
                     ...(data[0] as Client),
                     stats: { projectCount: 0, completedProjects: 0, totalValue: 0, paidValue: 0, pendingValue: 0, progress: 0 },
@@ -962,6 +1044,7 @@ export default function AdminDashboard() {
         setShowModal(false);
         setFormData({});
         setEditingId(null);
+        setEditRecipients([]);
     };
 
     const handleSaveProject = async () => {
@@ -1207,6 +1290,9 @@ export default function AdminDashboard() {
     };
 
     const handleSaveFeature = async () => {
+        // New package-client features are covered by the retainer (the form hides the
+        // money section), so they save with amount 0. Editing a feature that already
+        // has an amount keeps it — historical pre-conversion billing is preserved.
         const isPaymentConfirmed = formData.payment_confirmed !== false;
         const amount = isPaymentConfirmed ? (Number(formData.amount) || 0) : 0;
         const paidAmount = isPaymentConfirmed ? (Number(formData.paid_amount) || 0) : 0;
@@ -1441,12 +1527,19 @@ export default function AdminDashboard() {
     };
 
     const handleSendSingle = async (logId: string) => {
-        if (!selectedClient?.email) {
+        if (!selectedClient) return;
+        const recips = await resolveClientRecipients(selectedClient);
+        if (recips.length === 0) {
             alert('This client has no email address. Edit the client to add one.');
             return;
         }
+        // More than one recipient → let the admin pick who receives it.
+        if (recips.length > 1) {
+            setSendModal({ type: 'single', logId, items: recips.map(r => ({ ...r, checked: true })) });
+            return;
+        }
         setSendingIds(prev => new Set(prev).add(logId));
-        const result = await sendNotification(logId, selectedClient.email, selectedClient.name);
+        const result = await sendNotification(logId, [{ email: recips[0].email, name: recips[0].name }]);
         if (result.success) {
             // Refresh logs to get updated notified_at
             fetchActivityLogs(selectedClient.id);
@@ -1457,16 +1550,22 @@ export default function AdminDashboard() {
     };
 
     const handleSendDigest = async () => {
-        if (!selectedClient?.email) {
-            alert('This client has no email address. Edit the client to add one.');
-            return;
-        }
+        if (!selectedClient) return;
         if (selectedLogIds.size === 0) {
             alert('Select at least one log to send as digest.');
             return;
         }
+        const recips = await resolveClientRecipients(selectedClient);
+        if (recips.length === 0) {
+            alert('This client has no email address. Edit the client to add one.');
+            return;
+        }
+        if (recips.length > 1) {
+            setSendModal({ type: 'digest', items: recips.map(r => ({ ...r, checked: true })) });
+            return;
+        }
         setSendingDigest(true);
-        const result = await sendDigestNotification(Array.from(selectedLogIds), selectedClient.email, selectedClient.name);
+        const result = await sendDigestNotification(Array.from(selectedLogIds), [{ email: recips[0].email, name: recips[0].name }]);
         if (result.success) {
             fetchActivityLogs(selectedClient.id);
             setSelectedLogIds(new Set());
@@ -1475,6 +1574,31 @@ export default function AdminDashboard() {
         }
         setSendingDigest(false);
     };
+
+    // Confirm send from the recipient-picker modal → send to the checked recipients.
+    const handleConfirmSend = async () => {
+        if (!sendModal || !selectedClient) return;
+        const chosen = sendModal.items.filter(i => i.checked).map(i => ({ email: i.email, name: i.name }));
+        if (chosen.length === 0) {
+            alert('Select at least one recipient.');
+            return;
+        }
+        setSendModalBusy(true);
+        const result = sendModal.type === 'single' && sendModal.logId
+            ? await sendNotification(sendModal.logId, chosen)
+            : await sendDigestNotification(Array.from(selectedLogIds), chosen);
+        setSendModalBusy(false);
+        if (result.success) {
+            fetchActivityLogs(selectedClient.id);
+            if (sendModal.type === 'digest') setSelectedLogIds(new Set());
+            setSendModal(null);
+        } else {
+            alert(result.message);
+        }
+    };
+
+    const toggleSendItem = (i: number) =>
+        setSendModal(prev => prev ? { ...prev, items: prev.items.map((it, idx) => idx === i ? { ...it, checked: !it.checked } : it) } : prev);
 
     const handleToggleHideLog = async (logId: string, hide: boolean) => {
         const { error } = await supabaseAdmin
@@ -1691,7 +1815,7 @@ export default function AdminDashboard() {
                                     <div className="ml-auto flex items-center gap-3 min-w-0">
                                         <div className="hidden sm:block w-[240px]">{searchPill}</div>
                                         <button
-                                            onClick={() => { setFormData({}); setEditingId(null); setEditingLinkIndex(null); setShowModal(true); }}
+                                            onClick={() => { setFormData({}); setEditingId(null); setEditingLinkIndex(null); setEditRecipients([]); setShowModal(true); }}
                                             className="rounded-full h-11 px-5 text-[14px] font-bold text-white flex items-center gap-2 whitespace-nowrap transition-opacity hover:opacity-90 shrink-0"
                                             style={{ background: T.dark }}
                                         >
@@ -2058,7 +2182,7 @@ export default function AdminDashboard() {
                                     </div>
                                     <div className="ml-auto shrink-0">
                                         <button
-                                            onClick={() => { setFormData({}); setEditingId(null); setEditingLinkIndex(null); setShowModal(true); }}
+                                            onClick={() => { setFormData({}); setEditingId(null); setEditingLinkIndex(null); setEditRecipients([]); setShowModal(true); }}
                                             className="rounded-full h-11 px-5 text-[14px] font-bold text-white flex items-center gap-2 whitespace-nowrap transition-opacity hover:opacity-90"
                                             style={{ background: T.dark }}
                                         >
@@ -2309,7 +2433,7 @@ export default function AdminDashboard() {
                                 </div>
                                 <div className="ml-auto shrink-0">
                                     <button
-                                        onClick={() => { setFormData({}); setEditingId(null); setEditingLinkIndex(null); setShowModal(true); }}
+                                        onClick={() => { setFormData({}); setEditingId(null); setEditingLinkIndex(null); setEditRecipients([]); setShowModal(true); }}
                                         className="rounded-full h-11 px-5 text-[14px] font-bold text-white flex items-center gap-2 whitespace-nowrap transition-opacity hover:opacity-90"
                                         style={{ background: T.dark }}
                                     >
@@ -2423,6 +2547,28 @@ export default function AdminDashboard() {
 
                         const payColor = (s: string) => s === 'Paid' ? T.green : s === 'Partial' ? T.amber : T.accent;
 
+                        const isPkgClient = selectedClient?.billing_mode === 'package';
+                        // Show per-feature money UI when the client bills per-feature, OR when a
+                        // package client still carries historical amounts from before conversion.
+                        // New package features (amount 0) render as "Covered" instead of hiding.
+                        const showMoney = !isPkgClient || totalAmount > 0;
+                        const featGridCls = showMoney
+                            ? 'grid grid-cols-[minmax(0,2.6fr)_0.9fr_0.9fr_1.3fr_0.8fr_1.6fr_84px] gap-x-4 items-center'
+                            : 'grid grid-cols-[minmax(0,2.6fr)_0.9fr_0.9fr_0.8fr_1.6fr_84px] gap-x-4 items-center';
+                        const sortFields: SortField[] = showMoney ? ['amount', 'status', 'created_at'] : ['status', 'created_at'];
+                        const metricStats = showMoney
+                            ? [
+                                { v: String(featuresCount), l: 'Features', c: T.ink },
+                                { v: fmtINR(totalAmount), l: 'Total', c: T.ink },
+                                { v: fmtINR(paidAmount), l: 'Paid', c: T.green },
+                                { v: fmtINR(pendingAmount), l: 'Pending', c: pendingAmount > 0 ? T.accent : T.ink },
+                            ]
+                            : [
+                                { v: String(featuresCount), l: 'Features', c: T.ink },
+                                { v: String(completedCount), l: 'Shipped', c: T.ink },
+                                { v: String(featuresCount - completedCount), l: 'Active', c: (featuresCount - completedCount) > 0 ? T.accent : T.ink },
+                            ];
+
                         return (
                             <div>
                                 {/* ===== TOP BAR ===== */}
@@ -2435,7 +2581,7 @@ export default function AdminDashboard() {
                                     </div>
                                     <div className="ml-auto shrink-0">
                                         <button
-                                            onClick={() => { setFormData({}); setEditingId(null); setEditingLinkIndex(null); setShowModal(true); }}
+                                            onClick={() => { setFormData({}); setEditingId(null); setEditingLinkIndex(null); setEditRecipients([]); setShowModal(true); }}
                                             className="rounded-full h-11 px-5 text-[14px] font-bold text-white flex items-center gap-2 whitespace-nowrap transition-opacity hover:opacity-90"
                                             style={{ background: T.dark }}
                                         >
@@ -2456,17 +2602,14 @@ export default function AdminDashboard() {
                                                 ? 'Add the first feature to break this project into deliverables.'
                                                 : totalAmount > 0
                                                     ? <>Tracking <span className="font-bold tabular-nums" style={{ color: T.ink }}>{fmtINR(totalAmount)}</span> across this project — <span className="font-bold tabular-nums" style={{ color: T.ink }}>{paidPct}%</span> collected.</>
-                                                    : <>{completedCount} shipped · {featuresCount - completedCount} in flight{ratePendingCount > 0 ? ` · rate pending on ${ratePendingCount}` : ''}.</>}
+                                                    : isPkgClient
+                                                        ? <>Covered by the monthly retainer — <span className="font-bold tabular-nums" style={{ color: T.ink }}>{completedCount}</span> shipped · <span className="font-bold tabular-nums" style={{ color: T.ink }}>{featuresCount - completedCount}</span> in flight.</>
+                                                        : <>{completedCount} shipped · {featuresCount - completedCount} in flight{ratePendingCount > 0 ? ` · rate pending on ${ratePendingCount}` : ''}.</>}
                                         </p>
                                     </div>
                                     {featuresCount > 0 && (
                                         <div className="ml-auto flex flex-wrap gap-7 lg:gap-9 pb-1">
-                                            {[
-                                                { v: String(featuresCount), l: 'Features', c: T.ink },
-                                                { v: fmtINR(totalAmount), l: 'Total', c: T.ink },
-                                                { v: fmtINR(paidAmount), l: 'Paid', c: T.green },
-                                                { v: fmtINR(pendingAmount), l: 'Pending', c: pendingAmount > 0 ? T.accent : T.ink },
-                                            ].map((s, i) => (
+                                            {metricStats.map((s, i) => (
                                                 <div key={i} style={i > 0 ? { borderLeft: `1px solid ${T.hairline}`, paddingLeft: 18 } : undefined}>
                                                     <div className="font-extrabold tabular-nums" style={{ fontSize: 26, letterSpacing: '-0.03em', lineHeight: 1, color: s.c }}>{s.v}</div>
                                                     <div className="text-[11.5px] font-extrabold uppercase mt-1.5" style={{ letterSpacing: '0.14em', color: T.label }}>{s.l}</div>
@@ -2483,7 +2626,7 @@ export default function AdminDashboard() {
                                         meta={featuresCount > 0 ? `${completedCount} shipped of ${featuresCount}` : undefined}
                                         right={featuresCount > 1 ? (
                                             <div className="flex items-center gap-1 rounded-full p-1" style={{ border: `1px solid ${T.hairline}` }}>
-                                                {(['amount', 'status', 'created_at'] as SortField[]).map(field => (
+                                                {sortFields.map(field => (
                                                     <button
                                                         key={field}
                                                         onClick={() => {
@@ -2509,11 +2652,11 @@ export default function AdminDashboard() {
                                         <>
                                             {/* Desktop — hairline table */}
                                             <div className="hidden lg:block">
-                                                <div className="grid grid-cols-[minmax(0,2.6fr)_0.9fr_0.9fr_1.3fr_0.8fr_1.6fr_84px] gap-x-4 items-center pt-4 pb-2.5 text-[10.5px] font-extrabold uppercase" style={{ letterSpacing: '0.12em', color: T.label, borderBottom: `1px solid ${T.hairline}` }}>
+                                                <div className={`${featGridCls} pt-4 pb-2.5 text-[10.5px] font-extrabold uppercase`} style={{ letterSpacing: '0.12em', color: T.label, borderBottom: `1px solid ${T.hairline}` }}>
                                                     <div>Description</div>
                                                     <div>Date</div>
                                                     <div>Estimate</div>
-                                                    <div className="text-right">Amount</div>
+                                                    {showMoney && <div className="text-right">Amount</div>}
                                                     <div>Type</div>
                                                     <div>Status</div>
                                                     <div className="text-right">Actions</div>
@@ -2527,7 +2670,7 @@ export default function AdminDashboard() {
                                                             initial={{ opacity: 0 }}
                                                             animate={{ opacity: 1 }}
                                                             transition={{ delay: Math.min(idx * 0.025, 0.3), duration: 0.2 }}
-                                                            className="grid grid-cols-[minmax(0,2.6fr)_0.9fr_0.9fr_1.3fr_0.8fr_1.6fr_84px] gap-x-4 items-center py-4 transition-colors hover:bg-[rgba(26,29,37,0.02)]"
+                                                            className={`${featGridCls} py-4 transition-colors hover:bg-[rgba(26,29,37,0.02)]`}
                                                             style={{ borderBottom: `1px solid ${T.hairline}` }}
                                                         >
                                                             <div className="min-w-0">
@@ -2539,21 +2682,25 @@ export default function AdminDashboard() {
                                                             <div className="font-jbmono text-[11.5px] truncate" style={{ color: '#828A99' }}>
                                                                 {feature.estimation || '—'}
                                                             </div>
-                                                            <div className="text-right">
-                                                                {ratePending ? (
-                                                                    <span className="inline-flex items-center gap-1.5 rounded-full font-bold uppercase whitespace-nowrap" style={{ background: T.amberSoft, color: T.amber, padding: '3px 9px', fontSize: 10, letterSpacing: '0.05em' }}>
-                                                                        <span className="w-[5px] h-[5px] rounded-full animate-pulse" style={{ background: T.amber }} />
-                                                                        Rate pending
-                                                                    </span>
-                                                                ) : (
-                                                                    <>
-                                                                        <div className="font-bold tabular-nums" style={{ fontSize: 14.5 }}>{fmtINR(feature.amount || 0)}</div>
-                                                                        {(feature.paid_amount || 0) > 0 && (feature.paid_amount || 0) < (feature.amount || 0) && (
-                                                                            <div className="font-jbmono text-[10.5px] tabular-nums" style={{ color: '#828A99' }}>{fmtINR(feature.paid_amount || 0)} paid</div>
-                                                                        )}
-                                                                    </>
-                                                                )}
-                                                            </div>
+                                                            {showMoney && (
+                                                                <div className="text-right">
+                                                                    {(isPkgClient && (feature.amount || 0) === 0) ? (
+                                                                        <span className="font-jbmono text-[11px] uppercase" style={{ color: '#AAB1BE', letterSpacing: '0.04em' }}>Covered</span>
+                                                                    ) : ratePending ? (
+                                                                        <span className="inline-flex items-center gap-1.5 rounded-full font-bold uppercase whitespace-nowrap" style={{ background: T.amberSoft, color: T.amber, padding: '3px 9px', fontSize: 10, letterSpacing: '0.05em' }}>
+                                                                            <span className="w-[5px] h-[5px] rounded-full animate-pulse" style={{ background: T.amber }} />
+                                                                            Rate pending
+                                                                        </span>
+                                                                    ) : (
+                                                                        <>
+                                                                            <div className="font-bold tabular-nums" style={{ fontSize: 14.5 }}>{fmtINR(feature.amount || 0)}</div>
+                                                                            {(feature.paid_amount || 0) > 0 && (feature.paid_amount || 0) < (feature.amount || 0) && (
+                                                                                <div className="font-jbmono text-[10.5px] tabular-nums" style={{ color: '#828A99' }}>{fmtINR(feature.paid_amount || 0)} paid</div>
+                                                                            )}
+                                                                        </>
+                                                                    )}
+                                                                </div>
+                                                            )}
                                                             <div>
                                                                 <span className="inline-flex rounded-full font-extrabold uppercase whitespace-nowrap" style={feature.is_new_request
                                                                     ? { background: T.accentSoft, color: T.accent, padding: '3px 9px', fontSize: 10, letterSpacing: '0.06em' }
@@ -2563,7 +2710,7 @@ export default function AdminDashboard() {
                                                             </div>
                                                             <div className="flex items-center gap-2 min-w-0">
                                                                 <StagePill label={feature.status} tone={tone} size="sm" />
-                                                                {!ratePending && (
+                                                                {!ratePending && showMoney && !(isPkgClient && (feature.amount || 0) === 0) && (
                                                                     <span className="font-jbmono text-[10px] font-medium uppercase tabular-nums truncate" style={{ color: payColor(feature.payment_status) }}>
                                                                         {feature.payment_status}
                                                                     </span>
@@ -2625,26 +2772,40 @@ export default function AdminDashboard() {
                                                                     <span className="font-jbmono text-[10.5px] uppercase" style={{ color: '#828A99' }}>Est · {feature.estimation}</span>
                                                                 )}
                                                             </div>
-                                                            <div className="grid grid-cols-3 mt-4 pt-3" style={{ borderTop: `1px solid ${T.borderSoft}` }}>
-                                                                <div>
-                                                                    <div className="text-[10px] font-extrabold uppercase mb-1" style={{ letterSpacing: '0.1em', color: T.label }}>Amount</div>
-                                                                    {ratePending
-                                                                        ? <span className="font-bold uppercase text-[10.5px]" style={{ color: T.amber }}>Pending</span>
-                                                                        : <span className="font-bold tabular-nums" style={{ fontSize: 14 }}>{fmtINR(feature.amount || 0)}</span>}
-                                                                </div>
-                                                                <div>
-                                                                    <div className="text-[10px] font-extrabold uppercase mb-1" style={{ letterSpacing: '0.1em', color: T.label }}>Paid</div>
-                                                                    {ratePending
-                                                                        ? <span style={{ color: '#AAB1BE' }}>—</span>
-                                                                        : <span className="font-bold tabular-nums" style={{ fontSize: 14, color: (feature.paid_amount || 0) > 0 ? T.green : '#AAB1BE' }}>{fmtINR(feature.paid_amount || 0)}</span>}
-                                                                </div>
-                                                                <div>
-                                                                    <div className="text-[10px] font-extrabold uppercase mb-1" style={{ letterSpacing: '0.1em', color: T.label }}>Date</div>
+                                                            {!showMoney ? (
+                                                                <div className="flex items-center gap-2 mt-4 pt-3" style={{ borderTop: `1px solid ${T.borderSoft}` }}>
+                                                                    <span className="text-[10px] font-extrabold uppercase" style={{ letterSpacing: '0.1em', color: T.label }}>Added</span>
                                                                     <span className="font-jbmono text-[11.5px] tabular-nums" style={{ color: '#6E7686' }}>
-                                                                        {feature.created_at ? new Date(feature.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—'}
+                                                                        {feature.created_at ? new Date(feature.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
                                                                     </span>
                                                                 </div>
-                                                            </div>
+                                                            ) : (() => {
+                                                                const covered = isPkgClient && (feature.amount || 0) === 0;
+                                                                return (
+                                                                <div className="grid grid-cols-3 mt-4 pt-3" style={{ borderTop: `1px solid ${T.borderSoft}` }}>
+                                                                    <div>
+                                                                        <div className="text-[10px] font-extrabold uppercase mb-1" style={{ letterSpacing: '0.1em', color: T.label }}>Amount</div>
+                                                                        {covered
+                                                                            ? <span className="font-bold uppercase text-[10.5px]" style={{ color: '#AAB1BE' }}>Covered</span>
+                                                                            : ratePending
+                                                                                ? <span className="font-bold uppercase text-[10.5px]" style={{ color: T.amber }}>Pending</span>
+                                                                                : <span className="font-bold tabular-nums" style={{ fontSize: 14 }}>{fmtINR(feature.amount || 0)}</span>}
+                                                                    </div>
+                                                                    <div>
+                                                                        <div className="text-[10px] font-extrabold uppercase mb-1" style={{ letterSpacing: '0.1em', color: T.label }}>Paid</div>
+                                                                        {ratePending || covered
+                                                                            ? <span style={{ color: '#AAB1BE' }}>—</span>
+                                                                            : <span className="font-bold tabular-nums" style={{ fontSize: 14, color: (feature.paid_amount || 0) > 0 ? T.green : '#AAB1BE' }}>{fmtINR(feature.paid_amount || 0)}</span>}
+                                                                    </div>
+                                                                    <div>
+                                                                        <div className="text-[10px] font-extrabold uppercase mb-1" style={{ letterSpacing: '0.1em', color: T.label }}>Date</div>
+                                                                        <span className="font-jbmono text-[11.5px] tabular-nums" style={{ color: '#6E7686' }}>
+                                                                            {feature.created_at ? new Date(feature.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—'}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                                );
+                                                            })()}
                                                         </motion.div>
                                                     );
                                                 })}
@@ -2935,7 +3096,7 @@ export default function AdminDashboard() {
                                         <h3 className="text-[15.5px] font-bold capitalize truncate">{entityLabel}</h3>
                                     </div>
                                     <button
-                                        onClick={() => { setShowModal(false); setEditingId(null); setEditingLinkIndex(null); }}
+                                        onClick={() => { setShowModal(false); setEditingId(null); setEditingLinkIndex(null); setEditRecipients([]); }}
                                         aria-label="Close"
                                         className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(26,29,37,0.06)]"
                                         style={{ color: '#6E7686' }}
@@ -2960,7 +3121,46 @@ export default function AdminDashboard() {
                                             <div>
                                                 <label className={wLabelCls} style={{ color: T.label }}>Email <span className="normal-case" style={{ color: T.faint }}>(optional)</span></label>
                                                 <input value={formData.email || ''} type="email" autoComplete="off" data-form-type="other" placeholder="hello@acme.com" className={wInputCls} style={wInputStyle} onFocus={wFocus} onBlur={wBlur} onChange={e => setFormData({ ...formData, email: e.target.value })} />
-                                                <p className={helpCls} style={{ color: T.faint }}>Required for sending notifications.</p>
+                                                <p className={helpCls} style={{ color: T.faint }}>Primary recipient — greeted with the client name above.</p>
+                                            </div>
+
+                                            {/* ===== ADDITIONAL RECIPIENTS ===== */}
+                                            <div>
+                                                <label className={wLabelCls} style={{ color: T.label }}>Additional recipients <span className="normal-case" style={{ color: T.faint }}>(optional)</span></label>
+                                                <p className={helpCls} style={{ color: T.faint, marginBottom: 12 }}>Extra people who can also receive this client's notifications. Each is greeted by their own first name; leave the name blank to fall back to the client name.</p>
+
+                                                {editRecipients.length === 0 && (
+                                                    <div className="rounded-xl px-3.5 py-3 text-[12.5px]" style={{ border: `1px dashed ${T.border}`, color: T.faint }}>
+                                                        No additional recipients yet — only <span style={{ color: T.muted, fontWeight: 600 }}>{formData.email || 'the primary email'}</span> will be notified.
+                                                    </div>
+                                                )}
+
+                                                <div className="space-y-3">
+                                                    {editRecipients.map((r, i) => {
+                                                        const hasName = !!(r.first_name || '').trim();
+                                                        return (
+                                                            <div key={i} className="rounded-xl p-3 space-y-2.5" style={{ border: `1px solid ${T.border}`, background: '#FFFFFF' }}>
+                                                                <div className="flex items-center gap-2">
+                                                                    <input value={r.email} type="email" autoComplete="off" data-form-type="other" placeholder="person@company.com" className={`${wInputCls} flex-1`} style={wInputStyle} onFocus={wFocus} onBlur={wBlur} onChange={e => updateRecipient(i, 'email', e.target.value)} />
+                                                                    <button type="button" onClick={() => removeRecipient(i)} aria-label="Remove recipient" className="w-10 h-10 shrink-0 rounded-xl grid place-items-center transition-colors hover:bg-[rgba(26,29,37,0.06)]" style={{ border: `1px solid ${T.hairline}`, color: '#B4453B' }}>
+                                                                        <Trash2 size={15} />
+                                                                    </button>
+                                                                </div>
+                                                                <div className="grid grid-cols-2 gap-2">
+                                                                    <input value={r.first_name} autoComplete="off" data-form-type="other" placeholder="First name" className={wInputCls} style={wInputStyle} onFocus={wFocus} onBlur={wBlur} onChange={e => updateRecipient(i, 'first_name', e.target.value)} />
+                                                                    <input value={r.last_name} autoComplete="off" data-form-type="other" placeholder="Last name" className={wInputCls} style={wInputStyle} onFocus={wFocus} onBlur={wBlur} onChange={e => updateRecipient(i, 'last_name', e.target.value)} />
+                                                                </div>
+                                                                {!hasName && (
+                                                                    <p className="text-[11px]" style={{ color: T.faint }}>No name set — will be greeted as <span style={{ color: T.muted, fontWeight: 600 }}>{formData.name || 'the client name'}</span>.</p>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+
+                                                <button type="button" onClick={addRecipient} className="mt-3 inline-flex items-center gap-1.5 rounded-full h-9 px-3.5 text-[12.5px] font-bold transition-colors hover:bg-[rgba(26,29,37,0.06)]" style={{ border: `1px solid ${T.hairline}`, color: '#4A515E' }}>
+                                                    <Plus size={14} /> Add recipient
+                                                </button>
                                             </div>
                                         </>
                                     )}
@@ -3037,42 +3237,57 @@ export default function AdminDashboard() {
                                                 />
                                             </div>
 
-                                            {/* Payment Confirmed Toggle */}
-                                            <div className="rounded-2xl p-4 bg-white" style={{ boxShadow: `0 0 0 1px ${T.border}` }}>
-                                                <div className="flex items-center justify-between gap-4">
-                                                    <div className="min-w-0">
-                                                        <label className={wLabelCls.replace('mb-2', 'mb-1')} style={{ color: T.label }}>Payment confirmed</label>
-                                                        <p className="text-[12.5px] leading-[1.45]" style={{ color: T.muted }}>
-                                                            {formData.payment_confirmed !== false
-                                                                ? 'Rate locked — amount fields visible to client.'
-                                                                : 'Rate pending — client sees "Rate pending".'}
-                                                        </p>
-                                                    </div>
-                                                    <button
-                                                        type="button"
-                                                        role="switch"
-                                                        aria-checked={formData.payment_confirmed !== false}
-                                                        onClick={() => setFormData({ ...formData, payment_confirmed: !formData.payment_confirmed })}
-                                                        className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none"
-                                                        style={{ background: formData.payment_confirmed !== false ? T.accent : T.hairline }}
-                                                    >
-                                                        <span className={`inline-block h-4 w-4 rounded-full bg-white transition-transform duration-200 ${formData.payment_confirmed !== false ? 'translate-x-6' : 'translate-x-1'}`} />
-                                                    </button>
+                                            {/* Per-feature billing. For a monthly-package client a NEW feature is
+                                                covered by the retainer (show a note, no money fields). A feature that
+                                                already carries an amount (billed before conversion) still shows its
+                                                amount so historical billing stays visible/editable. */}
+                                            {selectedClient?.billing_mode === 'package' && Number(formData.amount || 0) === 0 ? (
+                                                <div className="rounded-2xl p-4" style={{ background: T.accentSoft }}>
+                                                    <p className="text-[10.5px] font-extrabold uppercase mb-1" style={{ letterSpacing: '0.12em', color: T.accent }}>Monthly package</p>
+                                                    <p className="text-[12.5px] leading-[1.45]" style={{ color: '#9A4A35' }}>
+                                                        This client is on a monthly retainer, so features are covered by the package — no per-feature price or payment is tracked here.
+                                                    </p>
                                                 </div>
-                                            </div>
+                                            ) : (
+                                                <>
+                                                    {/* Payment Confirmed Toggle */}
+                                                    <div className="rounded-2xl p-4 bg-white" style={{ boxShadow: `0 0 0 1px ${T.border}` }}>
+                                                        <div className="flex items-center justify-between gap-4">
+                                                            <div className="min-w-0">
+                                                                <label className={wLabelCls.replace('mb-2', 'mb-1')} style={{ color: T.label }}>Payment confirmed</label>
+                                                                <p className="text-[12.5px] leading-[1.45]" style={{ color: T.muted }}>
+                                                                    {formData.payment_confirmed !== false
+                                                                        ? 'Rate locked — amount fields visible to client.'
+                                                                        : 'Rate pending — client sees "Rate pending".'}
+                                                                </p>
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                role="switch"
+                                                                aria-checked={formData.payment_confirmed !== false}
+                                                                onClick={() => setFormData({ ...formData, payment_confirmed: !formData.payment_confirmed })}
+                                                                className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none"
+                                                                style={{ background: formData.payment_confirmed !== false ? T.accent : T.hairline }}
+                                                            >
+                                                                <span className={`inline-block h-4 w-4 rounded-full bg-white transition-transform duration-200 ${formData.payment_confirmed !== false ? 'translate-x-6' : 'translate-x-1'}`} />
+                                                            </button>
+                                                        </div>
+                                                    </div>
 
-                                            {/* Amount fields */}
-                                            {formData.payment_confirmed !== false && (
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    <div>
-                                                        <label className={wLabelCls} style={{ color: T.label }}>Amount <span className="normal-case" style={{ color: T.faint }}>(₹)</span></label>
-                                                        <input value={formData.amount ?? ''} type="number" placeholder="5000" className={`${wInputCls} tabular-nums font-jbmono`} style={wInputStyle} onFocus={wFocus} onBlur={wBlur} onChange={e => setFormData({ ...formData, amount: e.target.value })} />
-                                                    </div>
-                                                    <div>
-                                                        <label className={wLabelCls} style={{ color: T.label }}>Paid <span className="normal-case" style={{ color: T.faint }}>(₹)</span></label>
-                                                        <input value={formData.paid_amount ?? ''} type="number" placeholder="2500" className={`${wInputCls} tabular-nums font-jbmono`} style={wInputStyle} onFocus={wFocus} onBlur={wBlur} onChange={e => setFormData({ ...formData, paid_amount: e.target.value })} />
-                                                    </div>
-                                                </div>
+                                                    {/* Amount fields */}
+                                                    {formData.payment_confirmed !== false && (
+                                                        <div className="grid grid-cols-2 gap-3">
+                                                            <div>
+                                                                <label className={wLabelCls} style={{ color: T.label }}>Amount <span className="normal-case" style={{ color: T.faint }}>(₹)</span></label>
+                                                                <input value={formData.amount ?? ''} type="number" placeholder="5000" className={`${wInputCls} tabular-nums font-jbmono`} style={wInputStyle} onFocus={wFocus} onBlur={wBlur} onChange={e => setFormData({ ...formData, amount: e.target.value })} />
+                                                            </div>
+                                                            <div>
+                                                                <label className={wLabelCls} style={{ color: T.label }}>Paid <span className="normal-case" style={{ color: T.faint }}>(₹)</span></label>
+                                                                <input value={formData.paid_amount ?? ''} type="number" placeholder="2500" className={`${wInputCls} tabular-nums font-jbmono`} style={wInputStyle} onFocus={wFocus} onBlur={wBlur} onChange={e => setFormData({ ...formData, paid_amount: e.target.value })} />
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </>
                                             )}
                                         </>
                                     )}
@@ -3080,7 +3295,7 @@ export default function AdminDashboard() {
                                     {/* Footer actions */}
                                     <div className="flex items-center gap-2 pt-2">
                                         <button
-                                            onClick={() => { setShowModal(false); setEditingId(null); setEditingLinkIndex(null); }}
+                                            onClick={() => { setShowModal(false); setEditingId(null); setEditingLinkIndex(null); setEditRecipients([]); }}
                                             className="rounded-full h-11 px-5 text-[13.5px] font-bold transition-colors hover:bg-[rgba(26,29,37,0.06)]"
                                             style={{ border: `1px solid ${T.hairline}`, color: '#4A515E' }}
                                         >
@@ -3093,6 +3308,76 @@ export default function AdminDashboard() {
                                             style={{ background: T.dark }}
                                         >
                                             {saving ? <><Loader2 size={13} className="animate-spin" /> Saving</> : isEditing ? 'Update' : 'Create'}
+                                        </button>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        </div>
+                    );
+                })()}
+            </AnimatePresence>
+
+            {/* ========== SEND RECIPIENT PICKER MODAL ========== */}
+            <AnimatePresence>
+                {sendModal && (() => {
+                    const checkedCount = sendModal.items.filter(i => i.checked).length;
+                    return (
+                        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 backdrop-blur-sm" style={{ background: 'rgba(26,29,37,0.5)' }}>
+                            <motion.div
+                                initial={{ opacity: 0, y: 30, scale: 0.98 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: 30, scale: 0.98 }}
+                                transition={{ type: 'spring', damping: 26, stiffness: 320 }}
+                                className="font-hanken w-full sm:max-w-md rounded-t-[22px] sm:rounded-[22px] overflow-hidden max-h-[92vh] sm:max-h-[88vh] flex flex-col"
+                                style={{ background: '#FBFCFE', color: T.ink, boxShadow: `0 0 0 1px ${T.border}, 0 24px 64px -12px rgba(26,29,37,0.4)` }}
+                            >
+                                <div className="flex items-start justify-between gap-3 p-5 sm:p-6 pb-4" style={{ borderBottom: `1px solid ${T.hairline}` }}>
+                                    <div>
+                                        <h3 className="text-[17px] font-bold tracking-[-0.01em]" style={{ color: T.ink }}>
+                                            Send {sendModal.type === 'digest' ? 'digest' : 'update'} to…
+                                        </h3>
+                                        <p className="text-[12.5px] mt-1" style={{ color: T.muted }}>
+                                            This client has multiple recipients. Choose who receives it — each gets a copy personalised to their own name.
+                                        </p>
+                                    </div>
+                                    <button onClick={() => setSendModal(null)} disabled={sendModalBusy} aria-label="Close" className="w-9 h-9 shrink-0 rounded-full grid place-items-center transition-colors hover:bg-[rgba(26,29,37,0.06)] disabled:opacity-50" style={{ border: `1px solid ${T.hairline}`, color: '#4A515E' }}>
+                                        <X size={16} />
+                                    </button>
+                                </div>
+
+                                <div className="p-5 sm:p-6 space-y-2.5 overflow-y-auto custom-scrollbar">
+                                    {sendModal.items.map((it, i) => (
+                                        <button
+                                            key={i}
+                                            type="button"
+                                            onClick={() => toggleSendItem(i)}
+                                            disabled={sendModalBusy}
+                                            className="w-full flex items-center gap-3 rounded-xl px-3.5 py-3 text-left transition-colors hover:bg-[rgba(26,29,37,0.03)] disabled:opacity-60"
+                                            style={{ border: `1px solid ${it.checked ? T.accent : T.border}`, background: '#FFFFFF' }}
+                                        >
+                                            <span className="w-5 h-5 shrink-0 rounded-md grid place-items-center transition-colors" style={{ background: it.checked ? T.accent : 'transparent', border: `1px solid ${it.checked ? T.accent : T.border}` }}>
+                                                {it.checked && <Check size={13} color="#fff" strokeWidth={3} />}
+                                            </span>
+                                            <span className="min-w-0 flex-1">
+                                                <span className="flex items-center gap-2">
+                                                    <span className="text-[14px] font-semibold truncate" style={{ color: T.ink }}>{it.name}</span>
+                                                    {it.isPrimary && (
+                                                        <span className="inline-flex items-center rounded-full font-extrabold uppercase" style={{ border: `1px solid ${T.hairline}`, color: '#6E7686', padding: '1px 7px', fontSize: 9, letterSpacing: '0.06em' }}>Primary</span>
+                                                    )}
+                                                </span>
+                                                <span className="block text-[12.5px] font-jbmono truncate" style={{ color: T.muted }}>{it.email}</span>
+                                            </span>
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <div className="flex items-center justify-between gap-3 p-5 sm:p-6 pt-4" style={{ borderTop: `1px solid ${T.hairline}` }}>
+                                    <span className="text-[12.5px]" style={{ color: T.muted }}>{checkedCount} of {sendModal.items.length} selected</span>
+                                    <div className="flex items-center gap-2">
+                                        <button onClick={() => setSendModal(null)} disabled={sendModalBusy} className="rounded-full h-11 px-5 text-[13.5px] font-bold transition-colors hover:bg-[rgba(26,29,37,0.06)] disabled:opacity-50" style={{ border: `1px solid ${T.hairline}`, color: '#4A515E' }}>Cancel</button>
+                                        <button onClick={handleConfirmSend} disabled={sendModalBusy || checkedCount === 0} className="inline-flex items-center gap-2 rounded-full h-11 px-5 text-[13.5px] font-bold text-white transition-opacity disabled:opacity-50" style={{ background: T.accent }}>
+                                            {sendModalBusy ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
+                                            {sendModalBusy ? 'Sending…' : `Send to ${checkedCount}`}
                                         </button>
                                     </div>
                                 </div>
