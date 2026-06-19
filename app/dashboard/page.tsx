@@ -1563,7 +1563,60 @@ export default function DashboardPage() {
 
                             {/* Top Section: Financials & Links Grid */}
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8 sm:mb-10">
-                                {/* Financial Health Card */}
+                                {/* Financial / Delivery overview. For a project fully covered by the
+                                    monthly package (no per-feature money) an all-zero financial card is
+                                    useless, so show a delivery summary instead. */}
+                                {(coveredProjectIds.has(selectedProject.id) || (packageInfo?.billing_mode === 'package' && selectedProject.stats.total === 0)) ? (() => {
+                                    const totalFeatures = features.length;
+                                    const shipped = features.filter(f => f.status === 'Completed').length;
+                                    const inProgress = Math.max(totalFeatures - shipped, 0);
+                                    const pct = selectedProject.stats.progress;
+                                    return (
+                                    <div className="lg:col-span-2 bg-slate-50/50 rounded-3xl p-4 sm:p-6 border border-slate-100">
+                                        <div className="flex items-center justify-between mb-6">
+                                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Delivery Overview</h3>
+                                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-violet-50 border border-violet-200 text-[10px] font-bold text-violet-600 whitespace-nowrap">
+                                                <CreditCard size={11} /> Covered by package
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
+                                            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-row sm:flex-col items-center sm:items-start justify-between sm:justify-center">
+                                                <p className="text-xs font-semibold text-slate-400 sm:mb-2 uppercase tracking-wide">Features</p>
+                                                <p className="text-xl sm:text-3xl font-bold text-slate-900 tracking-tight">{totalFeatures}</p>
+                                            </div>
+                                            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-row sm:flex-col items-center sm:items-start justify-between sm:justify-center relative overflow-hidden">
+                                                <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-50 rounded-bl-full -mr-8 -mt-8 opacity-50 hidden sm:block" />
+                                                <p className="text-xs font-semibold text-emerald-600/80 sm:mb-2 uppercase tracking-wide">Shipped</p>
+                                                <p className="text-xl sm:text-3xl font-bold text-emerald-600 tracking-tight relative z-10">{shipped}</p>
+                                            </div>
+                                            <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-row sm:flex-col items-center sm:items-start justify-between sm:justify-center relative overflow-hidden">
+                                                <div className="absolute top-0 right-0 w-16 h-16 bg-blue-50 rounded-bl-full -mr-8 -mt-8 opacity-50 hidden sm:block" />
+                                                <p className="text-xs font-semibold text-blue-600/80 sm:mb-2 uppercase tracking-wide">In Progress</p>
+                                                <p className="text-xl sm:text-3xl font-bold text-blue-600 tracking-tight relative z-10">{inProgress}</p>
+                                            </div>
+                                        </div>
+                                        <div className="relative pt-1">
+                                            <div className="flex mb-2 items-center justify-between text-xs font-medium text-slate-400">
+                                                <span>Progress</span>
+                                                <span>{pct}% Complete</span>
+                                            </div>
+                                            <div className="overflow-hidden h-4 text-xs flex rounded-full bg-slate-200/60 ring-1 ring-slate-100">
+                                                <motion.div
+                                                    initial={{ width: 0 }}
+                                                    animate={{ width: `${pct}%` }}
+                                                    transition={{ duration: 1, ease: "easeOut" }}
+                                                    className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-linear-to-r from-violet-500 to-violet-400 relative"
+                                                >
+                                                    <div className="absolute inset-0 bg-white/10" />
+                                                </motion.div>
+                                            </div>
+                                        </div>
+                                        <p className="text-xs text-slate-500 mt-4 leading-relaxed">
+                                            All work on this project is included in your monthly package — there are no per-feature charges.
+                                        </p>
+                                    </div>
+                                    );
+                                })() : (
                                 <div className="lg:col-span-2 bg-slate-50/50 rounded-3xl p-4 sm:p-6 border border-slate-100">
                                     <div className="flex items-center justify-between mb-6">
                                         <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Financial Overview</h3>
@@ -1607,11 +1660,13 @@ export default function DashboardPage() {
                                         </div>
                                     </div>
                                 </div>
+                                )}
 
                                 {/* Quick Links Card */}
                                 <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-[0_2px_20px_rgb(0,0,0,0.02)] flex flex-col">
                                     <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Quick Access</h3>
-                                    <div className="flex-1 flex flex-col gap-3">
+                                    <div className="flex-1 lg:relative lg:min-h-0">
+                                      <div className="flex flex-col gap-3 lg:absolute lg:inset-0 lg:overflow-y-auto custom-scrollbar lg:pr-1">
                                         {selectedProject.links && selectedProject.links.length > 0 ? (
                                             selectedProject.links.map((link, idx) => (
                                                 <a
@@ -1619,16 +1674,16 @@ export default function DashboardPage() {
                                                     href={link.url}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
-                                                    className="flex items-center p-3.5 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50/50 hover:shadow-md transition-all group duration-200"
+                                                    className="flex items-center p-3 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50/50 hover:shadow-md transition-all group duration-200"
                                                 >
-                                                    <div className="bg-blue-100 text-blue-600 p-2.5 rounded-lg mr-3 group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                                                        <FolderOpen size={18} />
+                                                    <div className="bg-blue-100 text-blue-600 p-2 rounded-lg mr-2.5 group-hover:bg-blue-500 group-hover:text-white transition-colors shrink-0">
+                                                        <FolderOpen size={16} />
                                                     </div>
                                                     <div className="min-w-0 flex-1">
-                                                        <p className="font-semibold text-slate-900 text-sm group-hover:text-blue-700 transition-colors">{link.title}</p>
-                                                        <p className="text-xs text-slate-400 truncate w-full group-hover:text-blue-400/80 transition-colors">{link.url.split('//')[1] || link.url}</p>
+                                                        <p className="font-semibold text-slate-900 text-[13px] leading-snug group-hover:text-blue-700 transition-colors">{link.title}</p>
+                                                        <p className="text-[11px] text-slate-400 truncate w-full group-hover:text-blue-400/80 transition-colors">{link.url.split('//')[1] || link.url}</p>
                                                     </div>
-                                                    <ArrowRight size={14} className="ml-auto text-slate-300 group-hover:text-blue-400 group-hover:translate-x-1 transition-all shrink-0" />
+                                                    <ArrowRight size={13} className="ml-auto text-slate-300 group-hover:text-blue-400 group-hover:translate-x-1 transition-all shrink-0" />
                                                 </a>
                                             ))
                                         ) : (
@@ -1637,6 +1692,7 @@ export default function DashboardPage() {
                                                 <p className="text-slate-400 text-xs font-medium">No links available</p>
                                             </div>
                                         )}
+                                      </div>
                                     </div>
                                 </div>
                             </div>
@@ -1753,9 +1809,9 @@ export default function DashboardPage() {
                                                                 </span>
                                                             </td>
                                                             <td className="px-6 py-4">
-                                                                {(coveredFeatureIds.has(feature.id) || (packageInfo?.billing_mode === 'package' && !feature.payment_confirmed)) ? (
-                                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-violet-50 text-violet-600 border border-violet-200">
-                                                                        <CreditCard size={12} /> Under package
+                                                                {(coveredFeatureIds.has(feature.id) || (packageInfo?.billing_mode === 'package' && (feature.amount || 0) === 0)) ? (
+                                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-violet-50 text-violet-600 border border-violet-200 whitespace-nowrap">
+                                                                        <CreditCard size={12} /> Covered
                                                                     </span>
                                                                 ) : feature.payment_confirmed === false ? (
                                                                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-orange-50 text-orange-600 border border-orange-200">
@@ -1767,7 +1823,7 @@ export default function DashboardPage() {
                                                                 )}
                                                             </td>
                                                             <td className="px-6 py-4 text-right">
-                                                                {(coveredFeatureIds.has(feature.id) || (packageInfo?.billing_mode === 'package' && !feature.payment_confirmed)) ? (
+                                                                {(coveredFeatureIds.has(feature.id) || (packageInfo?.billing_mode === 'package' && (feature.amount || 0) === 0)) ? (
                                                                     <span className="text-xs text-violet-400 italic">included</span>
                                                                 ) : feature.payment_confirmed === false ? (
                                                                     <span className="text-xs text-slate-400 italic">—</span>
@@ -1819,9 +1875,9 @@ export default function DashboardPage() {
                                                                 {feature.status}
                                                             </span>
                                                         </div>
-                                                        {(coveredFeatureIds.has(feature.id) || (packageInfo?.billing_mode === 'package' && !feature.payment_confirmed)) ? (
-                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-violet-50 text-violet-600 border border-violet-200">
-                                                                <CreditCard size={10} /> Under package
+                                                        {(coveredFeatureIds.has(feature.id) || (packageInfo?.billing_mode === 'package' && (feature.amount || 0) === 0)) ? (
+                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-violet-50 text-violet-600 border border-violet-200 whitespace-nowrap">
+                                                                <CreditCard size={10} /> Covered
                                                             </span>
                                                         ) : feature.payment_confirmed === false ? (
                                                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-orange-50 text-orange-600 border border-orange-200">
@@ -1845,7 +1901,7 @@ export default function DashboardPage() {
                                                             )}
                                                         </div>
                                                         <div className="text-right">
-                                                            {(coveredFeatureIds.has(feature.id) || (packageInfo?.billing_mode === 'package' && !feature.payment_confirmed)) ? (
+                                                            {(coveredFeatureIds.has(feature.id) || (packageInfo?.billing_mode === 'package' && (feature.amount || 0) === 0)) ? (
                                                                 <span className="text-xs text-violet-400 italic">included</span>
                                                             ) : feature.payment_confirmed === false ? (
                                                                 <span className="text-xs text-slate-400 italic">—</span>
