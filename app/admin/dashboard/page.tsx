@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logActivity, type ActivityLog } from '@/lib/activityLogger';
@@ -8,6 +8,7 @@ import { sendNotification, sendDigestNotification } from '@/lib/notifications';
 import { deriveProjectStatus, resolveProjectStatus, type DisplayStatus } from '@/lib/projectStatus';
 import { computeProjectStats } from '@/lib/billing';
 import { packageSchedule, todayLocalISO, coveragePeriod, shiftDaysISO, shiftMonthsISO, type Cadence } from '@/lib/packageDates';
+import { generateDuePackagePeriods } from '@/lib/packageBilling';
 import { Select } from '@/components/Select';
 import { DatePicker } from '@/components/DatePicker';
 import { Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut, ArrowUp, ArrowDown, Mail, MailCheck, Send, CheckCircle2, Clock, Zap, CreditCard, FileText, Link2, Activity, RefreshCw, PackagePlus, ArrowRight, EyeOff, Eye, Search, Copy, Check, UserPlus, MoreHorizontal, ArrowUpRight, ChevronDown, Home, Folder } from 'lucide-react';
@@ -338,6 +339,8 @@ export default function AdminDashboard() {
     // mirrors those params; a reconcile effect below turns `nav` into view + data.
     const [nav, setNav] = useState<{ clientId: string | null; projectId: string | null; tab: string | null }>({ clientId: null, projectId: null, tab: null });
     const [clientsLoaded, setClientsLoaded] = useState(false);
+    // Guards the once-per-session auto-generation of due package billing periods.
+    const autoGenDone = useRef(false);
 
     useEffect(() => {
         // Check Supabase Auth Session
@@ -443,6 +446,13 @@ export default function AdminDashboard() {
         setClients(withStats);
         setClientsLoaded(true);
         setLoading(false);
+
+        // Fallback backfill (once per session) in case the scheduled cron hasn't
+        // run yet — same shared logic as /api/cron/generate-periods.
+        if (!autoGenDone.current) {
+            autoGenDone.current = true;
+            generateDuePackagePeriods(supabaseAdmin, todayLocalISO()).catch(e => console.error('auto-gen periods:', e));
+        }
     };
 
     const copyAccessKey = async (key: string) => {
