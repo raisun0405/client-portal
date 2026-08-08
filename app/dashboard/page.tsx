@@ -1214,9 +1214,6 @@ export default function DashboardPage() {
                                                     >
                                                         <Download size={13} className="text-slate-400 group-hover/dl:text-slate-600 transition-colors" />
                                                     </button>
-                                                    <div className="p-1.5 bg-violet-50 rounded-lg">
-                                                        <Activity size={14} className="text-violet-500" />
-                                                    </div>
                                                 </div>
                                             </div>
 
