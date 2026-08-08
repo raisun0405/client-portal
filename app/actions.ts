@@ -2,6 +2,7 @@
 
 import { cookies } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 
 // Initialize Supabase Client for Server Side
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -9,6 +10,38 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 const COOKIE_NAME = 'portal_session';
+const SESSION_SECRET = process.env.SESSION_SECRET;
+
+// Sign a session payload as `<base64url(json)>.<base64url(hmac)>`. The signature
+// is what makes the cookie unforgeable: getClientSession recomputes it and
+// rejects any value whose signature doesn't match, so a client can't hand-craft
+// a cookie for another client's id. Throws if SESSION_SECRET is unset so a
+// misconfiguration fails loudly at login rather than silently trusting nothing.
+function signSession(payload: Record<string, any>): string {
+    if (!SESSION_SECRET) throw new Error('SESSION_SECRET is not configured.');
+    const data = Buffer.from(JSON.stringify(payload)).toString('base64url');
+    const sig = createHmac('sha256', SESSION_SECRET).update(data).digest('base64url');
+    return `${data}.${sig}`;
+}
+
+// Verify + decode a signed session cookie. Returns null on any tampering,
+// missing secret, or malformed value (fail closed). Uses a constant-time
+// compare so the signature can't be brute-forced by timing.
+function verifySession(value: string): any | null {
+    if (!SESSION_SECRET) return null;
+    const dot = value.lastIndexOf('.');
+    if (dot < 1) return null;
+    const data = value.slice(0, dot);
+    const expected = createHmac('sha256', SESSION_SECRET).update(data).digest('base64url');
+    const got = Buffer.from(value.slice(dot + 1));
+    const exp = Buffer.from(expected);
+    if (got.length !== exp.length || !timingSafeEqual(got, exp)) return null;
+    try {
+        return JSON.parse(Buffer.from(data, 'base64url').toString('utf8'));
+    } catch {
+        return null;
+    }
+}
 
 export type ActionResponse = {
     success: boolean;
@@ -33,8 +66,8 @@ export async function loginClient(accessKey: string, rememberMe: boolean): Promi
         }
 
         // 2. Set Secure HTTP-Only Cookie
-        // Use encodeURIComponent to safeguard against invalid characters in names/keys breaking the cookie header
-        const sessionData = encodeURIComponent(JSON.stringify({
+        // HMAC-signed so it can't be forged (base64url output is cookie-safe).
+        const sessionData = signSession({
             id: data.id,
             name: data.name,
             access_key: data.access_key,
@@ -42,7 +75,7 @@ export async function loginClient(accessKey: string, rememberMe: boolean): Promi
             // (per-feature vs package) without waiting on a live query. Live
             // packageInfo still overrides this once it loads.
             billing_mode: data.billing_mode ?? null
-        }));
+        });
 
         const cookieOptions: any = {
             httpOnly: true,
@@ -73,16 +106,9 @@ export async function getClientSession(): Promise<any | null> {
 
     if (!sessionCookie) return null;
 
-    try {
-        // Try decoding URI component first for new safe cookies, fallback for older cookies
-        const decoded = sessionCookie.value.includes('%') 
-            ? decodeURIComponent(sessionCookie.value)
-            : sessionCookie.value;
-            
-        return JSON.parse(decoded);
-    } catch (e) {
-        return null;
-    }
+    // Reject unsigned/tampered/legacy cookies — a null here just forces one
+    // clean re-login, which re-issues a properly signed cookie.
+    return verifySession(sessionCookie.value);
 }
 
 export async function logoutClient() {
