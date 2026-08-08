@@ -3,8 +3,8 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
-import { fetchActivityLogs, type ActivityLog } from '@/lib/activityLogger';
+import { type ActivityLog } from '@/lib/activityLogger';
+import { getPortalCore, getProjectsWithFeatures, getProjectFeatures, getPortalActivityLogs, getPortalPulseLogs } from './actions';
 import { resolveProjectStatus, statusPillClasses, statusPillClassesBordered, type DisplayStatus } from '@/lib/projectStatus';
 import { computeProjectStats } from '@/lib/billing';
 import { packageSchedule, todayLocalISO, coveragePeriod, type Cadence } from '@/lib/packageDates';
@@ -217,44 +217,16 @@ export default function DashboardPage() {
         return () => observer.disconnect();
     }, [loading]);
 
-    // Load the client's package (retainer) info + billing periods.
-    const fetchPackageInfo = async (clientId: string) => {
-        const { data: c } = await supabase
-            .from('clients')
-            .select('billing_mode, package_fee, package_cadence, package_status, package_started_on, package_anchor_day')
-            .eq('id', clientId)
-            .single();
-        setPackageInfo(c || null);
-        const { data: bps } = await supabase
-            .from('billing_periods')
-            .select('*')
-            .eq('client_id', clientId)
-            .order('period_start', { ascending: false });
-        setBillingPeriods(bps || []);
-
+    // Load the client's package (retainer) info + billing periods, via the
+    // session-scoped server action (no direct DB access from the browser).
+    const fetchPackageInfo = async (_clientId: string) => {
+        const core = await getPortalCore();
+        if (!core) return;
+        setPackageInfo(core.packageInfo);
+        setBillingPeriods(core.billingPeriods || []);
         // Only the features whose pending was absorbed at conversion are "covered".
-        // (keep_one_time leaves them as a separate balance, so don't mark those.)
-        if (c?.billing_mode === 'package') {
-            const { data: migs } = await supabase
-                .from('package_migrations')
-                .select('affected_feature_ids, pending_disposition')
-                .eq('client_id', clientId)
-                .eq('status', 'committed')
-                .order('performed_at', { ascending: false })
-                .limit(1);
-            const mig = migs && migs[0];
-            const ids: string[] = (mig && mig.pending_disposition !== 'keep_one_time') ? (mig.affected_feature_ids || []) : [];
-            setCoveredFeatureIds(new Set(ids));
-            if (ids.length > 0) {
-                const { data: feats } = await supabase.from('features').select('id, project_id').in('id', ids);
-                setCoveredProjectIds(new Set((feats || []).map((f: any) => f.project_id)));
-            } else {
-                setCoveredProjectIds(new Set());
-            }
-        } else {
-            setCoveredFeatureIds(new Set());
-            setCoveredProjectIds(new Set());
-        }
+        setCoveredFeatureIds(new Set(core.coveredFeatureIds || []));
+        setCoveredProjectIds(new Set(core.coveredProjectIds || []));
     };
 
     // Memoize fetch functions so real-time handlers can call them
@@ -297,42 +269,27 @@ export default function DashboardPage() {
         verifySession();
     }, [router]);
 
-    // Real-time subscriptions for live updates
+    // Live-ish updates without a browser DB connection: re-fetch on focus /
+    // tab-visible and on a gentle interval. Realtime was dropped when the anon
+    // browser lost direct DB access (all reads now go through server actions in
+    // app/dashboard/actions.ts, behind RLS).
     useEffect(() => {
         if (!client?.id) return;
         const clientId = client.id;
-
-        const channel = supabase
-            .channel('dashboard-realtime')
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'projects', filter: `client_id=eq.${clientId}` },
-                () => { fetchProjectsForClient(clientId); }
-            )
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'features' },
-                () => { fetchProjectsForClient(clientId); loadPackageInfoForClient(clientId); }
-            )
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'billing_periods', filter: `client_id=eq.${clientId}` },
-                () => { loadPackageInfoForClient(clientId); }
-            )
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'clients', filter: `id=eq.${clientId}` },
-                () => { loadPackageInfoForClient(clientId); }
-            )
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'activity_logs', filter: `client_id=eq.${clientId}` },
-                () => { loadActivityLogsForClient(clientId); loadPulseLogsForClient(clientId); }
-            )
-            .subscribe();
-
+        const refresh = () => {
+            fetchProjectsForClient(clientId);
+            loadPackageInfoForClient(clientId);
+            loadActivityLogsForClient(clientId);
+            loadPulseLogsForClient(clientId);
+        };
+        const onVisible = () => { if (document.visibilityState === 'visible') refresh(); };
+        window.addEventListener('focus', refresh);
+        document.addEventListener('visibilitychange', onVisible);
+        const id = setInterval(refresh, 25000);
         return () => {
-            supabase.removeChannel(channel);
+            window.removeEventListener('focus', refresh);
+            document.removeEventListener('visibilitychange', onVisible);
+            clearInterval(id);
         };
     }, [client?.id, fetchProjectsForClient, loadActivityLogsForClient, loadPackageInfoForClient, loadPulseLogsForClient]);
 
@@ -341,28 +298,15 @@ export default function DashboardPage() {
         setError(null);
 
         try {
-            // 1. Fetch all projects for this client
-            const { data: projectsData, error: projectsError } = await supabase
-                .from('projects')
-                .select('*')
-                .eq('client_id', clientId)
-                .order('created_at', { ascending: false });
+            // Session-scoped fetch of this client's projects + all their features.
+            const res = await getProjectsWithFeatures();
+            const projectsData = res?.projects || [];
+            const featuresData = res?.features || [];
 
-            if (projectsError) throw new Error(projectsError.message);
-
-            if (projectsData && projectsData.length > 0) {
-                // 2. Fetch ALL features for these projects to calculate stats
-                const projectIds = projectsData.map(p => p.id);
-                const { data: featuresData, error: featuresError } = await supabase
-                    .from('features')
-                    .select('*')
-                    .in('project_id', projectIds);
-
-                if (featuresError) throw new Error(featuresError.message);
-
-                // 3. Calculate stats for each project
-                const enhancedProjects: ProjectWithStats[] = projectsData.map(project => {
-                    const projectFeatures = featuresData?.filter(f => f.project_id === project.id) || [];
+            if (projectsData.length > 0) {
+                // Calculate stats for each project
+                const enhancedProjects: ProjectWithStats[] = projectsData.map((project: any) => {
+                    const projectFeatures = featuresData?.filter((f: any) => f.project_id === project.id) || [];
                     // Per-project feature money (see lib/billing.ts)
                     const { total, paid } = computeProjectStats(projectFeatures);
 
@@ -398,13 +342,7 @@ export default function DashboardPage() {
     const fetchFeatures = async (projectId: string) => {
         setLoadingFeatures(true);
         try {
-            const { data, error } = await supabase
-                .from('features')
-                .select('*')
-                .eq('project_id', projectId)
-                .order('created_at', { ascending: true });
-
-            if (error) throw error;
+            const data = await getProjectFeatures(projectId);
             if (data) setFeatures(data);
         } catch (err: any) {
             console.error("Error fetching features:", err);
@@ -435,31 +373,22 @@ export default function DashboardPage() {
         }
     };
 
-    const loadActivityLogs = async (clientId: string) => {
+    const loadActivityLogs = async (_clientId: string) => {
         setLoadingLogs(true);
-        const logs = await fetchActivityLogs(clientId, 25);
-        setActivityLogs(logs);
+        const logs = await getPortalActivityLogs(25);
+        setActivityLogs(logs as ActivityLog[]);
         setLoadingLogs(false);
     };
 
     // Work Momentum data: lightweight date-ranged fetch (timestamp + action type)
     // so the 12-week chart isn't capped by the 25-row timeline fetch above.
-    const loadPulseLogs = async (clientId: string) => {
+    const loadPulseLogs = async (_clientId: string) => {
         const now = new Date();
         // 12 rolling weeks = 84 days including today, from local midnight.
         const windowStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 83);
-        const { data, error } = await supabase
-            .from('activity_logs')
-            .select('created_at, action_type, is_hidden')
-            .eq('client_id', clientId)
-            .gte('created_at', windowStart.toISOString());
-        if (error) {
-            console.error('Failed to fetch activity momentum:', error.message);
-            setPulseLogs([]); // degrade to the empty state instead of loading forever
-            return;
-        }
-        // Hidden logs are excluded from the timeline, so keep the chart consistent.
-        setPulseLogs((data || []).filter(l => !l.is_hidden).map(l => ({ created_at: l.created_at, action_type: l.action_type })));
+        // Hidden logs are already excluded server-side to match the timeline.
+        const data = await getPortalPulseLogs(windowStart.toISOString());
+        setPulseLogs(data);
     };
 
     // Helper: get icon and color for activity type

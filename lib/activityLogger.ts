@@ -1,4 +1,7 @@
-import { supabase } from './supabase';
+// Admin-only logging: uses supabaseAdmin, which carries the admin's
+// authenticated session (RLS allows authenticated). The client portal never
+// calls these — it reads via app/dashboard/actions.ts (secret key).
+import { supabaseAdmin } from './supabase';
 
 export type ActivityAction =
     | 'project_created'
@@ -51,7 +54,7 @@ export async function logActivity({
     metadata?: Record<string, any>;
 }) {
     try {
-        const { error } = await supabase.from('activity_logs').insert([
+        const { error } = await supabaseAdmin.from('activity_logs').insert([
             {
                 client_id: clientId,
                 project_id: projectId || null,
@@ -74,7 +77,7 @@ export async function logActivity({
  * Fetches activity logs for a given client.
  */
 export async function fetchActivityLogs(clientId: string, limit = 20): Promise<ActivityLog[]> {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
         .from('activity_logs')
         .select('*')
         .eq('client_id', clientId)

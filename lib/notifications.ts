@@ -1,13 +1,14 @@
 'use server';
 
-import { createClient } from '@supabase/supabase-js';
 import nodemailer from 'nodemailer';
 import { PUBLIC_ORIGIN } from '@/lib/hosts';
 import { monthYearLabel, humanDateRange, planLabel, type Cadence } from '@/lib/packageDates';
+import { supabaseService } from '@/lib/supabaseServer';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
+// Privileged server-side client (secret key). Notifications read logs/projects
+// and stamp notified_at; the anon browser is denied by RLS, so this must not
+// use the anon key.
+const supabaseAdmin = supabaseService();
 
 const transporter = nodemailer.createTransport({
     service: 'gmail',

@@ -1,13 +1,8 @@
 'use server';
 
 import { cookies } from 'next/headers';
-import { createClient } from '@supabase/supabase-js';
 import { createHmac, timingSafeEqual } from 'node:crypto';
-
-// Initialize Supabase Client for Server Side
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { supabaseService } from '@/lib/supabaseServer';
 
 const COOKIE_NAME = 'portal_session';
 const SESSION_SECRET = process.env.SESSION_SECRET;
@@ -54,8 +49,9 @@ export async function loginClient(accessKey: string, rememberMe: boolean): Promi
         // Trim input in case the user accidentally added whitespace in the admin panel or input field
         const cleanKey = accessKey.trim();
 
-        // 1. Verify credentials with Supabase
-        const { data, error } = await supabase
+        // 1. Verify credentials with Supabase (secret key — the anon browser is
+        // denied by RLS, and login must read the clients table server-side).
+        const { data, error } = await supabaseService()
             .from('clients')
             .select('*')
             .eq('access_key', cleanKey)
