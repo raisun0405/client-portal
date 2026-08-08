@@ -16,7 +16,8 @@ export type ActivityAction =
     | 'link_removed'
     | 'status_changed'
     | 'package_started'
-    | 'package_reverted';
+    | 'package_reverted'
+    | 'invoice_generated';
 
 export type ActivityLog = {
     id: string;

@@ -5,7 +5,10 @@
 // missing coverage months are inserted. This is the single source of truth,
 // reused by the scheduled cron endpoint AND the admin dashboard fallback, so the
 // money math never drifts between the two.
-import { packageSchedule, coveragePeriod, shiftDaysISO, shiftMonthsISO, type Cadence } from './packageDates';
+import {
+    packageSchedule, coveragePeriod, shiftDaysISO, shiftMonthsISO,
+    monthYearLabel, humanDateRange, planLabel, type Cadence,
+} from './packageDates';
 
 export async function generateDuePackagePeriods(
     supabase: { from: (table: string) => any },
@@ -13,7 +16,7 @@ export async function generateDuePackagePeriods(
 ): Promise<{ created: number }> {
     const { data: clients } = await supabase
         .from('clients')
-        .select('id, billing_mode, package_started_on, package_fee, package_cadence, package_anchor_day')
+        .select('id, name, billing_mode, package_started_on, package_fee, package_cadence, package_anchor_day')
         .eq('billing_mode', 'package');
 
     const pkg = (clients || []).filter((c: any) => c.package_started_on);
@@ -53,7 +56,47 @@ export async function generateDuePackagePeriods(
     }
 
     if (rows.length === 0) return { created: 0 };
-    const { error } = await supabase.from('billing_periods').insert(rows);
+    // .select() returns only the rows THIS call actually inserted. On a
+    // concurrent run the unique constraint rejects the whole (atomic) batch, so
+    // `inserted` is null and we neither over-count nor double-log.
+    const { data: inserted, error } = await supabase
+        .from('billing_periods')
+        .insert(rows)
+        .select('client_id, period_start, period_end, fee_amount');
     if (error && !/duplicate|unique/i.test(error.message)) throw new Error(error.message);
-    return { created: rows.length };
+
+    const created = inserted || [];
+    if (created.length > 0) {
+        // Mirror each new invoice into the activity feed so it shows up for the
+        // admin and can be sent as a manual notification. Best-effort: a logging
+        // failure must never break billing, so errors are swallowed.
+        const cadenceById = new Map<string, Cadence>(
+            (clients || []).map((c: any) => [c.id, (c.package_cadence || 'monthly') as Cadence]),
+        );
+        const logRows = created.map((p: any) => {
+            const fee = Number(p.fee_amount) || 0;
+            const cadence = cadenceById.get(p.client_id) || 'monthly';
+            const month = monthYearLabel(p.period_start);
+            const period = humanDateRange(p.period_start, p.period_end);
+            return {
+                client_id: p.client_id,
+                project_id: null,
+                action_type: 'invoice_generated',
+                title: `Invoice — ${month}`,
+                description: `Your ${planLabel(cadence).toLowerCase()} invoice for ${month} is ready — ₹${fee.toLocaleString('en-IN')} due for the service period ${period}.`,
+                metadata: {
+                    amount: fee,
+                    period_start: p.period_start,
+                    period_end: p.period_end,
+                    cadence,
+                    payment_status: 'Pending',
+                    origin: 'auto',
+                },
+            };
+        });
+        const { error: logError } = await supabase.from('activity_logs').insert(logRows);
+        if (logError) console.error('generateDuePackagePeriods: activity log insert failed:', logError.message);
+    }
+
+    return { created: created.length };
 }

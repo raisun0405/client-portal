@@ -128,3 +128,33 @@ export function coveragePeriod(billingDate: string, cadence: Cadence = 'monthly'
         end: shiftDaysISO(billingDate, -1),
     };
 }
+
+// ---- Human-readable labels (shared by invoice generation + emails) ----
+// Pure string math so wording stays identical everywhere and SSR-safe.
+
+const MONTH_FULL = ['January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'];
+
+// 'YYYY-MM-DD' -> 'July 2026'.
+export function monthYearLabel(isoDate: string): string {
+    const [y, m] = isoDate.split('-').map(Number);
+    return `${MONTH_FULL[m - 1]} ${y}`;
+}
+
+// Compact, human date range. Collapses shared month/year:
+//   same month  -> '1–31 July 2026'
+//   same year   -> '1 July – 30 September 2026'
+//   spans years -> '1 December 2025 – 31 January 2026'
+export function humanDateRange(startIso: string, endIso: string): string {
+    const [sy, sm, sd] = startIso.split('-').map(Number);
+    const [ey, em, ed] = endIso.split('-').map(Number);
+    if (sy === ey && sm === em) return `${sd}–${ed} ${MONTH_FULL[sm - 1]} ${sy}`;
+    if (sy === ey) return `${sd} ${MONTH_FULL[sm - 1]} – ${ed} ${MONTH_FULL[em - 1]} ${sy}`;
+    return `${sd} ${MONTH_FULL[sm - 1]} ${sy} – ${ed} ${MONTH_FULL[em - 1]} ${ey}`;
+}
+
+// Cadence -> the package's plan label, e.g. 'Monthly package'.
+export function planLabel(cadence: Cadence): string {
+    const word: Record<Cadence, string> = { monthly: 'Monthly', quarterly: 'Quarterly', annual: 'Annual' };
+    return `${word[cadence]} package`;
+}

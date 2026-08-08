@@ -3,6 +3,7 @@
 import { createClient } from '@supabase/supabase-js';
 import nodemailer from 'nodemailer';
 import { PUBLIC_ORIGIN } from '@/lib/hosts';
+import { monthYearLabel, humanDateRange, planLabel, type Cadence } from '@/lib/packageDates';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -48,6 +49,7 @@ const ACTION_META: Record<string, ActionMeta> = {
     rate_pending: { label: 'Rate Pending', bg: '#FFF7ED', text: '#EA580C', dot: '#F97316' },
     package_started: { label: 'Monthly Package', bg: '#F5F3FF', text: '#7C3AED', dot: '#8B5CF6' },
     package_reverted: { label: 'Package Ended', bg: '#F1F5F9', text: '#475569', dot: '#64748B' },
+    invoice_generated: { label: 'Invoice', bg: '#F5F3FF', text: '#7C3AED', dot: '#8B5CF6' },
 };
 const DEFAULT_META: ActionMeta = { label: 'Activity', bg: '#F1F5F9', text: '#475569', dot: '#94A3B8' };
 const metaFor = (actionType: string): ActionMeta => ACTION_META[actionType] || DEFAULT_META;
@@ -74,9 +76,8 @@ const SYSTEM_FOOTER = `
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px; margin:0 auto;">
                     <tr>
                         <td align="center" style="padding-top:24px;">
-                            <p style="margin:0; font-size:11px; color:#94A3B8; line-height:1.6;">
-                                This is an automated notification from your project portal.<br>
-                                Project Update &copy; ${new Date().getFullYear()}
+                            <p style="margin:0; font-size:10px; color:#94A3B8; line-height:1.5;">
+                                Automated notification from your project portal &middot; Project Update &copy; ${new Date().getFullYear()}
                             </p>
                         </td>
                     </tr>
@@ -190,6 +191,143 @@ ${BRAND_HEADER}
                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
                                 <td style="font-size:12px; color:#94A3B8; font-weight:500;">Logged on</td>
                                 <td align="right" style="font-size:12px; color:#475569; font-weight:600;">${date} &middot; ${time}</td>
+                            </tr></table>
+                        </td>
+                    </tr>
+                </table>
+${SYSTEM_FOOTER}
+            </td>
+        </tr>
+    </table>
+</body>
+</html>`;
+}
+
+// Dedicated invoice email — a focused billing card (amount + status is the hero),
+// used only for `invoice_generated` logs. Pulls everything from the log metadata
+// written by generateDuePackagePeriods (amount, period, cadence, payment_status).
+function generateInvoiceEmailHTML(log: ActivityLog, clientName: string): string {
+    const m = log.metadata || {};
+    const amount = `₹${Number(m.amount || 0).toLocaleString('en-IN')}`;
+    const month = m.period_start ? monthYearLabel(m.period_start) : '';
+    const period = (m.period_start && m.period_end) ? humanDateRange(m.period_start, m.period_end) : '';
+    const plan = planLabel((m.cadence || 'monthly') as Cadence);
+    const paid = String(m.payment_status || 'Pending').toLowerCase() === 'paid';
+
+    // Status theme: amber for pending (due), green for paid (settled).
+    const s = paid
+        ? { panel: '#ECFDF5', hair: '#A7F3D0', label: '#047857', pillBg: '#A7F3D0', pillText: '#065F46', dot: '#059669',
+            dueLabel: 'Amount paid', pill: 'Paid', caption: `Payment received &middot; ${month}` }
+        : { panel: '#FFFBEB', hair: '#FDE68A', label: '#B45309', pillBg: '#FDE68A', pillText: '#92400E', dot: '#D97706',
+            dueLabel: 'Amount due', pill: 'Pending', caption: `Payment pending &middot; due for ${month}` };
+
+    const intro = paid
+        ? 'Your monthly package invoice has been settled. Here are the details:'
+        : 'Your monthly package invoice is ready and currently pending payment. Here are the details:';
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="x-apple-disable-message-reformatting">
+    <title>${log.title}</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
+        body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+        table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+        img { -ms-interpolation-mode: bicubic; border: 0; outline: none; text-decoration: none; }
+        @media screen and (max-width: 600px) {
+            .wrap { padding: 28px 14px !important; }
+            .card-pad { padding: 28px 22px !important; }
+            .foot-pad { padding: 18px 22px !important; }
+            .title-lg { font-size: 22px !important; }
+        }
+    </style>
+</head>
+<body style="margin:0; padding:0; background-color:#F8FAFC; font-family:'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing:antialiased;">
+    <div style="display:none; max-height:0; overflow:hidden; opacity:0; color:#F8FAFC;">${log.title} — ${amount} ${s.pill}</div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F8FAFC;">
+        <tr>
+            <td align="center" class="wrap" style="padding: 48px 20px;">
+${BRAND_HEADER}
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px; margin:0 auto; background-color:#FFFFFF; border:1px solid #E2E8F0; border-radius:16px; box-shadow:0 1px 2px rgba(15,23,42,0.04);">
+                    <tr>
+                        <td class="card-pad" style="padding:36px 40px; border-radius:16px 16px 0 0;">
+
+                            <!-- Type tag -->
+                            <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:20px;"><tr>
+                                <td style="background-color:#F5F3FF; border-radius:7px; height:24px; padding:0 12px;">
+                                    <span style="font-size:10.5px; line-height:24px; font-weight:700; color:#7C3AED; text-transform:uppercase; letter-spacing:0.09em;">Invoice</span>
+                                </td>
+                            </tr></table>
+
+                            <!-- Title + greeting -->
+                            <h1 class="title-lg" style="margin:0 0 18px 0; font-size:25px; font-weight:700; color:#0F172A; line-height:1.3; letter-spacing:-0.4px;">${log.title}</h1>
+                            <p style="margin:0 0 6px 0; font-size:14px; color:#0F172A; font-weight:600;">Hi ${clientName},</p>
+                            <p style="margin:0 0 24px 0; font-size:14px; color:#64748B; line-height:1.7;">${intro}</p>
+
+                            <!-- Invoice card -->
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E2E8F0; border-radius:16px; overflow:hidden;">
+                                <!-- Amount header (status = focal point) -->
+                                <tr>
+                                    <td style="background-color:${s.panel}; padding:14px 20px 15px 20px; border-bottom:1px solid ${s.hair};">
+                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                                            <tr>
+                                                <td style="vertical-align:middle; font-size:11px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:${s.label};">${s.dueLabel}</td>
+                                                <td align="right" style="vertical-align:middle;">
+                                                    <table role="presentation" cellpadding="0" cellspacing="0" align="right"><tr>
+                                                        <td style="background-color:${s.pillBg}; border-radius:999px; height:24px; padding:0 12px;">
+                                                            <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background-color:${s.dot}; vertical-align:middle; margin-right:6px;"></span><span style="font-size:10px; line-height:24px; font-weight:700; color:${s.pillText}; text-transform:uppercase; letter-spacing:0.08em; vertical-align:middle;">${s.pill}</span>
+                                                        </td>
+                                                    </tr></table>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td colspan="2" style="padding-top:5px; font-size:30px; font-weight:700; color:#0F172A; letter-spacing:-0.02em; line-height:1.15;">${amount}</td>
+                                            </tr>
+                                            <tr>
+                                                <td colspan="2" style="padding-top:3px; font-size:11.5px; font-weight:600; color:${s.label};">${s.caption}</td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <!-- Detail rows -->
+                                <tr>
+                                    <td style="padding:14px 20px 4px 20px;">
+                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                                            <tr>
+                                                <td style="padding-bottom:8px; font-size:12.5px; color:#94A3B8; font-weight:500;">Service period</td>
+                                                <td align="right" style="padding-bottom:8px; font-size:13px; color:#0F172A; font-weight:700;">${period}</td>
+                                            </tr>
+                                            <tr>
+                                                <td style="font-size:12.5px; color:#94A3B8; font-weight:500;">Plan</td>
+                                                <td align="right" style="font-size:13px; color:#0F172A; font-weight:700;">${plan}</td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <!-- CTA -->
+                                <tr>
+                                    <td style="padding:14px 20px 20px 20px;">
+                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+                                            <td align="center" style="border-radius:12px; background-color:#3B82F6;">
+                                                <a href="${PUBLIC_ORIGIN}" style="display:block; padding:14px 20px; font-size:14px; font-weight:700; color:#FFFFFF; text-decoration:none; border-radius:12px; text-align:center; letter-spacing:0.2px;">View on Dashboard&nbsp;&#8599;</a>
+                                            </td>
+                                        </tr></table>
+                                    </td>
+                                </tr>
+                            </table>
+
+                        </td>
+                    </tr>
+
+                    <!-- Footer strip -->
+                    <tr>
+                        <td class="foot-pad" style="padding:18px 40px; background-color:#F8FAFC; border-top:1px solid #F1F5F9; border-radius:0 0 16px 16px;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+                                <td style="font-size:12px; color:#94A3B8; font-weight:500;">Logged on</td>
+                                <td align="right" style="font-size:12px; color:#475569; font-weight:600;">${new Date(log.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })} &middot; ${new Date(log.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</td>
                             </tr></table>
                         </td>
                     </tr>
@@ -349,7 +487,9 @@ export async function sendNotification(logId: string, recipients: EmailRecipient
 
         // Send one personalised email per recipient.
         const results = await Promise.allSettled(cleaned.map(r => {
-            const html = generateSingleActivityEmailHTML(log, r.name, projectName);
+            const html = log.action_type === 'invoice_generated'
+                ? generateInvoiceEmailHTML(log, r.name)
+                : generateSingleActivityEmailHTML(log, r.name, projectName);
             return transporter.sendMail({
                 from: `"Project Update" <${process.env.GMAIL_EMAIL}>`,
                 to: r.email,

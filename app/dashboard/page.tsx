@@ -497,6 +497,8 @@ export default function DashboardPage() {
                 return { icon: <CreditCard size={16} />, color: 'bg-violet-500', bgLight: 'bg-violet-50', textColor: 'text-violet-600', label: 'Monthly Package' };
             case 'package_reverted':
                 return { icon: <RefreshCw size={16} />, color: 'bg-slate-500', bgLight: 'bg-slate-50', textColor: 'text-slate-600', label: 'Package Ended' };
+            case 'invoice_generated':
+                return { icon: <FileText size={16} />, color: 'bg-amber-500', bgLight: 'bg-amber-50', textColor: 'text-amber-600', label: 'Invoice' };
             default:
                 return { icon: <Activity size={16} />, color: 'bg-slate-400', bgLight: 'bg-slate-50', textColor: 'text-slate-500', label: 'Activity' };
         }
@@ -521,6 +523,7 @@ export default function DashboardPage() {
             rate_pending: 'Rate Pending',
             package_started: 'Monthly Package',
             package_reverted: 'Package Ended',
+            invoice_generated: 'Invoice',
         };
         return labels[actionType] || 'Activity';
     };
@@ -544,6 +547,7 @@ export default function DashboardPage() {
             rate_pending: '#f97316',
             package_started: '#8b5cf6',
             package_reverted: '#64748b',
+            invoice_generated: '#f59e0b',
         };
         return colors[actionType] || '#94a3b8';
     };
