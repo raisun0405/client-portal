@@ -10,6 +10,7 @@ import { computeProjectStats } from '@/lib/billing';
 import { packageSchedule, todayLocalISO, coveragePeriod, type Cadence } from '@/lib/packageDates';
 import { getClientSession, logoutClient } from '../actions'; // Import server actions
 import { requestProject, requestFeature, editRequestedProject, editRequestedFeature, withdrawRequestedProject, withdrawRequestedFeature } from './requestActions';
+import Tutorial from './Tutorial';
 import { LayoutGrid, LogOut, FolderOpen, Loader2, X, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Calendar, ArrowRight, TrendingUp, Wallet, CheckCircle2, Clock, FileText, Zap, CreditCard, Link2, Trash2, RefreshCw, PackagePlus, Activity, Download, Pencil, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { PieChart, Pie, Cell, ResponsiveContainer, Sector, ComposedChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ReferenceDot } from 'recharts';
@@ -777,7 +778,7 @@ export default function DashboardPage() {
             </header>
 
             <main className="max-w-7xl mx-auto p-6 md:p-10 pb-24 sm:pb-10">
-                <div ref={dashboardRef} className="mb-6 sm:mb-8 scroll-mt-20">
+                <div ref={dashboardRef} data-tour="overview" className="mb-6 sm:mb-8 scroll-mt-20">
                     <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Dashboard</h2>
                     <p className="text-sm text-slate-500 mt-1">Overview of all your projects & financials.</p>
                 </div>
@@ -1276,7 +1277,7 @@ export default function DashboardPage() {
                                         )}
 
                                         {/* Activity Log Timeline */}
-                                        <div ref={activityRef} className={`${isPackage ? 'lg:col-span-2' : 'lg:col-span-3'} bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm scroll-mt-20`}>
+                                        <div ref={activityRef} data-tour="activity" className={`${isPackage ? 'lg:col-span-2' : 'lg:col-span-3'} bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 shadow-sm scroll-mt-20`}>
                                             <div className="flex items-center justify-between mb-4">
                                                 <div>
                                                     <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Activity Log</h3>
@@ -1456,13 +1457,14 @@ export default function DashboardPage() {
                         })()}
 
                         {/* ========== PROJECTS HEADING ========== */}
-                        <div ref={projectsRef} className="mb-6 scroll-mt-20 flex items-start justify-between gap-3">
+                        <div ref={projectsRef} data-tour="projects" className="mb-6 scroll-mt-20 flex items-start justify-between gap-3">
                             <div>
                                 <h3 className="text-lg font-bold text-slate-900 tracking-tight">Your Projects</h3>
                                 <p className="text-sm text-slate-500 mt-0.5">Select a project to view detailed status and feature requests.</p>
                             </div>
                             <button
                                 onClick={openRequestProject}
+                                data-tour="request-project"
                                 className="shrink-0 inline-flex items-center gap-1.5 px-3.5 h-9 rounded-full border border-blue-200 text-blue-600 text-[13px] font-semibold hover:bg-blue-50 transition-colors"
                             >
                                 <Plus size={15} strokeWidth={2.5} /> Request a project
@@ -2011,6 +2013,27 @@ export default function DashboardPage() {
                 </div>
             </nav>
 
+            {/* First-run guided tour (device-local; shows once). The demo steps
+                open the request form with SAMPLE data — shown, never submitted. */}
+            {client && (
+                <Tutorial
+                    onDemoStart={() => {
+                        setEditReq(null); setReqError(null);
+                        setReqProjectForm({
+                            name: 'Landing page revamp',
+                            note: 'Sample request — this is just the tour, nothing gets sent.',
+                            features: ['Hero section redesign', 'Testimonials carousel', 'Contact form with WhatsApp'],
+                            draft: '',
+                        });
+                        setReqProjectOpen(true);
+                    }}
+                    onDemoEnd={() => {
+                        setReqProjectOpen(false); setEditReq(null);
+                        setReqProjectForm({ name: '', note: '', features: [], draft: '' });
+                    }}
+                />
+            )}
+
             {/* ===== Request a project modal ===== */}
             {reqProjectOpen && (
                 <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
@@ -2021,7 +2044,7 @@ export default function DashboardPage() {
                             <button onClick={() => !reqBusy && setReqProjectOpen(false)} className="p-2 rounded-full hover:bg-slate-100 text-slate-400"><X size={18} /></button>
                         </div>
                         <div className="p-6 space-y-4">
-                            <div>
+                            <div data-tour="req-name">
                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Project name</label>
                                 <input autoFocus value={reqProjectForm.name} onChange={e => setReqProjectForm(s => ({ ...s, name: e.target.value }))} maxLength={120} placeholder="e.g. Marketing website revamp" className="w-full h-11 px-3.5 rounded-xl border border-slate-200 text-[14px] outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
                             </div>
@@ -2031,7 +2054,7 @@ export default function DashboardPage() {
                                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Note <span className="text-slate-300 normal-case font-medium">(optional)</span></label>
                                         <textarea value={reqProjectForm.note} onChange={e => setReqProjectForm(s => ({ ...s, note: e.target.value }))} maxLength={500} rows={3} placeholder="Anything that helps us understand the ask…" className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-[14px] outline-none resize-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
                                     </div>
-                                    <div>
+                                    <div data-tour="req-features">
                                         <div className="flex items-center gap-2 mb-1.5">
                                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Features</label>
                                             <span className="text-[11px] font-medium text-slate-300">optional</span>
@@ -2039,9 +2062,9 @@ export default function DashboardPage() {
                                                 <span className="ml-auto inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-blue-50 text-blue-600 text-[11px] font-bold tabular-nums">{reqProjectForm.features.length}</span>
                                             )}
                                         </div>
-                                        <div className="flex gap-2">
-                                            <input value={reqProjectForm.draft} onChange={e => setReqProjectForm(s => ({ ...s, draft: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); setReqProjectForm(s => s.draft.trim() ? ({ ...s, features: [...s.features, s.draft.trim()], draft: '' }) : s); } }} placeholder="Add a feature, press Enter" className="flex-1 h-11 px-3.5 rounded-xl border border-slate-200 text-[14px] outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-shadow" />
-                                            <button type="button" aria-label="Add feature" title="Add feature" onClick={() => setReqProjectForm(s => s.draft.trim() ? ({ ...s, features: [...s.features, s.draft.trim()], draft: '' }) : s)} disabled={!reqProjectForm.draft.trim()} className="shrink-0 inline-flex items-center justify-center w-11 h-11 rounded-xl bg-blue-600 text-white hover:bg-blue-700 active:scale-[0.95] transition-all disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed"><Plus size={18} strokeWidth={2.5} /></button>
+                                        <div className="flex items-stretch rounded-xl border border-slate-200 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-shadow overflow-hidden">
+                                            <input value={reqProjectForm.draft} onChange={e => setReqProjectForm(s => ({ ...s, draft: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); setReqProjectForm(s => s.draft.trim() ? ({ ...s, features: [...s.features, s.draft.trim()], draft: '' }) : s); } }} placeholder="Add a feature, press Enter" className="flex-1 h-11 px-3.5 bg-transparent text-[14px] outline-none" />
+                                            <button type="button" aria-label="Add feature" title="Add feature" onClick={() => setReqProjectForm(s => s.draft.trim() ? ({ ...s, features: [...s.features, s.draft.trim()], draft: '' }) : s)} disabled={!reqProjectForm.draft.trim()} className="shrink-0 w-11 grid place-items-center text-blue-600 border-l border-slate-200 hover:bg-blue-50 active:scale-95 transition-all disabled:text-slate-300 disabled:hover:bg-transparent disabled:cursor-not-allowed"><Plus size={18} strokeWidth={2.5} /></button>
                                         </div>
                                         {reqProjectForm.features.length > 0 && (
                                             <div className="mt-2.5 rounded-xl border border-slate-200 divide-y divide-slate-100 overflow-hidden">
