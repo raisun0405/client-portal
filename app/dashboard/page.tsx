@@ -9,7 +9,8 @@ import { resolveProjectStatus, statusPillClasses, statusPillClassesBordered, typ
 import { computeProjectStats } from '@/lib/billing';
 import { packageSchedule, todayLocalISO, coveragePeriod, type Cadence } from '@/lib/packageDates';
 import { getClientSession, logoutClient } from '../actions'; // Import server actions
-import { LayoutGrid, LogOut, FolderOpen, Loader2, X, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Calendar, ArrowRight, TrendingUp, Wallet, CheckCircle2, Clock, FileText, Zap, CreditCard, Link2, Trash2, RefreshCw, PackagePlus, Activity, Download, Pencil } from 'lucide-react';
+import { requestProject, requestFeature, editRequestedProject, editRequestedFeature, withdrawRequestedProject, withdrawRequestedFeature } from './requestActions';
+import { LayoutGrid, LogOut, FolderOpen, Loader2, X, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Calendar, ArrowRight, TrendingUp, Wallet, CheckCircle2, Clock, FileText, Zap, CreditCard, Link2, Trash2, RefreshCw, PackagePlus, Activity, Download, Pencil, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { PieChart, Pie, Cell, ResponsiveContainer, Sector, ComposedChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ReferenceDot } from 'recharts';
 import jsPDF from 'jspdf';
@@ -22,6 +23,7 @@ type Project = {
     description: string;
     status: string;
     status_override?: string | null;
+    origin?: string | null;
     links: { title: string; url: string }[];
     created_at: string;
 };
@@ -36,6 +38,7 @@ type Feature = {
     payment_status: string;
     is_new_request: boolean;
     payment_confirmed: boolean;
+    origin?: string | null;
     created_at: string;
 };
 
@@ -114,6 +117,16 @@ export default function DashboardPage() {
     const [selectedProject, setSelectedProject] = useState<ProjectWithStats | null>(null);
     const [features, setFeatures] = useState<Feature[]>([]);
     const [loadingFeatures, setLoadingFeatures] = useState(false);
+
+    // Client "request" UI (submit / edit / withdraw). editReq !== null means the
+    // open modal is editing an existing request rather than creating a new one.
+    const [reqProjectOpen, setReqProjectOpen] = useState(false);
+    const [reqProjectForm, setReqProjectForm] = useState<{ name: string; note: string; features: string[]; draft: string }>({ name: '', note: '', features: [], draft: '' });
+    const [reqFeatureOpen, setReqFeatureOpen] = useState(false);
+    const [reqFeatureForm, setReqFeatureForm] = useState<{ description: string; note: string }>({ description: '', note: '' });
+    const [reqBusy, setReqBusy] = useState(false);
+    const [reqError, setReqError] = useState<string | null>(null);
+    const [editReq, setEditReq] = useState<{ type: 'project' | 'feature'; id: string } | null>(null);
 
     // Sorting state
     const [sortField, setSortField] = useState<SortField>('created_at');
@@ -362,6 +375,70 @@ export default function DashboardPage() {
     const closeModal = () => {
         setSelectedProject(null);
         setFeatures([]);
+    };
+
+    // ---- Client request handlers ----
+    const refreshRequests = () => {
+        if (!client?.id) return;
+        fetchProjects(client.id, { silent: true });
+        fetchPackageInfo(client.id);
+        if (selectedProject) fetchFeatures(selectedProject.id);
+    };
+
+    const openRequestProject = () => {
+        setEditReq(null); setReqError(null);
+        setReqProjectForm({ name: '', note: '', features: [], draft: '' });
+        setReqProjectOpen(true);
+    };
+    const openEditProject = (p: ProjectWithStats) => {
+        setEditReq({ type: 'project', id: p.id }); setReqError(null);
+        setReqProjectForm({ name: p.description, note: '', features: [], draft: '' });
+        setReqProjectOpen(true);
+    };
+    const submitProjectRequest = async () => {
+        setReqBusy(true); setReqError(null);
+        const res = editReq?.type === 'project'
+            ? await editRequestedProject({ projectId: editReq.id, name: reqProjectForm.name })
+            : await requestProject({ name: reqProjectForm.name, note: reqProjectForm.note, features: reqProjectForm.features });
+        setReqBusy(false);
+        if (!res.success) { setReqError(res.message || 'Something went wrong.'); return; }
+        setReqProjectOpen(false); setEditReq(null);
+        setReqProjectForm({ name: '', note: '', features: [], draft: '' });
+        refreshRequests();
+    };
+    const withdrawProject = async (projectId: string) => {
+        if (!window.confirm('Withdraw this project request? This can’t be undone.')) return;
+        const res = await withdrawRequestedProject(projectId);
+        if (!res.success) { window.alert(res.message); return; }
+        refreshRequests();
+    };
+
+    const openRequestFeature = () => {
+        setEditReq(null); setReqError(null);
+        setReqFeatureForm({ description: '', note: '' });
+        setReqFeatureOpen(true);
+    };
+    const openEditFeature = (f: Feature) => {
+        setEditReq({ type: 'feature', id: f.id }); setReqError(null);
+        setReqFeatureForm({ description: f.description, note: '' });
+        setReqFeatureOpen(true);
+    };
+    const submitFeatureRequest = async () => {
+        setReqBusy(true); setReqError(null);
+        const res = editReq?.type === 'feature'
+            ? await editRequestedFeature({ featureId: editReq.id, description: reqFeatureForm.description })
+            : (selectedProject ? await requestFeature({ projectId: selectedProject.id, description: reqFeatureForm.description, note: reqFeatureForm.note }) : { success: false, message: 'No project selected.' });
+        setReqBusy(false);
+        if (!res.success) { setReqError(res.message || 'Something went wrong.'); return; }
+        setReqFeatureOpen(false); setEditReq(null);
+        setReqFeatureForm({ description: '', note: '' });
+        refreshRequests();
+    };
+    const withdrawFeature = async (featureId: string) => {
+        if (!window.confirm('Withdraw this feature request?')) return;
+        const res = await withdrawRequestedFeature(featureId);
+        if (!res.success) { window.alert(res.message); return; }
+        refreshRequests();
     };
 
     const handleLogout = async () => {
@@ -1379,9 +1456,17 @@ export default function DashboardPage() {
                         })()}
 
                         {/* ========== PROJECTS HEADING ========== */}
-                        <div ref={projectsRef} className="mb-6 scroll-mt-20">
-                            <h3 className="text-lg font-bold text-slate-900 tracking-tight">Your Projects</h3>
-                            <p className="text-sm text-slate-500 mt-0.5">Select a project to view detailed status and feature requests.</p>
+                        <div ref={projectsRef} className="mb-6 scroll-mt-20 flex items-start justify-between gap-3">
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-900 tracking-tight">Your Projects</h3>
+                                <p className="text-sm text-slate-500 mt-0.5">Select a project to view detailed status and feature requests.</p>
+                            </div>
+                            <button
+                                onClick={openRequestProject}
+                                className="shrink-0 inline-flex items-center gap-1.5 px-3.5 h-9 rounded-full border border-blue-200 text-blue-600 text-[13px] font-semibold hover:bg-blue-50 transition-colors"
+                            >
+                                <Plus size={15} strokeWidth={2.5} /> Request a project
+                            </button>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {projects.map((project, idx) => (
@@ -1455,6 +1540,18 @@ export default function DashboardPage() {
                                             </table>
                                         </div>
                                     )}
+
+                                    {project.origin === 'client' && project.displayStatus === 'Requested' && (
+                                        <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-3" onClick={e => e.stopPropagation()}>
+                                            <span className="text-[11px] font-semibold text-blue-500 mr-auto">Awaiting review</span>
+                                            <button onClick={() => openEditProject(project)} className="inline-flex items-center gap-1 text-[12px] font-semibold text-slate-500 hover:text-slate-800 transition-colors">
+                                                <Pencil size={12} /> Edit
+                                            </button>
+                                            <button onClick={() => withdrawProject(project.id)} className="inline-flex items-center gap-1 text-[12px] font-semibold text-rose-500 hover:text-rose-700 transition-colors">
+                                                <Trash2 size={12} /> Withdraw
+                                            </button>
+                                        </div>
+                                    )}
                                 </motion.div>
                             ))}
                         </div>
@@ -1490,12 +1587,20 @@ export default function DashboardPage() {
                                     Started on {new Date(selectedProject.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
                                 </p>
                             </div>
-                            <button
-                                onClick={closeModal}
-                                className="shrink-0 p-2 sm:p-2.5 bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-full transition-all duration-200"
-                            >
-                                <X size={20} className="sm:w-6 sm:h-6" />
-                            </button>
+                            <div className="shrink-0 flex items-center gap-2">
+                                <button
+                                    onClick={openRequestFeature}
+                                    className="inline-flex items-center gap-1.5 px-3 h-9 rounded-full border border-blue-200 text-blue-600 text-[12px] sm:text-[13px] font-semibold hover:bg-blue-50 transition-colors whitespace-nowrap"
+                                >
+                                    <Plus size={14} strokeWidth={2.5} /> <span className="hidden sm:inline">Request a </span>feature
+                                </button>
+                                <button
+                                    onClick={closeModal}
+                                    className="p-2 sm:p-2.5 bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-full transition-all duration-200"
+                                >
+                                    <X size={20} className="sm:w-6 sm:h-6" />
+                                </button>
+                            </div>
                         </div>
 
                         {/* Modal Content - Scrollable */}
@@ -1905,6 +2010,92 @@ export default function DashboardPage() {
                     </button>
                 </div>
             </nav>
+
+            {/* ===== Request a project modal ===== */}
+            {reqProjectOpen && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => !reqBusy && setReqProjectOpen(false)} />
+                    <div className="relative z-10 w-full max-w-md bg-white rounded-3xl shadow-2xl ring-1 ring-black/5 overflow-hidden">
+                        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+                            <h3 className="text-lg font-bold text-slate-900">{editReq?.type === 'project' ? 'Edit request' : 'Request a project'}</h3>
+                            <button onClick={() => !reqBusy && setReqProjectOpen(false)} className="p-2 rounded-full hover:bg-slate-100 text-slate-400"><X size={18} /></button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Project name</label>
+                                <input autoFocus value={reqProjectForm.name} onChange={e => setReqProjectForm(s => ({ ...s, name: e.target.value }))} maxLength={120} placeholder="e.g. Marketing website revamp" className="w-full h-11 px-3.5 rounded-xl border border-slate-200 text-[14px] outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
+                            </div>
+                            {editReq?.type !== 'project' && (
+                                <>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Note <span className="text-slate-300 normal-case font-medium">(optional)</span></label>
+                                        <textarea value={reqProjectForm.note} onChange={e => setReqProjectForm(s => ({ ...s, note: e.target.value }))} maxLength={500} rows={3} placeholder="Anything that helps us understand the ask…" className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-[14px] outline-none resize-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Features <span className="text-slate-300 normal-case font-medium">(optional)</span></label>
+                                        <div className="flex gap-2">
+                                            <input value={reqProjectForm.draft} onChange={e => setReqProjectForm(s => ({ ...s, draft: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); setReqProjectForm(s => s.draft.trim() ? ({ ...s, features: [...s.features, s.draft.trim()], draft: '' }) : s); } }} placeholder="Add a feature, press Enter" className="flex-1 h-10 px-3.5 rounded-xl border border-slate-200 text-[14px] outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
+                                            <button type="button" onClick={() => setReqProjectForm(s => s.draft.trim() ? ({ ...s, features: [...s.features, s.draft.trim()], draft: '' }) : s)} className="shrink-0 px-3 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-[13px]">Add</button>
+                                        </div>
+                                        {reqProjectForm.features.length > 0 && (
+                                            <div className="flex flex-wrap gap-1.5 mt-2">
+                                                {reqProjectForm.features.map((f, i) => (
+                                                    <span key={i} className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-blue-50 text-blue-700 text-[12px] font-medium">
+                                                        {f}
+                                                        <button type="button" onClick={() => setReqProjectForm(s => ({ ...s, features: s.features.filter((_, j) => j !== i) }))} className="p-0.5 rounded-full hover:bg-blue-100"><X size={11} /></button>
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </>
+                            )}
+                            {reqError && <p className="text-[13px] text-rose-600 font-medium">{reqError}</p>}
+                        </div>
+                        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2">
+                            <button onClick={() => !reqBusy && setReqProjectOpen(false)} className="px-4 h-10 rounded-full text-slate-600 font-semibold text-[13px] hover:bg-slate-100">Cancel</button>
+                            <button onClick={submitProjectRequest} disabled={reqBusy || reqProjectForm.name.trim().length < 3} className="px-5 h-10 rounded-full bg-blue-600 text-white font-semibold text-[13px] hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2">
+                                {reqBusy && <Loader2 size={14} className="animate-spin" />}{editReq?.type === 'project' ? 'Save changes' : 'Submit request'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ===== Request a feature modal ===== */}
+            {reqFeatureOpen && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => !reqBusy && setReqFeatureOpen(false)} />
+                    <div className="relative z-10 w-full max-w-md bg-white rounded-3xl shadow-2xl ring-1 ring-black/5 overflow-hidden">
+                        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+                            <h3 className="text-lg font-bold text-slate-900">{editReq?.type === 'feature' ? 'Edit request' : 'Request a feature'}</h3>
+                            <button onClick={() => !reqBusy && setReqFeatureOpen(false)} className="p-2 rounded-full hover:bg-slate-100 text-slate-400"><X size={18} /></button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            {editReq?.type !== 'feature' && selectedProject && (
+                                <p className="text-[13px] text-slate-500">Adding to <span className="font-semibold text-slate-700">{selectedProject.description}</span>.</p>
+                            )}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">What do you need?</label>
+                                <textarea autoFocus value={reqFeatureForm.description} onChange={e => setReqFeatureForm(s => ({ ...s, description: e.target.value }))} maxLength={200} rows={3} placeholder="Describe the feature…" className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-[14px] outline-none resize-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
+                            </div>
+                            {editReq?.type !== 'feature' && (
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Note <span className="text-slate-300 normal-case font-medium">(optional)</span></label>
+                                    <textarea value={reqFeatureForm.note} onChange={e => setReqFeatureForm(s => ({ ...s, note: e.target.value }))} maxLength={500} rows={2} placeholder="Any extra context…" className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-[14px] outline-none resize-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
+                                </div>
+                            )}
+                            {reqError && <p className="text-[13px] text-rose-600 font-medium">{reqError}</p>}
+                        </div>
+                        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2">
+                            <button onClick={() => !reqBusy && setReqFeatureOpen(false)} className="px-4 h-10 rounded-full text-slate-600 font-semibold text-[13px] hover:bg-slate-100">Cancel</button>
+                            <button onClick={submitFeatureRequest} disabled={reqBusy || reqFeatureForm.description.trim().length < 3} className="px-5 h-10 rounded-full bg-blue-600 text-white font-semibold text-[13px] hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2">
+                                {reqBusy && <Loader2 size={14} className="animate-spin" />}{editReq?.type === 'feature' ? 'Save changes' : 'Submit request'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
