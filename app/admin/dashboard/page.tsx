@@ -207,35 +207,73 @@ function EmptyBlock({ icon, title, sub }: { icon: React.ReactNode; title: string
     );
 }
 
-// Option C's dark hero card — collection % + split bar, real money only.
-function DarkPanel({ heading, pct, collected, outstanding }: { heading: string; pct: number; collected: number; outstanding: number }) {
-    const fmt = (n: number) => `₹${(n || 0).toLocaleString('en-IN')}`;
+// One face of the pipeline carousel — a self-contained money view. All display
+// values arrive pre-formatted so the same card serves both the finite-contract
+// "% collected" view and the recurring-package "₹ collected" view.
+type PipelineSlide = {
+    heading: string;
+    hero: string;        // big headline, e.g. '₹50,000' or '67%'
+    caption: string;
+    barPct: number;      // 0..100 bar fill
+    leftValue: string;   // e.g. '₹75,000'
+    leftLabel: string;   // e.g. 'BILLED'
+    rightValue: string;
+    rightLabel: string;
+};
+
+// Option C's dark hero card — headline + split bar, real money only.
+// Holds one or more slides (e.g. package retainer, legacy custom, combined);
+// with >1 it becomes a carousel: tap the dots or swipe (mobile) to switch.
+function DarkPanel({ slides }: { slides: PipelineSlide[] }) {
+    const [active, setActive] = useState(0);
+    const touchX = useRef<number | null>(null);
+    const multi = slides.length > 1;
+    const idx = Math.min(active, slides.length - 1);
+    const s = slides[idx];
+    const go = (i: number) => setActive(Math.max(0, Math.min(i, slides.length - 1)));
+
     return (
-        <section className="rounded-[26px] text-white px-7 sm:px-9 pt-7 pb-8" style={{ background: T.dark }}>
-            <div className="flex items-baseline">
-                <div className="text-[11.5px] font-extrabold uppercase" style={{ letterSpacing: '0.14em', color: 'rgba(255,255,255,0.4)' }}>{heading}</div>
-                <div className="ml-auto flex gap-1.5">
-                    {[T.accent, '#FFFFFF', '#5E6675'].map((h, i) => <span key={i} className="w-1.5 h-1.5 rounded-full" style={{ background: h }} />)}
-                </div>
+        <section
+            className="rounded-[26px] text-white px-7 sm:px-9 pt-7 pb-8"
+            style={{ background: T.dark, touchAction: multi ? 'pan-y' : undefined }}
+            onTouchStart={multi ? (e) => { touchX.current = e.touches[0].clientX; } : undefined}
+            onTouchEnd={multi ? (e) => {
+                if (touchX.current == null) return;
+                const dx = e.changedTouches[0].clientX - touchX.current;
+                if (Math.abs(dx) > 40) go(idx + (dx < 0 ? 1 : -1));
+                touchX.current = null;
+            } : undefined}
+        >
+            <div className="flex items-center gap-3">
+                <div className="text-[10.5px] sm:text-[11.5px] font-extrabold uppercase truncate" style={{ letterSpacing: '0.14em', color: 'rgba(255,255,255,0.4)' }}>{s.heading}</div>
+                {multi && (
+                    <div className="ml-auto flex items-center shrink-0">
+                        {slides.map((sl, i) => (
+                            <button key={i} onClick={() => go(i)} aria-label={`View ${sl.heading}`} aria-current={i === idx} className="p-2 -m-1 grid place-items-center">
+                                <span className="rounded-full transition-all duration-300" style={{ width: i === idx ? 16 : 6, height: 6, background: i === idx ? T.accent : 'rgba(255,255,255,0.28)' }} />
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
             <div className="flex flex-col lg:flex-row lg:items-end gap-8 lg:gap-14 mt-7">
                 <div className="shrink-0">
-                    <div className="font-extrabold tabular-nums" style={{ fontSize: 'clamp(44px, 5vw, 56px)', letterSpacing: '-0.04em', lineHeight: 1, color: T.accent }}>{pct}%</div>
-                    <div className="text-[13.5px] mt-2 max-w-[190px] leading-[1.5]" style={{ color: 'rgba(255,255,255,0.55)' }}>of contracted value collected to date</div>
+                    <div className="font-extrabold tabular-nums" style={{ fontSize: 'clamp(40px, 4.6vw, 52px)', letterSpacing: '-0.04em', lineHeight: 1, color: T.accent }}>{s.hero}</div>
+                    <div className="text-[13.5px] mt-2 max-w-[210px] leading-[1.5]" style={{ color: 'rgba(255,255,255,0.55)' }}>{s.caption}</div>
                 </div>
                 <div className="flex-1 w-full min-w-0">
                     <div className="flex h-[14px] rounded-full overflow-hidden gap-[3px]">
-                        {pct > 0 && <div className="rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: T.accent }} />}
-                        {pct < 100 && <div className="flex-1 rounded-full" style={{ background: 'rgba(255,255,255,0.18)' }} />}
+                        {s.barPct > 0 && <div className="rounded-full transition-all duration-700" style={{ width: `${Math.min(s.barPct, 100)}%`, background: T.accent }} />}
+                        {s.barPct < 100 && <div className="flex-1 rounded-full" style={{ background: 'rgba(255,255,255,0.18)' }} />}
                     </div>
                     <div className="flex mt-4 gap-4 flex-wrap">
                         <div>
-                            <div className="text-[20px] sm:text-[22px] font-extrabold tabular-nums">{fmt(collected)}</div>
-                            <div className="text-[11px] font-bold mt-0.5" style={{ color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em' }}>REALIZED REVENUE</div>
+                            <div className="text-[20px] sm:text-[22px] font-extrabold tabular-nums">{s.leftValue}</div>
+                            <div className="text-[11px] font-bold mt-0.5" style={{ color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em' }}>{s.leftLabel}</div>
                         </div>
                         <div className="ml-auto text-right">
-                            <div className="text-[20px] sm:text-[22px] font-extrabold tabular-nums" style={{ color: 'rgba(255,255,255,0.75)' }}>{fmt(outstanding)}</div>
-                            <div className="text-[11px] font-bold mt-0.5" style={{ color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em' }}>AWAITING — {Math.max(100 - pct, 0)}%</div>
+                            <div className="text-[20px] sm:text-[22px] font-extrabold tabular-nums" style={{ color: 'rgba(255,255,255,0.75)' }}>{s.rightValue}</div>
+                            <div className="text-[11px] font-bold mt-0.5" style={{ color: 'rgba(255,255,255,0.45)', letterSpacing: '0.08em' }}>{s.rightLabel}</div>
                         </div>
                     </div>
                 </div>
@@ -292,6 +330,9 @@ export default function AdminDashboard() {
     // Selection State
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
     const [selectedProject, setSelectedProject] = useState<ProjectWithStats | null>(null);
+    // Billing periods for the selected package client (feeds the admin pipeline
+    // carousel's "Package" slide). Admin-only — never surfaced client-side.
+    const [selectedPkgPeriods, setSelectedPkgPeriods] = useState<BillingPeriod[]>([]);
 
     // Loading State
     const [loading, setLoading] = useState(false);
@@ -332,6 +373,19 @@ export default function AdminDashboard() {
     // Recipient-picker modal shown before sending when a client has more than one recipient.
     const [sendModal, setSendModal] = useState<{ type: 'single' | 'digest'; logId?: string; items: { email: string; name: string; isPrimary: boolean; checked: boolean }[] } | null>(null);
     const [sendModalBusy, setSendModalBusy] = useState(false);
+
+    // Load the selected client's package billing periods (for the pipeline
+    // carousel's Package slide). Only for package clients; cleared otherwise.
+    useEffect(() => {
+        if (!selectedClient || selectedClient.billing_mode !== 'package') { setSelectedPkgPeriods([]); return; }
+        let cancelled = false;
+        supabaseAdmin
+            .from('billing_periods')
+            .select('fee_amount, paid_amount, payment_status')
+            .eq('client_id', selectedClient.id)
+            .then(({ data }) => { if (!cancelled) setSelectedPkgPeriods((data as BillingPeriod[]) || []); });
+        return () => { cancelled = true; };
+    }, [selectedClient?.id, selectedClient?.billing_mode]);
 
     // --- URL-driven navigation ---
     // The current view/selection is encoded in the URL query (?client=&project=&tab=)
@@ -1866,12 +1920,14 @@ export default function AdminDashboard() {
 
                                 {/* ===== DARK PIPELINE CARD ===== */}
                                 {totalValue > 0 && (
-                                    <DarkPanel
-                                        heading="Pipeline — Collections"
-                                        pct={paidPct}
-                                        collected={totalPaid}
-                                        outstanding={totalPending}
-                                    />
+                                    <DarkPanel slides={[{
+                                        heading: 'Pipeline — Collections',
+                                        hero: `${paidPct}%`,
+                                        caption: 'of contracted value collected to date',
+                                        barPct: paidPct,
+                                        leftValue: fmtINR(totalPaid), leftLabel: 'REALIZED REVENUE',
+                                        rightValue: fmtINR(totalPending), rightLabel: `AWAITING — ${Math.max(100 - paidPct, 0)}%`,
+                                    }]} />
                                 )}
 
                                 {/* Mobile search */}
@@ -2180,6 +2236,41 @@ export default function AdminDashboard() {
                         const paidPct = totalValue > 0 ? Math.round((totalPaid / totalValue) * 100) : 0;
                         const fmtINR = (n: number) => `₹${(n ?? 0).toLocaleString('en-IN')}`;
                         const isPkgClient = selectedClient?.billing_mode === 'package';
+                        const name = selectedClient?.name || 'Client';
+
+                        // Pipeline carousel. Package clients get three slides — package
+                        // retainer, one-time custom work, and the two combined — each with the
+                        // same systematic shape: hero = ₹ collected, BILLED / OUTSTANDING
+                        // figures, and a collected-of-billed bar. The heading names the scope,
+                        // so the caption stays a plain "collected to date". Non-package clients
+                        // keep the single finite-contract "% collected" view. Admin-only —
+                        // never surfaced on the client dashboard.
+                        const pkgBilled = selectedPkgPeriods.reduce((a, p) => a + (Number(p.fee_amount) || 0), 0);
+                        const pkgCollected = selectedPkgPeriods.reduce((a, p) => a + (Number(p.paid_amount) || 0), 0);
+                        const pkgOutstanding = Math.max(pkgBilled - pkgCollected, 0);
+                        const barOf = (collected: number, billed: number) => (billed > 0 ? Math.round((collected / billed) * 100) : 0);
+                        const moneySlide = (heading: string, collected: number, billed: number, outstanding: number): PipelineSlide => ({
+                            heading, hero: fmtINR(collected), caption: 'collected to date', barPct: barOf(collected, billed),
+                            leftValue: fmtINR(billed), leftLabel: 'BILLED',
+                            rightValue: fmtINR(outstanding), rightLabel: 'OUTSTANDING',
+                        });
+
+                        const pipelineSlides: PipelineSlide[] = [];
+                        if (isPkgClient) {
+                            const hasCustom = totalValue > 0;
+                            pipelineSlides.push(moneySlide(`Package — ${name}`, pkgCollected, pkgBilled, pkgOutstanding));
+                            if (hasCustom) pipelineSlides.push(moneySlide(`Custom — ${name}`, totalPaid, totalValue, totalPending));
+                            if (hasCustom && pkgBilled > 0) pipelineSlides.push(moneySlide(`Total — ${name}`, pkgCollected + totalPaid, pkgBilled + totalValue, pkgOutstanding + totalPending));
+                        } else if (totalValue > 0) {
+                            pipelineSlides.push({
+                                heading: `Pipeline — ${name}`,
+                                hero: `${paidPct}%`,
+                                caption: 'of contracted value collected to date',
+                                barPct: paidPct,
+                                leftValue: fmtINR(totalPaid), leftLabel: 'REALIZED REVENUE',
+                                rightValue: fmtINR(totalPending), rightLabel: `AWAITING — ${Math.max(100 - paidPct, 0)}%`,
+                            });
+                        }
 
                         return (
                             <div>
@@ -2221,10 +2312,10 @@ export default function AdminDashboard() {
                                     </p>
                                 </div>
 
-                                {/* ===== DARK PIPELINE (client-scoped) ===== */}
-                                {totalValue > 0 && (
+                                {/* ===== DARK PIPELINE (client-scoped carousel) ===== */}
+                                {pipelineSlides.length > 0 && (
                                     <div className="mb-10">
-                                        <DarkPanel heading={`Pipeline — ${selectedClient?.name || 'Client'}`} pct={paidPct} collected={totalPaid} outstanding={totalPending} />
+                                        <DarkPanel key={selectedClient?.id} slides={pipelineSlides} />
                                     </div>
                                 )}
 
