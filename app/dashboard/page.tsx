@@ -229,9 +229,11 @@ export default function DashboardPage() {
         setCoveredProjectIds(new Set(core.coveredProjectIds || []));
     };
 
-    // Memoize fetch functions so real-time handlers can call them
+    // Memoize fetch functions for the background poller. These run "silent" — no
+    // loading skeleton — so periodic/refocus refreshes update data in place
+    // instead of flashing the whole dashboard as if it reloaded.
     const fetchProjectsForClient = useCallback((clientId: string) => {
-        fetchProjects(clientId);
+        fetchProjects(clientId, { silent: true });
     }, []);
 
     const loadPackageInfoForClient = useCallback((clientId: string) => {
@@ -239,7 +241,7 @@ export default function DashboardPage() {
     }, []);
 
     const loadActivityLogsForClient = useCallback((clientId: string) => {
-        loadActivityLogs(clientId);
+        loadActivityLogs(clientId, { silent: true });
     }, []);
 
     const loadPulseLogsForClient = useCallback((clientId: string) => {
@@ -293,8 +295,8 @@ export default function DashboardPage() {
         };
     }, [client?.id, fetchProjectsForClient, loadActivityLogsForClient, loadPackageInfoForClient, loadPulseLogsForClient]);
 
-    const fetchProjects = async (clientId: string) => {
-        setLoading(true);
+    const fetchProjects = async (clientId: string, opts?: { silent?: boolean }) => {
+        if (!opts?.silent) setLoading(true);
         setError(null);
 
         try {
@@ -335,7 +337,7 @@ export default function DashboardPage() {
             console.error("Error fetching projects:", err);
             setError(err.message || "Failed to load projects.");
         } finally {
-            setLoading(false);
+            if (!opts?.silent) setLoading(false);
         }
     };
 
@@ -373,11 +375,11 @@ export default function DashboardPage() {
         }
     };
 
-    const loadActivityLogs = async (_clientId: string) => {
-        setLoadingLogs(true);
+    const loadActivityLogs = async (_clientId: string, opts?: { silent?: boolean }) => {
+        if (!opts?.silent) setLoadingLogs(true);
         const logs = await getPortalActivityLogs(25);
         setActivityLogs(logs as ActivityLog[]);
-        setLoadingLogs(false);
+        if (!opts?.silent) setLoadingLogs(false);
     };
 
     // Work Momentum data: lightweight date-ranged fetch (timestamp + action type)
