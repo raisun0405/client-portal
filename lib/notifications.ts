@@ -61,8 +61,8 @@ const BRAND_HEADER = `
                     <tr>
                         <td align="left" style="padding-bottom:20px;">
                             <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-                                <td style="width:34px; height:34px; background-color:#EFF6FF; border-radius:10px; text-align:center; vertical-align:middle;">
-                                    <img src="https://raw.githubusercontent.com/raisun0405/Mescellanious/main/Spiderman%20listening%20to%20music.jpeg" width="26" height="26" alt="Project Update" style="display:inline-block; width:26px; height:26px; border-radius:7px; object-fit:cover; vertical-align:middle;">
+                                <td style="width:34px; height:34px; background-color:#0F172A; border-radius:10px; text-align:center; vertical-align:middle;">
+                                    <img src="${PUBLIC_ORIGIN}/brand-logo.jpg" width="26" height="26" alt="Project Update" style="display:inline-block; width:26px; height:26px; border-radius:7px; object-fit:cover; vertical-align:middle;">
                                 </td>
                                 <td style="vertical-align:middle; padding-left:10px;">
                                     <span style="font-size:15px; font-weight:600; color:#0F172A; letter-spacing:-0.2px;">Project Update</span>

@@ -99,9 +99,9 @@ export default function LoginPage() {
         <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8 border border-white/50">
           <div className="flex flex-col items-center mb-8">
             <div className="w-24 h-24 rounded-full p-1 bg-linear-to-tr from-blue-500 to-purple-500 shadow-lg mb-4">
-              <div className="w-full h-full rounded-full overflow-hidden border-4 border-white">
+              <div className="w-full h-full rounded-full overflow-hidden border-4 border-slate-900 bg-slate-900">
                 <img
-                  src="https://raw.githubusercontent.com/raisun0405/Mescellanious/main/Spiderman%20listening%20to%20music.jpeg"
+                  src="/brand-logo.jpg"
                   alt="Rai Sun PFP"
                   className="w-full h-full object-cover"
                   onError={(e) => {
