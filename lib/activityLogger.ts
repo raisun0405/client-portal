@@ -20,7 +20,9 @@ export type ActivityAction =
     | 'status_changed'
     | 'package_started'
     | 'package_reverted'
-    | 'invoice_generated';
+    | 'invoice_generated'
+    | 'project_requested'
+    | 'feature_requested';
 
 export type ActivityLog = {
     id: string;

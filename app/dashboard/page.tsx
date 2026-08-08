@@ -430,6 +430,10 @@ export default function DashboardPage() {
                 return { icon: <RefreshCw size={16} />, color: 'bg-slate-500', bgLight: 'bg-slate-50', textColor: 'text-slate-600', label: 'Package Ended' };
             case 'invoice_generated':
                 return { icon: <FileText size={16} />, color: 'bg-amber-500', bgLight: 'bg-amber-50', textColor: 'text-amber-600', label: 'Invoice' };
+            case 'project_requested':
+                return { icon: <PackagePlus size={16} />, color: 'bg-blue-500', bgLight: 'bg-blue-50', textColor: 'text-blue-600', label: 'Requested' };
+            case 'feature_requested':
+                return { icon: <Zap size={16} />, color: 'bg-blue-500', bgLight: 'bg-blue-50', textColor: 'text-blue-600', label: 'Requested' };
             default:
                 return { icon: <Activity size={16} />, color: 'bg-slate-400', bgLight: 'bg-slate-50', textColor: 'text-slate-500', label: 'Activity' };
         }
@@ -455,6 +459,8 @@ export default function DashboardPage() {
             package_started: 'Monthly Package',
             package_reverted: 'Package Ended',
             invoice_generated: 'Invoice',
+            project_requested: 'Requested',
+            feature_requested: 'Requested',
         };
         return labels[actionType] || 'Activity';
     };
@@ -479,6 +485,8 @@ export default function DashboardPage() {
             package_started: '#8b5cf6',
             package_reverted: '#64748b',
             invoice_generated: '#f59e0b',
+            project_requested: '#3b82f6',
+            feature_requested: '#3b82f6',
         };
         return colors[actionType] || '#94a3b8';
     };

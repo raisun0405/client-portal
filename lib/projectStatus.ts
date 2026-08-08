@@ -5,7 +5,9 @@
 // status for business situations that feature progress can't express.
 
 export type DerivedStatus = 'Not Started' | 'In Progress' | 'Completed';
-export type StatusOverride = 'On Hold' | 'Cancelled';
+// 'Requested' marks a client-submitted project awaiting admin acceptance; it's
+// carried on status_override so it wins over the derived status until accepted.
+export type StatusOverride = 'On Hold' | 'Cancelled' | 'Requested';
 export type DisplayStatus = DerivedStatus | StatusOverride;
 
 type FeatureLike = { status?: string | null };
@@ -37,7 +39,7 @@ export function resolveProjectStatus(
     statusOverride: string | null | undefined,
     features: FeatureLike[] = []
 ): DisplayStatus {
-    if (statusOverride === 'On Hold' || statusOverride === 'Cancelled') return statusOverride;
+    if (statusOverride === 'On Hold' || statusOverride === 'Cancelled' || statusOverride === 'Requested') return statusOverride;
     return deriveProjectStatus(features);
 }
 
@@ -49,6 +51,7 @@ export function statusPillClasses(status: string): string {
         case 'Not Started': return 'bg-slate-100 text-slate-600';
         case 'On Hold': return 'bg-orange-50 text-orange-700';
         case 'Cancelled': return 'bg-rose-50 text-rose-700';
+        case 'Requested': return 'bg-blue-50 text-blue-700';
         default: return 'bg-amber-50 text-amber-700';
     }
 }
@@ -61,6 +64,7 @@ export function statusPillClassesBordered(status: string): string {
         case 'Not Started': return 'bg-slate-50 text-slate-500 border-slate-200';
         case 'On Hold': return 'bg-orange-50 text-orange-600 border-orange-100';
         case 'Cancelled': return 'bg-rose-50 text-rose-600 border-rose-100';
+        case 'Requested': return 'bg-blue-50 text-blue-600 border-blue-100';
         default: return 'bg-amber-50 text-amber-600 border-amber-100';
     }
 }

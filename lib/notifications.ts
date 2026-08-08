@@ -1,7 +1,7 @@
 'use server';
 
 import nodemailer from 'nodemailer';
-import { PUBLIC_ORIGIN } from '@/lib/hosts';
+import { PUBLIC_ORIGIN, ADMIN_ORIGIN } from '@/lib/hosts';
 import { monthYearLabel, humanDateRange, planLabel, type Cadence } from '@/lib/packageDates';
 import { supabaseService } from '@/lib/supabaseServer';
 
@@ -17,6 +17,45 @@ const transporter = nodemailer.createTransport({
         pass: process.env.GMAIL_APP_PASSWORD,
     },
 });
+
+// Where new client-request alerts go (admin inbox).
+const ADMIN_NOTIFY_EMAIL = 'rohanvishwakarma471@gmail.com';
+
+// Alert the admin when a client submits a request. Best-effort — callers wrap
+// this in try/catch so a mail failure never blocks the request write itself.
+export async function notifyAdminOfRequest(input: { clientName: string; title: string; description?: string }): Promise<void> {
+    const html = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${input.title}</title></head>
+<body style="margin:0; padding:0; background-color:#F8FAFC; font-family:'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F8FAFC;"><tr><td align="center" style="padding:40px 20px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px; margin:0 auto; background:#FFFFFF; border:1px solid #E2E8F0; border-radius:16px;">
+            <tr><td style="padding:32px 36px;">
+                <table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:18px;"><tr>
+                    <td style="background-color:#EFF6FF; border-radius:7px; height:24px; padding:0 12px;">
+                        <span style="font-size:10.5px; line-height:24px; font-weight:700; color:#2563EB; text-transform:uppercase; letter-spacing:0.09em;">New client request</span>
+                    </td>
+                </tr></table>
+                <h1 style="margin:0 0 14px 0; font-size:22px; font-weight:700; color:#0F172A; line-height:1.3; letter-spacing:-0.3px;">${input.title}</h1>
+                ${input.description ? `<p style="margin:0 0 24px 0; font-size:14px; color:#475569; line-height:1.7;">${input.description}</p>` : ''}
+                <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+                    <td style="border-radius:10px; background-color:#3B82F6;">
+                        <a href="${ADMIN_ORIGIN}/admin/dashboard" style="display:inline-block; padding:12px 22px; font-size:14px; font-weight:700; color:#FFFFFF; text-decoration:none; border-radius:10px;">Review in admin&nbsp;&#8599;</a>
+                    </td>
+                </tr></table>
+            </td></tr>
+            <tr><td style="padding:16px 36px; background:#F8FAFC; border-top:1px solid #F1F5F9; border-radius:0 0 16px 16px;">
+                <p style="margin:0; font-size:11px; color:#94A3B8;">From ${input.clientName} &middot; via the client portal</p>
+            </td></tr>
+        </table>
+    </td></tr></table>
+</body></html>`;
+    await transporter.sendMail({
+        from: `"Client Portal" <${process.env.GMAIL_EMAIL}>`,
+        to: ADMIN_NOTIFY_EMAIL,
+        subject: `New request — ${input.title}`,
+        html,
+    });
+}
 
 type ActivityLog = {
     id: string;
@@ -51,6 +90,8 @@ const ACTION_META: Record<string, ActionMeta> = {
     package_started: { label: 'Monthly Package', bg: '#F5F3FF', text: '#7C3AED', dot: '#8B5CF6' },
     package_reverted: { label: 'Package Ended', bg: '#F1F5F9', text: '#475569', dot: '#64748B' },
     invoice_generated: { label: 'Invoice', bg: '#F5F3FF', text: '#7C3AED', dot: '#8B5CF6' },
+    project_requested: { label: 'Requested', bg: '#EFF6FF', text: '#2563EB', dot: '#3B82F6' },
+    feature_requested: { label: 'Requested', bg: '#EFF6FF', text: '#2563EB', dot: '#3B82F6' },
 };
 const DEFAULT_META: ActionMeta = { label: 'Activity', bg: '#F1F5F9', text: '#475569', dot: '#94A3B8' };
 const metaFor = (actionType: string): ActionMeta => ACTION_META[actionType] || DEFAULT_META;
