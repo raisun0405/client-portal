@@ -1824,6 +1824,17 @@ export default function DashboardPage() {
                                                                 {feature.estimation && (
                                                                     <p className="text-xs text-slate-500 mt-0.5">EST: {feature.estimation}</p>
                                                                 )}
+                                                                {feature.origin === 'client' && feature.status === 'Requested' && (
+                                                                    <div className="flex items-center gap-3 mt-1.5">
+                                                                        <span className="text-[11px] font-semibold text-blue-500">Your request · awaiting review</span>
+                                                                        <button onClick={() => openEditFeature(feature)} className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400 hover:text-slate-700 transition-colors">
+                                                                            <Pencil size={11} /> Edit
+                                                                        </button>
+                                                                        <button onClick={() => withdrawFeature(feature.id)} className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-400 hover:text-rose-600 transition-colors">
+                                                                            <Trash2 size={11} /> Withdraw
+                                                                        </button>
+                                                                    </div>
+                                                                )}
                                                             </td>
                                                             <td className="px-6 py-4">
                                                                 <div className="flex flex-col">
@@ -1937,6 +1948,18 @@ export default function DashboardPage() {
                                                     </div>
 
                                                     <h4 className="text-slate-900 font-semibold mb-2">{feature.description}</h4>
+
+                                                    {feature.origin === 'client' && feature.status === 'Requested' && (
+                                                        <div className="flex items-center gap-3 mb-2">
+                                                            <span className="text-[11px] font-semibold text-blue-500 mr-auto">Your request · awaiting review</span>
+                                                            <button onClick={() => openEditFeature(feature)} className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400 active:text-slate-700">
+                                                                <Pencil size={11} /> Edit
+                                                            </button>
+                                                            <button onClick={() => withdrawFeature(feature.id)} className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-400 active:text-rose-600">
+                                                                <Trash2 size={11} /> Withdraw
+                                                            </button>
+                                                        </div>
+                                                    )}
 
                                                     <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-50 text-xs">
                                                         <div className="space-y-1">

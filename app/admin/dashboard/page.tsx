@@ -58,6 +58,7 @@ type Project = {
     description: string;
     status: string;
     status_override?: string | null;
+    origin?: string | null;
     links: { title: string; url: string }[];
     created_at: string;
 };
@@ -73,6 +74,7 @@ type Feature = {
     payment_status: string;
     is_new_request: boolean;
     payment_confirmed: boolean;
+    origin?: string | null;
     created_at: string;
 };
 
@@ -165,6 +167,8 @@ const PROJECT_STAGE: Record<string, PillTone> = {
     'Completed': { bg: '#1A1D25', fg: '#FFFFFF', dot: '#FFFFFF' },
     'On Hold': { bg: '#F7EDD8', fg: '#A86B2D', dot: '#A86B2D' },
     'Cancelled': { bg: '#EDEFF3', fg: '#6E7686', dot: '#A8AEBC' },
+    // Client-submitted, awaiting acceptance — cool blue so it pops in the warm palette.
+    'Requested': { bg: '#E8EFFC', fg: '#2F6BD8', dot: '#2F6BD8' },
 };
 const FEATURE_STAGE: Record<string, PillTone> = {
     Requested: { bg: '#EAEDF2', fg: '#5E6675', dot: '#A0A7B4' },
@@ -1023,6 +1027,27 @@ export default function AdminDashboard() {
         setFormData({ description: project.description, category: project.category, status_override: project.status_override || '' });
         setEditingId(project.id);
         setShowModal(true);
+    };
+
+    // Accept a client-requested project: clearing the Requested override moves it
+    // into the normal derived-status pipeline AND locks the client out of
+    // editing/withdrawing it (their window is only while status is Requested).
+    const acceptProjectRequest = async (project: ProjectWithStats) => {
+        if (!selectedClient) return;
+        const { error } = await supabaseAdmin
+            .from('projects')
+            .update({ status_override: null, status: 'Not Started' })
+            .eq('id', project.id);
+        if (error) { alert('Could not accept the request: ' + error.message); return; }
+        await logActivity({
+            clientId: selectedClient.id,
+            projectId: project.id,
+            actionType: 'status_changed',
+            title: 'Project request accepted',
+            description: `"${project.description}" was accepted and is now in the pipeline`,
+            metadata: { origin: 'client', accepted: true },
+        });
+        fetchProjects(selectedClient.id);
     };
 
     const handleEditFeature = (feature: Feature) => {
@@ -2354,6 +2379,11 @@ export default function AdminDashboard() {
                                                     <div className="flex items-center gap-3 flex-wrap">
                                                         <h3 className="font-bold" style={{ fontSize: 17, letterSpacing: '-0.01em' }}>{project.description}</h3>
                                                         <StagePill label={ds} tone={tone} size="sm" />
+                                                        {project.origin === 'client' && ds === 'Requested' && (
+                                                            <span className="inline-flex items-center rounded-full font-extrabold uppercase whitespace-nowrap" style={{ border: '1px solid #C3D4F2', color: '#2F6BD8', padding: '2px 9px', fontSize: 10, letterSpacing: '0.07em' }}>
+                                                                Client request
+                                                            </span>
+                                                        )}
                                                     </div>
                                                     <div className="text-[11.5px] font-extrabold uppercase mt-1.5" style={{ letterSpacing: '0.1em', color: T.label }}>
                                                         {project.category} <span style={{ color: '#BFC5D0' }}>·</span> {new Date(project.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
@@ -2395,6 +2425,15 @@ export default function AdminDashboard() {
 
                                                 {/* Actions */}
                                                 <div className="flex items-center gap-1.5 lg:justify-end flex-wrap">
+                                                    {project.origin === 'client' && ds === 'Requested' && (
+                                                        <button
+                                                            onClick={() => acceptProjectRequest(project)}
+                                                            className="rounded-full h-9 px-4 text-[12.5px] font-bold text-white flex items-center gap-1.5 whitespace-nowrap transition-opacity hover:opacity-90"
+                                                            style={{ background: T.green }}
+                                                        >
+                                                            <CheckCircle2 size={13} strokeWidth={2.5} /> Accept
+                                                        </button>
+                                                    )}
                                                     <button
                                                         onClick={() => handleProjectLinksSelect(project)}
                                                         className="rounded-full h-9 px-4 text-[12.5px] font-bold flex items-center gap-1.5 transition-colors hover:bg-[rgba(26,29,37,0.06)]"
@@ -2490,6 +2529,15 @@ export default function AdminDashboard() {
                                                         >
                                                             <Link2 size={14} strokeWidth={2} />
                                                         </button>
+                                                        {project.origin === 'client' && ds === 'Requested' && (
+                                                            <button
+                                                                onClick={() => acceptProjectRequest(project)}
+                                                                className="rounded-full h-9 px-3.5 text-[12.5px] font-bold text-white flex items-center gap-1.5 whitespace-nowrap transition-opacity hover:opacity-90"
+                                                                style={{ background: T.green }}
+                                                            >
+                                                                <CheckCircle2 size={13} strokeWidth={2.5} /> Accept
+                                                            </button>
+                                                        )}
                                                         <button
                                                             onClick={() => handleProjectSelect(project)}
                                                             className="rounded-full h-9 px-3.5 text-[12.5px] font-bold text-white flex items-center gap-1.5 whitespace-nowrap transition-opacity hover:opacity-90"
@@ -2805,12 +2853,17 @@ export default function AdminDashboard() {
                                                                     )}
                                                                 </div>
                                                             )}
-                                                            <div>
+                                                            <div className="flex items-center gap-1.5 flex-wrap">
                                                                 <span className="inline-flex rounded-full font-extrabold uppercase whitespace-nowrap" style={feature.is_new_request
                                                                     ? { background: T.accentSoft, color: T.accent, padding: '3px 9px', fontSize: 10, letterSpacing: '0.06em' }
                                                                     : { background: '#EAEDF2', color: '#5E6675', padding: '3px 9px', fontSize: 10, letterSpacing: '0.06em' }}>
                                                                     {feature.is_new_request ? 'Extra' : 'Core'}
                                                                 </span>
+                                                                {feature.origin === 'client' && feature.status === 'Requested' && (
+                                                                    <span className="inline-flex rounded-full font-extrabold uppercase whitespace-nowrap" style={{ border: '1px solid #C3D4F2', color: '#2F6BD8', padding: '2px 8px', fontSize: 10, letterSpacing: '0.06em' }}>
+                                                                        Client request
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                             <div className="flex items-center gap-2 min-w-0">
                                                                 <StagePill label={feature.status} tone={tone} size="sm" />
@@ -2872,6 +2925,11 @@ export default function AdminDashboard() {
                                                                     : { background: '#EAEDF2', color: '#5E6675', padding: '3px 9px', fontSize: 10, letterSpacing: '0.06em' }}>
                                                                     {feature.is_new_request ? 'Extra' : 'Core'}
                                                                 </span>
+                                                                {feature.origin === 'client' && feature.status === 'Requested' && (
+                                                                    <span className="inline-flex rounded-full font-extrabold uppercase whitespace-nowrap" style={{ border: '1px solid #C3D4F2', color: '#2F6BD8', padding: '2px 8px', fontSize: 10, letterSpacing: '0.06em' }}>
+                                                                        Client request
+                                                                    </span>
+                                                                )}
                                                                 {feature.estimation && (
                                                                     <span className="font-jbmono text-[10.5px] uppercase" style={{ color: '#828A99' }}>Est · {feature.estimation}</span>
                                                                 )}
