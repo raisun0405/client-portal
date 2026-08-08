@@ -674,7 +674,7 @@ export default function DashboardPage() {
             {/* Header */}
             <header className="bg-white/95 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 px-6 py-4 flex justify-between items-center">
                 <Link href="/" className="flex items-center gap-3 group">
-                    <div className="bg-slate-100 p-1 rounded-full transition-colors group-hover:bg-slate-200">
+                    <div className="bg-[#C0C0C0] p-1 rounded-full transition-colors group-hover:bg-[#B3B3B3]">
                         <img
                             src="/brand-logo.jpg"
                             alt="Logo"
