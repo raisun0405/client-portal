@@ -9,7 +9,7 @@ import { resolveProjectStatus, statusPillClasses, statusPillClassesBordered, typ
 import { computeProjectStats } from '@/lib/billing';
 import { packageSchedule, todayLocalISO, coveragePeriod, type Cadence } from '@/lib/packageDates';
 import { getClientSession, logoutClient } from '../actions'; // Import server actions
-import { requestProject, requestFeature, editRequestedProject, editRequestedFeature, withdrawRequestedProject, withdrawRequestedFeature } from './requestActions';
+import { requestProject, requestFeature, editRequestedProject, editRequestedFeature, withdrawRequestedProject, withdrawRequestedFeature, requestFeatureChange, withdrawChangeRequest, getMyPendingChanges } from './requestActions';
 import Tutorial from './Tutorial';
 import { LayoutGrid, LogOut, FolderOpen, Loader2, X, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Calendar, ArrowRight, TrendingUp, Wallet, CheckCircle2, Clock, FileText, Zap, CreditCard, Link2, Trash2, RefreshCw, PackagePlus, Activity, Download, Pencil, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -128,6 +128,10 @@ export default function DashboardPage() {
     const [reqBusy, setReqBusy] = useState(false);
     const [reqError, setReqError] = useState<string | null>(null);
     const [editReq, setEditReq] = useState<{ type: 'project' | 'feature'; id: string } | null>(null);
+    // Phase 2: proposed edits on locked features. Map of feature_id → pending
+    // change request, plus the "suggest a change" modal form (null = closed).
+    const [pendingChanges, setPendingChanges] = useState<Record<string, { id: string; proposed: any }>>({});
+    const [chgForm, setChgForm] = useState<{ featureId: string; current: string; description: string; note: string } | null>(null);
 
     // Sorting state
     const [sortField, setSortField] = useState<SortField>('created_at');
@@ -277,6 +281,7 @@ export default function DashboardPage() {
                 fetchProjects(session.id);
                 loadActivityLogs(session.id);
                 loadPulseLogs(session.id);
+                loadPendingChanges();
             } catch (err) {
                 console.error("Session verification failed", err);
                 router.push('/');
@@ -379,11 +384,36 @@ export default function DashboardPage() {
     };
 
     // ---- Client request handlers ----
+    const loadPendingChanges = async () => {
+        const list = await getMyPendingChanges();
+        const map: Record<string, { id: string; proposed: any }> = {};
+        list.forEach(c => { if (c.target_type === 'feature') map[c.target_id] = { id: c.id, proposed: c.proposed }; });
+        setPendingChanges(map);
+    };
+
     const refreshRequests = () => {
         if (!client?.id) return;
         fetchProjects(client.id, { silent: true });
         fetchPackageInfo(client.id);
+        loadPendingChanges();
         if (selectedProject) fetchFeatures(selectedProject.id);
+    };
+
+    const submitChangeRequest = async () => {
+        if (!chgForm) return;
+        setReqBusy(true); setReqError(null);
+        const res = await requestFeatureChange({ featureId: chgForm.featureId, description: chgForm.description, note: chgForm.note });
+        setReqBusy(false);
+        if (!res.success) { setReqError(res.message || 'Something went wrong.'); return; }
+        setChgForm(null);
+        refreshRequests();
+    };
+
+    const withdrawChange = async (changeRequestId: string) => {
+        if (!window.confirm('Withdraw this change request?')) return;
+        const res = await withdrawChangeRequest(changeRequestId);
+        if (!res.success) { window.alert(res.message); return; }
+        refreshRequests();
     };
 
     const openRequestProject = () => {
@@ -512,6 +542,8 @@ export default function DashboardPage() {
                 return { icon: <PackagePlus size={16} />, color: 'bg-blue-500', bgLight: 'bg-blue-50', textColor: 'text-blue-600', label: 'Requested' };
             case 'feature_requested':
                 return { icon: <Zap size={16} />, color: 'bg-blue-500', bgLight: 'bg-blue-50', textColor: 'text-blue-600', label: 'Requested' };
+            case 'change_requested':
+                return { icon: <Pencil size={16} />, color: 'bg-orange-500', bgLight: 'bg-orange-50', textColor: 'text-orange-600', label: 'Change Requested' };
             default:
                 return { icon: <Activity size={16} />, color: 'bg-slate-400', bgLight: 'bg-slate-50', textColor: 'text-slate-500', label: 'Activity' };
         }
@@ -539,6 +571,7 @@ export default function DashboardPage() {
             invoice_generated: 'Invoice',
             project_requested: 'Requested',
             feature_requested: 'Requested',
+            change_requested: 'Change Requested',
         };
         return labels[actionType] || 'Activity';
     };
@@ -565,6 +598,7 @@ export default function DashboardPage() {
             invoice_generated: '#f59e0b',
             project_requested: '#3b82f6',
             feature_requested: '#3b82f6',
+            change_requested: '#f97316',
         };
         return colors[actionType] || '#94a3b8';
     };
@@ -1835,6 +1869,20 @@ export default function DashboardPage() {
                                                                         </button>
                                                                     </div>
                                                                 )}
+                                                                {feature.status !== 'Requested' && feature.status !== 'Completed' && (
+                                                                    pendingChanges[feature.id] ? (
+                                                                        <div className="flex items-center gap-3 mt-1.5">
+                                                                            <span className="text-[11px] font-semibold text-orange-500">Change requested · awaiting review</span>
+                                                                            <button onClick={() => withdrawChange(pendingChanges[feature.id].id)} className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-400 hover:text-rose-600 transition-colors">
+                                                                                <Trash2 size={11} /> Withdraw
+                                                                            </button>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <button onClick={() => { setReqError(null); setChgForm({ featureId: feature.id, current: feature.description, description: feature.description, note: '' }); }} className="inline-flex items-center gap-1 mt-1.5 text-[11px] font-semibold text-slate-400 hover:text-blue-600 transition-colors">
+                                                                            <Pencil size={11} /> Suggest a change
+                                                                        </button>
+                                                                    )
+                                                                )}
                                                             </td>
                                                             <td className="px-6 py-4">
                                                                 <div className="flex flex-col">
@@ -1959,6 +2007,20 @@ export default function DashboardPage() {
                                                                 <Trash2 size={11} /> Withdraw
                                                             </button>
                                                         </div>
+                                                    )}
+                                                    {feature.status !== 'Requested' && feature.status !== 'Completed' && (
+                                                        pendingChanges[feature.id] ? (
+                                                            <div className="flex items-center gap-3 mb-2">
+                                                                <span className="text-[11px] font-semibold text-orange-500 mr-auto">Change requested · awaiting review</span>
+                                                                <button onClick={() => withdrawChange(pendingChanges[feature.id].id)} className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-400 active:text-rose-600">
+                                                                    <Trash2 size={11} /> Withdraw
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <button onClick={() => { setReqError(null); setChgForm({ featureId: feature.id, current: feature.description, description: feature.description, note: '' }); }} className="inline-flex items-center gap-1 mb-2 text-[11px] font-semibold text-slate-400 active:text-blue-600">
+                                                                <Pencil size={11} /> Suggest a change
+                                                            </button>
+                                                        )
                                                     )}
 
                                                     <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-50 text-xs">
@@ -2109,6 +2171,37 @@ export default function DashboardPage() {
                             <button onClick={() => !reqBusy && setReqProjectOpen(false)} className="px-5 h-11 rounded-full border border-slate-200 text-slate-600 font-semibold text-[13.5px] hover:bg-white hover:border-slate-300 active:scale-[0.98] transition-all">Cancel</button>
                             <button onClick={submitProjectRequest} disabled={reqBusy || reqProjectForm.name.trim().length < 3} className="inline-flex items-center gap-2 px-5 h-11 rounded-full bg-blue-600 text-white font-semibold text-[13.5px] shadow-sm shadow-blue-600/25 hover:bg-blue-700 hover:shadow-blue-600/40 active:scale-[0.98] transition-all disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none disabled:cursor-not-allowed">
                                 {reqBusy ? <Loader2 size={15} className="animate-spin" /> : <ArrowRight size={15} strokeWidth={2.5} />}{editReq?.type === 'project' ? 'Save changes' : 'Submit request'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ===== Suggest a change modal (locked features) ===== */}
+            {chgForm && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => !reqBusy && setChgForm(null)} />
+                    <div className="relative z-10 w-full max-w-md bg-white rounded-3xl shadow-2xl ring-1 ring-black/5 overflow-hidden">
+                        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+                            <h3 className="text-lg font-bold text-slate-900">Suggest a change</h3>
+                            <button onClick={() => !reqBusy && setChgForm(null)} className="p-2 rounded-full hover:bg-slate-100 text-slate-400"><X size={18} /></button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <p className="text-[13px] text-slate-500">This work is already in progress, so your edit goes to us for review — we’ll apply it or get back to you.</p>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Updated description</label>
+                                <textarea autoFocus value={chgForm.description} onChange={e => setChgForm(s => s ? { ...s, description: e.target.value } : s)} maxLength={200} rows={3} className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-[14px] outline-none resize-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Reason <span className="text-slate-300 normal-case font-medium">(optional)</span></label>
+                                <textarea value={chgForm.note} onChange={e => setChgForm(s => s ? { ...s, note: e.target.value } : s)} maxLength={500} rows={2} placeholder="Why this change?" className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-[14px] outline-none resize-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
+                            </div>
+                            {reqError && <p className="text-[13px] text-rose-600 font-medium">{reqError}</p>}
+                        </div>
+                        <div className="px-6 py-4 bg-slate-50/80 border-t border-slate-100 flex items-center justify-end gap-2.5">
+                            <button onClick={() => !reqBusy && setChgForm(null)} className="px-5 h-11 rounded-full border border-slate-200 text-slate-600 font-semibold text-[13.5px] hover:bg-white hover:border-slate-300 active:scale-[0.98] transition-all">Cancel</button>
+                            <button onClick={submitChangeRequest} disabled={reqBusy || chgForm.description.trim().length < 3 || (chgForm.description.trim() === chgForm.current && !chgForm.note.trim())} className="inline-flex items-center gap-2 px-5 h-11 rounded-full bg-blue-600 text-white font-semibold text-[13.5px] shadow-sm shadow-blue-600/25 hover:bg-blue-700 hover:shadow-blue-600/40 active:scale-[0.98] transition-all disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none disabled:cursor-not-allowed">
+                                {reqBusy ? <Loader2 size={15} className="animate-spin" /> : <ArrowRight size={15} strokeWidth={2.5} />}Send for review
                             </button>
                         </div>
                     </div>

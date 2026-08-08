@@ -205,6 +205,85 @@ export async function withdrawRequestedProject(projectId: string): Promise<Resul
     return { success: true };
 }
 
+// ---- Phase 2: change requests on LOCKED (accepted, non-completed) features ----
+// The client can't touch the live row anymore, so a proposed edit is stored as
+// a pending change_requests record that the admin approves (applies) or rejects.
+
+const MAX_PENDING_CHANGES = 5;
+
+// Ownership + eligibility: the feature must belong to the caller, be past
+// Requested (locked), and not Completed.
+async function loadOwnedFeature(db: any, clientId: string, featureId: string) {
+    const { data: feat } = await db.from('features').select('id, description, status, project_id').eq('id', featureId).single();
+    if (!feat) return null;
+    const { data: proj } = await db.from('projects').select('client_id, description').eq('id', feat.project_id).single();
+    if (!proj || proj.client_id !== clientId) return null;
+    return { ...feat, projectName: proj.description };
+}
+
+export async function requestFeatureChange(input: { featureId: string; description: string; note?: string }): Promise<Result> {
+    const s = await requireSession();
+    if (!s) return { success: false, message: 'Please sign in again.' };
+    const db = supabaseService();
+
+    const description = clean(input.description), note = clean(input.note);
+    if (description.length < DESC_MIN || description.length > DESC_MAX) return { success: false, message: `Feature must be ${DESC_MIN}–${DESC_MAX} characters.` };
+    if (note.length > NOTE_MAX) return { success: false, message: `Note must be ${NOTE_MAX} characters or fewer.` };
+
+    const feat = await loadOwnedFeature(db, s.id, input.featureId);
+    if (!feat) return { success: false, message: 'Feature not found.' };
+    if (feat.status === 'Requested') return { success: false, message: 'This is still a pending request — you can edit it directly.' };
+    if (feat.status === 'Completed') return { success: false, message: 'Completed work can no longer be changed.' };
+    if (description === feat.description && !note) return { success: false, message: 'No changes to propose.' };
+
+    const { count } = await db.from('change_requests').select('id', { count: 'exact', head: true }).eq('client_id', s.id).eq('status', 'pending');
+    if ((count || 0) >= MAX_PENDING_CHANGES) return { success: false, message: `You already have ${MAX_PENDING_CHANGES} pending change requests. Please wait for those to be reviewed.` };
+
+    const { data: cr, error } = await db.from('change_requests').insert({
+        client_id: s.id,
+        target_type: 'feature',
+        target_id: feat.id,
+        proposed: { description },
+        note: note || null,
+    }).select('id').single();
+    if (error) {
+        if (/duplicate|unique/i.test(error.message)) return { success: false, message: 'A change request for this feature is already pending.' };
+        return { success: false, message: error.message };
+    }
+
+    const desc = `${s.name || 'A client'} proposed a change on “${feat.projectName}”: “${feat.description}” → “${description}”${note ? ` — ${note}` : ''}`;
+    await logAndNotify(db, { clientId: s.id, clientName: s.name, projectId: feat.project_id, actionType: 'change_requested', title: `Change requested: ${feat.description}`, description: desc, metadata: { origin: 'client', featureId: feat.id, proposed: description, note } });
+    return { success: true, id: cr.id };
+}
+
+export async function withdrawChangeRequest(changeRequestId: string): Promise<Result> {
+    const s = await requireSession();
+    if (!s) return { success: false, message: 'Please sign in again.' };
+    const db = supabaseService();
+
+    const { data: cr } = await db.from('change_requests').select('id, client_id, status').eq('id', changeRequestId).single();
+    if (!cr || cr.client_id !== s.id) return { success: false, message: 'Change request not found.' };
+    if (cr.status !== 'pending') return { success: false, message: 'This change request has already been reviewed.' };
+
+    const { error } = await db.from('change_requests').delete().eq('id', cr.id);
+    if (error) return { success: false, message: error.message };
+    return { success: true };
+}
+
+// The caller's pending change requests, keyed by target — the portal uses this
+// to mark rows "change pending" and to offer withdraw.
+export async function getMyPendingChanges(): Promise<{ id: string; target_id: string; target_type: string; proposed: any; note: string | null }[]> {
+    const s = await requireSession();
+    if (!s) return [];
+    const db = supabaseService();
+    const { data } = await db
+        .from('change_requests')
+        .select('id, target_id, target_type, proposed, note')
+        .eq('client_id', s.id)
+        .eq('status', 'pending');
+    return JSON.parse(JSON.stringify(data || []));
+}
+
 export async function withdrawRequestedFeature(featureId: string): Promise<Result> {
     const s = await requireSession();
     if (!s) return { success: false, message: 'Please sign in again.' };

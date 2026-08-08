@@ -92,6 +92,7 @@ const ACTION_META: Record<string, ActionMeta> = {
     invoice_generated: { label: 'Invoice', bg: '#F5F3FF', text: '#7C3AED', dot: '#8B5CF6' },
     project_requested: { label: 'Requested', bg: '#EFF6FF', text: '#2563EB', dot: '#3B82F6' },
     feature_requested: { label: 'Requested', bg: '#EFF6FF', text: '#2563EB', dot: '#3B82F6' },
+    change_requested: { label: 'Change Requested', bg: '#FFF7ED', text: '#EA580C', dot: '#F97316' },
 };
 const DEFAULT_META: ActionMeta = { label: 'Activity', bg: '#F1F5F9', text: '#475569', dot: '#94A3B8' };
 const metaFor = (actionType: string): ActionMeta => ACTION_META[actionType] || DEFAULT_META;

@@ -329,6 +329,8 @@ export default function AdminDashboard() {
     const [sortOpen, setSortOpen] = useState(false);
     const [projects, setProjects] = useState<ProjectWithStats[]>([]);
     const [features, setFeatures] = useState<Feature[]>([]);
+    // Pending client change-requests keyed by feature id (Phase 2 review).
+    const [featureChangeReqs, setFeatureChangeReqs] = useState<Record<string, { id: string; proposed: any; note: string | null }>>({});
     const [links, setLinks] = useState<{ title: string; url: string }[]>([]);
 
     // Selection State
@@ -592,7 +594,58 @@ export default function AdminDashboard() {
         setLoading(true);
         const { data } = await supabaseAdmin.from('features').select('*').eq('project_id', projectId).order('created_at', { ascending: true });
         if (data) setFeatures(data);
+        // Pending client change-requests for these features (Phase 2 review UI).
+        const ids = (data || []).map((f: any) => f.id);
+        if (ids.length > 0) {
+            const { data: crs } = await supabaseAdmin
+                .from('change_requests')
+                .select('id, target_id, proposed, note')
+                .in('target_id', ids)
+                .eq('status', 'pending');
+            const map: Record<string, { id: string; proposed: any; note: string | null }> = {};
+            (crs || []).forEach((c: any) => { map[c.target_id] = { id: c.id, proposed: c.proposed, note: c.note }; });
+            setFeatureChangeReqs(map);
+        } else {
+            setFeatureChangeReqs({});
+        }
         setLoading(false);
+    };
+
+    // Approve a client's proposed edit: apply it to the live feature, resolve the
+    // change request, and log it (sendable to the client from the activity feed).
+    const approveFeatureChange = async (feature: Feature) => {
+        const cr = featureChangeReqs[feature.id];
+        if (!cr || !selectedClient) return;
+        const newDesc = cr.proposed?.description || feature.description;
+        const { error } = await supabaseAdmin.from('features').update({ description: newDesc }).eq('id', feature.id);
+        if (error) { alert('Could not apply the change: ' + error.message); return; }
+        await supabaseAdmin.from('change_requests').update({ status: 'approved', resolved_at: new Date().toISOString() }).eq('id', cr.id);
+        await logActivity({
+            clientId: selectedClient.id,
+            projectId: feature.project_id,
+            actionType: 'feature_updated',
+            title: 'Change request approved',
+            description: `"${feature.description}" was updated to "${newDesc}"`,
+            metadata: { origin: 'client', changeRequestId: cr.id },
+        });
+        if (selectedProject) fetchFeatures(selectedProject.id);
+    };
+
+    const rejectFeatureChange = async (feature: Feature) => {
+        const cr = featureChangeReqs[feature.id];
+        if (!cr || !selectedClient) return;
+        if (!window.confirm('Decline this change request?')) return;
+        const { error } = await supabaseAdmin.from('change_requests').update({ status: 'rejected', resolved_at: new Date().toISOString() }).eq('id', cr.id);
+        if (error) { alert('Could not decline: ' + error.message); return; }
+        await logActivity({
+            clientId: selectedClient.id,
+            projectId: feature.project_id,
+            actionType: 'status_changed',
+            title: 'Change request declined',
+            description: `The proposed change to "${feature.description}" was declined`,
+            metadata: { origin: 'client', changeRequestId: cr.id },
+        });
+        if (selectedProject) fetchFeatures(selectedProject.id);
     };
 
     // --- URL helpers ---
@@ -1744,6 +1797,7 @@ export default function AdminDashboard() {
             case 'invoice_generated': return { icon: <FileText size={14} />, color: 'bg-amber-500', bgLight: 'bg-amber-50', textColor: 'text-amber-600', label: 'Invoice' };
             case 'project_requested': return { icon: <PackagePlus size={14} />, color: 'bg-blue-500', bgLight: 'bg-blue-50', textColor: 'text-blue-600', label: 'Requested' };
             case 'feature_requested': return { icon: <Zap size={14} />, color: 'bg-blue-500', bgLight: 'bg-blue-50', textColor: 'text-blue-600', label: 'Requested' };
+            case 'change_requested': return { icon: <Pencil size={14} />, color: 'bg-orange-500', bgLight: 'bg-orange-50', textColor: 'text-orange-600', label: 'Change Requested' };
             default: return { icon: <Activity size={14} />, color: 'bg-slate-400', bgLight: 'bg-slate-50', textColor: 'text-slate-500', label: 'Activity' };
         }
     };
@@ -2816,14 +2870,15 @@ export default function AdminDashboard() {
                                                 {sorted.map((feature, idx) => {
                                                     const tone = FEATURE_STAGE[feature.status] || FEATURE_STAGE.Requested;
                                                     const ratePending = feature.payment_confirmed === false;
+                                                    const changeReq = featureChangeReqs[feature.id];
                                                     return (
+                                                        <div key={feature.id}>
                                                         <motion.div
-                                                            key={feature.id}
                                                             initial={{ opacity: 0 }}
                                                             animate={{ opacity: 1 }}
                                                             transition={{ delay: Math.min(idx * 0.025, 0.3), duration: 0.2 }}
                                                             className={`${featGridCls} py-4 transition-colors hover:bg-[rgba(26,29,37,0.02)]`}
-                                                            style={{ borderBottom: `1px solid ${T.hairline}` }}
+                                                            style={{ borderBottom: changeReq ? 'none' : `1px solid ${T.hairline}` }}
                                                         >
                                                             <div className="min-w-0">
                                                                 <p className="font-semibold truncate" style={{ fontSize: 14.5 }}>{feature.description}</p>
@@ -2889,6 +2944,26 @@ export default function AdminDashboard() {
                                                                 </button>
                                                             </div>
                                                         </motion.div>
+                                                        {changeReq && (
+                                                            <div className="flex flex-wrap items-center gap-3 px-3 py-3 rounded-[12px] mb-3" style={{ background: '#FDF3E7', border: '1px solid #EBD9BE' }}>
+                                                                <span className="inline-flex rounded-full font-extrabold uppercase whitespace-nowrap shrink-0" style={{ background: '#F7EDD8', color: T.amber, padding: '3px 9px', fontSize: 10, letterSpacing: '0.06em' }}>
+                                                                    Change requested
+                                                                </span>
+                                                                <p className="flex-1 min-w-[200px] text-[13px] font-medium" style={{ color: '#7A5A24' }}>
+                                                                    Proposes: <span className="font-bold" style={{ color: T.ink }}>&ldquo;{changeReq.proposed?.description}&rdquo;</span>
+                                                                    {changeReq.note && <span style={{ color: '#A08650' }}> — {changeReq.note}</span>}
+                                                                </p>
+                                                                <div className="flex items-center gap-1.5 shrink-0">
+                                                                    <button onClick={() => approveFeatureChange(feature)} className="rounded-full h-8 px-3.5 text-[12px] font-bold text-white transition-opacity hover:opacity-90" style={{ background: T.green }}>
+                                                                        Approve
+                                                                    </button>
+                                                                    <button onClick={() => rejectFeatureChange(feature)} className="rounded-full h-8 px-3.5 text-[12px] font-bold transition-colors hover:bg-[rgba(179,51,29,0.08)]" style={{ border: `1px solid ${T.hairline}`, color: '#B3331D' }}>
+                                                                        Decline
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                        </div>
                                                     );
                                                 })}
                                             </div>
@@ -2968,6 +3043,25 @@ export default function AdminDashboard() {
                                                                 </div>
                                                                 );
                                                             })()}
+                                                            {featureChangeReqs[feature.id] && (
+                                                                <div className="mt-3 rounded-[12px] p-3" style={{ background: '#FDF3E7', border: '1px solid #EBD9BE' }}>
+                                                                    <span className="inline-flex rounded-full font-extrabold uppercase" style={{ background: '#F7EDD8', color: T.amber, padding: '3px 9px', fontSize: 10, letterSpacing: '0.06em' }}>
+                                                                        Change requested
+                                                                    </span>
+                                                                    <p className="text-[13px] font-medium mt-2" style={{ color: '#7A5A24' }}>
+                                                                        Proposes: <span className="font-bold" style={{ color: T.ink }}>&ldquo;{featureChangeReqs[feature.id].proposed?.description}&rdquo;</span>
+                                                                        {featureChangeReqs[feature.id].note && <span style={{ color: '#A08650' }}> — {featureChangeReqs[feature.id].note}</span>}
+                                                                    </p>
+                                                                    <div className="flex items-center gap-1.5 mt-2.5">
+                                                                        <button onClick={() => approveFeatureChange(feature)} className="rounded-full h-8 px-3.5 text-[12px] font-bold text-white transition-opacity hover:opacity-90" style={{ background: T.green }}>
+                                                                            Approve
+                                                                        </button>
+                                                                        <button onClick={() => rejectFeatureChange(feature)} className="rounded-full h-8 px-3.5 text-[12px] font-bold transition-colors" style={{ border: `1px solid ${T.hairline}`, color: '#B3331D' }}>
+                                                                            Decline
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </motion.div>
                                                     );
                                                 })}

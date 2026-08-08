@@ -8,7 +8,6 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ArrowRight, ArrowLeft, Check } from 'lucide-react';
 
-type Placement = 'top' | 'bottom' | 'center';
 // `demo` steps run inside the request form, opened with sample data that is
 // shown but never submitted — the host page opens/closes it via the callbacks.
 type Step = { selector?: string; title: string; body: string; demo?: boolean };
@@ -91,14 +90,17 @@ export default function Tutorial({ onDemoStart, onDemoEnd }: { onDemoStart?: () 
     const last = step === STEPS.length - 1;
 
     // Position the card relative to the spotlight (or centered when no target).
-    let placement: Placement = 'center';
+    // If neither side has room (tall target on a small screen), pin the card to
+    // the bottom of the viewport as a sheet so it's never clipped.
     let pos: React.CSSProperties = { left: '50%', top: '50%', transform: 'translate(-50%,-50%)', width: cardW };
     if (rect) {
-        placement = (vp.h - rect.bottom) < 240 ? 'top' : 'bottom';
+        const estH = 300; // safe estimate of the card's height
+        const spaceBelow = vp.h - rect.bottom;
+        const spaceAbove = rect.top;
         const left = Math.max(16, Math.min(rect.left + rect.width / 2 - cardW / 2, vp.w - cardW - 16));
-        pos = placement === 'top'
-            ? { left, bottom: vp.h - rect.top + 14, width: cardW }
-            : { left, top: rect.bottom + 14, width: cardW };
+        if (spaceBelow >= estH + 24) pos = { left, top: rect.bottom + 14, width: cardW };
+        else if (spaceAbove >= estH + 24) pos = { left, bottom: vp.h - rect.top + 14, width: cardW };
+        else pos = { left, bottom: 16, width: cardW };
     }
 
     return (

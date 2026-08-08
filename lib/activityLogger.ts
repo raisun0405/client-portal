@@ -22,7 +22,8 @@ export type ActivityAction =
     | 'package_reverted'
     | 'invoice_generated'
     | 'project_requested'
-    | 'feature_requested';
+    | 'feature_requested'
+    | 'change_requested';
 
 export type ActivityLog = {
     id: string;
