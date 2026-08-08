@@ -674,11 +674,11 @@ export default function DashboardPage() {
             {/* Header */}
             <header className="bg-white/95 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 px-6 py-4 flex justify-between items-center">
                 <Link href="/" className="flex items-center gap-3 group">
-                    <div className="bg-slate-900 p-1 rounded-xl transition-colors group-hover:bg-slate-800">
+                    <div className="bg-slate-100 p-1 rounded-full transition-colors group-hover:bg-slate-200">
                         <img
                             src="/brand-logo.jpg"
                             alt="Logo"
-                            className="w-8 h-8 object-cover rounded-lg"
+                            className="w-8 h-8 object-cover rounded-full"
                         />
                     </div>
                     <h1 className="font-semibold text-slate-800 transition-colors group-hover:text-blue-600">Projects Overview</h1>
