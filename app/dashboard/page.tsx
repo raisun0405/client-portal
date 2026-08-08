@@ -2032,18 +2032,25 @@ export default function DashboardPage() {
                                         <textarea value={reqProjectForm.note} onChange={e => setReqProjectForm(s => ({ ...s, note: e.target.value }))} maxLength={500} rows={3} placeholder="Anything that helps us understand the ask…" className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-[14px] outline-none resize-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">Features <span className="text-slate-300 normal-case font-medium">(optional)</span></label>
+                                        <div className="flex items-center gap-2 mb-1.5">
+                                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wide">Features</label>
+                                            <span className="text-[11px] font-medium text-slate-300">optional</span>
+                                            {reqProjectForm.features.length > 0 && (
+                                                <span className="ml-auto inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-blue-50 text-blue-600 text-[11px] font-bold tabular-nums">{reqProjectForm.features.length}</span>
+                                            )}
+                                        </div>
                                         <div className="flex gap-2">
-                                            <input value={reqProjectForm.draft} onChange={e => setReqProjectForm(s => ({ ...s, draft: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); setReqProjectForm(s => s.draft.trim() ? ({ ...s, features: [...s.features, s.draft.trim()], draft: '' }) : s); } }} placeholder="Add a feature, press Enter" className="flex-1 h-10 px-3.5 rounded-xl border border-slate-200 text-[14px] outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
-                                            <button type="button" onClick={() => setReqProjectForm(s => s.draft.trim() ? ({ ...s, features: [...s.features, s.draft.trim()], draft: '' }) : s)} className="shrink-0 px-3 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-[13px]">Add</button>
+                                            <input value={reqProjectForm.draft} onChange={e => setReqProjectForm(s => ({ ...s, draft: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); setReqProjectForm(s => s.draft.trim() ? ({ ...s, features: [...s.features, s.draft.trim()], draft: '' }) : s); } }} placeholder="Add a feature, press Enter" className="flex-1 h-11 px-3.5 rounded-xl border border-slate-200 text-[14px] outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-shadow" />
+                                            <button type="button" onClick={() => setReqProjectForm(s => s.draft.trim() ? ({ ...s, features: [...s.features, s.draft.trim()], draft: '' }) : s)} disabled={!reqProjectForm.draft.trim()} className="shrink-0 inline-flex items-center gap-1 px-4 h-11 rounded-xl bg-slate-900 text-white font-semibold text-[13px] hover:bg-slate-800 active:scale-[0.98] transition-all disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed"><Plus size={14} strokeWidth={2.5} /> Add</button>
                                         </div>
                                         {reqProjectForm.features.length > 0 && (
-                                            <div className="flex flex-wrap gap-1.5 mt-2">
+                                            <div className="mt-2.5 rounded-xl border border-slate-200 divide-y divide-slate-100 overflow-hidden">
                                                 {reqProjectForm.features.map((f, i) => (
-                                                    <span key={i} className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-blue-50 text-blue-700 text-[12px] font-medium">
-                                                        {f}
-                                                        <button type="button" onClick={() => setReqProjectForm(s => ({ ...s, features: s.features.filter((_, j) => j !== i) }))} className="p-0.5 rounded-full hover:bg-blue-100"><X size={11} /></button>
-                                                    </span>
+                                                    <div key={i} className="group/f flex items-center gap-3 px-3 py-2.5 bg-white hover:bg-slate-50 transition-colors">
+                                                        <span className="shrink-0 w-5 h-5 rounded-full bg-blue-50 text-blue-600 text-[11px] font-bold grid place-items-center tabular-nums">{i + 1}</span>
+                                                        <span className="flex-1 text-[13.5px] text-slate-700 truncate">{f}</span>
+                                                        <button type="button" onClick={() => setReqProjectForm(s => ({ ...s, features: s.features.filter((_, j) => j !== i) }))} className="shrink-0 p-1 rounded-full text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all"><X size={13} /></button>
+                                                    </div>
                                                 ))}
                                             </div>
                                         )}
@@ -2052,10 +2059,10 @@ export default function DashboardPage() {
                             )}
                             {reqError && <p className="text-[13px] text-rose-600 font-medium">{reqError}</p>}
                         </div>
-                        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2">
-                            <button onClick={() => !reqBusy && setReqProjectOpen(false)} className="px-4 h-10 rounded-full text-slate-600 font-semibold text-[13px] hover:bg-slate-100">Cancel</button>
-                            <button onClick={submitProjectRequest} disabled={reqBusy || reqProjectForm.name.trim().length < 3} className="px-5 h-10 rounded-full bg-blue-600 text-white font-semibold text-[13px] hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2">
-                                {reqBusy && <Loader2 size={14} className="animate-spin" />}{editReq?.type === 'project' ? 'Save changes' : 'Submit request'}
+                        <div className="px-6 py-4 bg-slate-50/80 border-t border-slate-100 flex items-center justify-end gap-2.5">
+                            <button onClick={() => !reqBusy && setReqProjectOpen(false)} className="px-5 h-11 rounded-full border border-slate-200 text-slate-600 font-semibold text-[13.5px] hover:bg-white hover:border-slate-300 active:scale-[0.98] transition-all">Cancel</button>
+                            <button onClick={submitProjectRequest} disabled={reqBusy || reqProjectForm.name.trim().length < 3} className="inline-flex items-center gap-2 px-5 h-11 rounded-full bg-blue-600 text-white font-semibold text-[13.5px] shadow-sm shadow-blue-600/25 hover:bg-blue-700 hover:shadow-blue-600/40 active:scale-[0.98] transition-all disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none disabled:cursor-not-allowed">
+                                {reqBusy ? <Loader2 size={15} className="animate-spin" /> : <ArrowRight size={15} strokeWidth={2.5} />}{editReq?.type === 'project' ? 'Save changes' : 'Submit request'}
                             </button>
                         </div>
                     </div>
@@ -2087,10 +2094,10 @@ export default function DashboardPage() {
                             )}
                             {reqError && <p className="text-[13px] text-rose-600 font-medium">{reqError}</p>}
                         </div>
-                        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2">
-                            <button onClick={() => !reqBusy && setReqFeatureOpen(false)} className="px-4 h-10 rounded-full text-slate-600 font-semibold text-[13px] hover:bg-slate-100">Cancel</button>
-                            <button onClick={submitFeatureRequest} disabled={reqBusy || reqFeatureForm.description.trim().length < 3} className="px-5 h-10 rounded-full bg-blue-600 text-white font-semibold text-[13px] hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2">
-                                {reqBusy && <Loader2 size={14} className="animate-spin" />}{editReq?.type === 'feature' ? 'Save changes' : 'Submit request'}
+                        <div className="px-6 py-4 bg-slate-50/80 border-t border-slate-100 flex items-center justify-end gap-2.5">
+                            <button onClick={() => !reqBusy && setReqFeatureOpen(false)} className="px-5 h-11 rounded-full border border-slate-200 text-slate-600 font-semibold text-[13.5px] hover:bg-white hover:border-slate-300 active:scale-[0.98] transition-all">Cancel</button>
+                            <button onClick={submitFeatureRequest} disabled={reqBusy || reqFeatureForm.description.trim().length < 3} className="inline-flex items-center gap-2 px-5 h-11 rounded-full bg-blue-600 text-white font-semibold text-[13.5px] shadow-sm shadow-blue-600/25 hover:bg-blue-700 hover:shadow-blue-600/40 active:scale-[0.98] transition-all disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none disabled:cursor-not-allowed">
+                                {reqBusy ? <Loader2 size={15} className="animate-spin" /> : <ArrowRight size={15} strokeWidth={2.5} />}{editReq?.type === 'feature' ? 'Save changes' : 'Submit request'}
                             </button>
                         </div>
                     </div>
