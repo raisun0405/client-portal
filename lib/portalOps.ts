@@ -193,6 +193,49 @@ export async function updateFeature(input: {
     };
 }
 
+/**
+ * Resolve plain language ("the dark mode feature for Ritika") to concrete ids.
+ * Case-insensitive substring match across features, with their project + client.
+ */
+export async function findFeatures(query: string, clientName?: string): Promise<OpResult> {
+    const db = supabaseService();
+    const q = (query || '').trim().toLowerCase();
+    if (q.length < 2) return { ok: false, message: 'Give at least 2 characters to search for.' };
+
+    const { data: clients } = await db.from('clients').select('id, name, billing_mode');
+    const { data: projects } = await db.from('projects').select('id, description, client_id');
+    const projById = new Map<string, any>((projects || []).map((p: any) => [p.id, p]));
+    const clientById = new Map<string, any>((clients || []).map((c: any) => [c.id, c]));
+
+    const { data: features } = await db.from('features')
+        .select('id, description, project_id, status, amount, paid_amount, payment_confirmed')
+        .ilike('description', `%${q}%`);
+
+    let matches = (features || []).map((f: any) => {
+        const p = projById.get(f.project_id);
+        const c = p ? clientById.get(p.client_id) : null;
+        return {
+            featureId: f.id, feature: f.description, status: f.status,
+            project: p?.description, projectId: p?.id,
+            client: c?.name, clientId: c?.id, billingMode: c?.billing_mode,
+            amount: Number(f.amount) || 0, paid: Number(f.paid_amount) || 0,
+            ratePending: f.payment_confirmed === false,
+        };
+    });
+    if (clientName) {
+        const cn = clientName.trim().toLowerCase();
+        matches = matches.filter((m: any) => (m.client || '').toLowerCase().includes(cn));
+    }
+
+    return {
+        ok: true,
+        message: matches.length === 0 ? `No feature matches "${query}".`
+            : matches.length === 1 ? `1 match.`
+            : `${matches.length} matches — confirm which one before writing.`,
+        data: matches.slice(0, 25),
+    };
+}
+
 /** Everything awaiting action, using the portal's real definition of "pending". */
 export async function getPending(clientId?: string): Promise<OpResult> {
     const db = supabaseService();
@@ -209,14 +252,15 @@ export async function getPending(clientId?: string): Promise<OpResult> {
     const { data: changes } = await db.from('change_requests').select('id, client_id, proposed, note').eq('status', 'pending');
     const { data: unsent } = await db.from('activity_logs').select('id, client_id, title, created_at').is('notified_at', null).eq('is_hidden', false).order('created_at', { ascending: false });
 
+    // IDs are included so an agent can go straight from a listing to a write tool.
     const label = (f: any) => {
         const p = projById.get(f.project_id);
-        return { feature: f.description, project: p?.description, client: p ? nameOf.get(p.client_id) : undefined };
+        return { featureId: f.id, feature: f.description, project: p?.description, client: p ? nameOf.get(p.client_id) : undefined };
     };
 
     const ratePending = (features || []).filter((f: any) => f.payment_confirmed === false && scope(projById.get(f.project_id)?.client_id)).map(label);
     const requestedProjects = (projects || []).filter((p: any) => p.origin === 'client' && p.status_override === 'Requested' && scope(p.client_id))
-        .map((p: any) => ({ project: p.description, client: nameOf.get(p.client_id) }));
+        .map((p: any) => ({ projectId: p.id, project: p.description, client: nameOf.get(p.client_id) }));
     const requestedFeatures = (features || []).filter((f: any) => f.origin === 'client' && f.status === 'Requested' && scope(projById.get(f.project_id)?.client_id)).map(label);
     const unpaidInvoices = (periods || []).filter((b: any) => b.payment_status !== 'Paid' && scope(b.client_id))
         .map((b: any) => ({ client: nameOf.get(b.client_id), period: `${b.period_start} to ${b.period_end}`, due: (Number(b.fee_amount) || 0) - (Number(b.paid_amount) || 0), status: b.payment_status }));

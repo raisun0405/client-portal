@@ -23,7 +23,7 @@ for (const line of readFileSync(resolve(ROOT, '.env'), 'utf8').split(/\r?\n/)) {
     if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
 }
 
-const { updateFeature, getPending } = await import('../lib/portalOps.js');
+const { updateFeature, getPending, findFeatures } = await import('../lib/portalOps.js');
 const DOMAIN = readFileSync(resolve(ROOT, 'docs/PORTAL_DOMAIN.md'), 'utf8');
 
 const server = new McpServer(
@@ -53,6 +53,18 @@ server.tool(
     'not yet emailed to the client. Start here for "what needs my attention?".',
     { clientId: z.string().uuid().optional().describe('Limit to one client. Omit for everything.') },
     async ({ clientId }) => fmt(await getPending(clientId)),
+);
+
+server.tool(
+    'portal_find_feature',
+    'Find features by name to get their ids, plus their project, client, status and money state. Use this FIRST ' +
+    'when the user names something in plain language ("the dark mode feature"), then pass the returned featureId ' +
+    'to a write tool. If several match, ask the user which one rather than guessing.',
+    {
+        query: z.string().min(2).describe('Part of the feature description.'),
+        clientName: z.string().optional().describe('Narrow to one client by name.'),
+    },
+    async ({ query, clientName }) => fmt(await findFeatures(query, clientName)),
 );
 
 server.tool(
