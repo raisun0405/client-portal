@@ -23,7 +23,7 @@ for (const line of readFileSync(resolve(ROOT, '.env'), 'utf8').split(/\r?\n/)) {
     if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
 }
 
-const { updateFeature, getPending, findFeatures } = await import('../lib/portalOps.js');
+const { updateFeature, getPending, findFeatures, addFeature, createProject, listProjects } = await import('../lib/portalOps.js');
 const DOMAIN = readFileSync(resolve(ROOT, 'docs/PORTAL_DOMAIN.md'), 'utf8');
 
 const server = new McpServer(
@@ -65,6 +65,41 @@ server.tool(
         clientName: z.string().optional().describe('Narrow to one client by name.'),
     },
     async ({ query, clientName }) => fmt(await findFeatures(query, clientName)),
+);
+
+server.tool(
+    'portal_list_projects',
+    'List a client\'s projects with their ids, category and billing mode. Use this to pick the project to add a feature to.',
+    { client: z.string().optional().describe('Client name (partial) or id. Omit for all clients.') },
+    async ({ client }) => fmt(await listProjects(client)),
+);
+
+server.tool(
+    'portal_add_feature',
+    'Add a new feature (deliverable) to an existing project, logging "New Feature Added". For package clients the ' +
+    'feature is recorded at zero and covered by the retainer — do not pass an amount. For per-feature clients, omit ' +
+    'amount to record it as Rate Pending and confirm the price later.',
+    {
+        projectId: z.string().uuid(),
+        description: z.string().min(3).max(200),
+        estimation: z.string().max(100).optional(),
+        status: z.enum(['Requested', 'Approved', 'Working', 'Updating', 'Completed']).optional().describe('Defaults to Requested.'),
+        amount: z.number().nonnegative().optional().describe('Per-feature clients only.'),
+        paymentConfirmed: z.boolean().optional().describe('false = Rate Pending.'),
+    },
+    async (args) => fmt(await addFeature({ ...args, via: 'agent' })),
+);
+
+server.tool(
+    'portal_create_project',
+    'Create a new project for a client, logging "New Project Created". Category is free text and defaults to ' +
+    'Uncategorized. Add features to it afterwards with portal_add_feature.',
+    {
+        clientId: z.string().uuid(),
+        description: z.string().min(3).max(120).describe('The project name.'),
+        category: z.string().max(60).optional(),
+    },
+    async (args) => fmt(await createProject({ ...args, via: 'agent' })),
 );
 
 server.tool(
