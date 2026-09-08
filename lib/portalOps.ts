@@ -222,7 +222,10 @@ export async function addFeature(input: {
 
     const isPackage = client.billing_mode === 'package';
     // Package work is covered by the retainer, so it is always recorded at zero.
-    const confirmed = isPackage ? true : (input.paymentConfirmed ?? true);
+    // Per-feature work with no amount given lands as Rate Pending (matching the
+    // tool description) unless paymentConfirmed is passed explicitly; pass
+    // amount: 0 + paymentConfirmed: true for deliberately free work.
+    const confirmed = isPackage ? true : (input.paymentConfirmed ?? (input.amount !== undefined));
     const amount = isPackage ? 0 : (confirmed ? (input.amount ?? 0) : 0);
     if (isPackage && (input.amount ?? 0) > 0) {
         return { ok: false, message: `${client.name} is on a monthly package — features are covered by the retainer and must not carry a price.` };
@@ -366,6 +369,43 @@ export async function findFeatures(query: string, clientName?: string): Promise<
             : `${matches.length} matches — confirm which one before writing.`,
         data: matches.slice(0, 25),
     };
+}
+
+/**
+ * Add a link to a project (domain, repo, staging site, document). Mirrors the
+ * admin "Links" flow: appends to projects.links and logs "Link Added". A URL
+ * without a scheme gets https://; an identical URL is not added twice.
+ */
+export async function addProjectLink(input: { projectId: string; title: string; url: string; via?: Via }): Promise<OpResult> {
+    const db = supabaseService();
+    const via: Via = input.via || 'agent';
+    const title = (input.title || '').trim();
+    let url = (input.url || '').trim();
+    if (title.length < 1) return { ok: false, message: 'Link title is required.' };
+    if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+    try { new URL(url); } catch { return { ok: false, message: `"${input.url}" is not a valid URL.` }; }
+
+    const { data: project } = await db.from('projects')
+        .select('id, description, client_id, links').eq('id', input.projectId).single();
+    if (!project) return { ok: false, message: 'Project not found.' };
+    const { data: client } = await db.from('clients').select('id, name').eq('id', project.client_id).single();
+    if (!client) return { ok: false, message: 'Client not found.' };
+
+    const links: { title: string; url: string }[] = Array.isArray(project.links) ? project.links : [];
+    if (links.some(l => (l.url || '').toLowerCase() === url.toLowerCase())) {
+        return { ok: true, message: `"${url}" is already linked on "${project.description}".`, data: { links } };
+    }
+    const next = [...links, { title, url }];
+    const { error } = await db.from('projects').update({ links: next }).eq('id', project.id);
+    if (error) return { ok: false, message: error.message };
+
+    await writeActivity(db, {
+        clientId: client.id, projectId: project.id, actionType: 'link_added',
+        title: 'Link Added',
+        description: `"${title}" link was added to "${project.description}"`,
+        metadata: { link_title: title, link_url: url }, via,
+    });
+    return { ok: true, message: `Linked "${title}" on "${project.description}".`, data: { projectId: project.id, links: next } };
 }
 
 /** Everything awaiting action, using the portal's real definition of "pending". */

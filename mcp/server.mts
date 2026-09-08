@@ -23,7 +23,7 @@ for (const line of readFileSync(resolve(ROOT, '.env'), 'utf8').split(/\r?\n/)) {
     if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
 }
 
-const { updateFeature, getPending, findFeatures, addFeature, createProject, listProjects } = await import('../lib/portalOps.js');
+const { updateFeature, getPending, findFeatures, addFeature, createProject, listProjects, addProjectLink } = await import('../lib/portalOps.js');
 const DOMAIN = readFileSync(resolve(ROOT, 'docs/PORTAL_DOMAIN.md'), 'utf8');
 
 const server = new McpServer(
@@ -100,6 +100,18 @@ server.tool(
         category: z.string().max(60).optional(),
     },
     async (args) => fmt(await createProject({ ...args, via: 'agent' })),
+);
+
+server.tool(
+    'portal_add_link',
+    'Attach a link to a project (live domain, staging site, repo, shared document) and log "Link Added". ' +
+    'The client sees project links on their portal. A URL without a scheme gets https:// added.',
+    {
+        projectId: z.string().uuid(),
+        title: z.string().min(1).max(80).describe('Label shown to the client, e.g. "Live site".'),
+        url: z.string().min(3).max(500),
+    },
+    async (args) => fmt(await addProjectLink({ ...args, via: 'agent' })),
 );
 
 server.tool(

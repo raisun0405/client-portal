@@ -44,6 +44,7 @@ Every write goes through `portalOps`, so a step **cannot** be skipped.
 |---|---|
 | `portal_pending` | Everything awaiting action, using the portal's real definition: rate-pending features, open client project/feature requests, pending change requests, unpaid package invoices, and updates not yet emailed. Optional `clientId`. |
 | `portal_find_feature` | Resolve plain language → IDs. Substring match on the description, optionally scoped by `clientName`. Returns status, project, client and money state. **Use this first**, then pass `featureId` to a write tool. |
+| `portal_list_projects` | A client's projects with ids, category and billing mode. Use it to pick the project for `portal_add_feature` / `portal_add_link`. |
 
 ### Write
 
@@ -53,6 +54,9 @@ Every write goes through `portalOps`, so a step **cannot** be skipped.
 | `portal_confirm_rate` | Set a per-feature price and confirm it (clears *Rate Pending*). **Refuses on package clients.** |
 | `portal_record_feature_payment` | Record the new **cumulative** amount paid; derives Paid/Partial/Pending and logs the difference. |
 | `portal_update_feature` | General edit — pass only fields you want changed. |
+| `portal_create_project` | New project for a client (free-text category, defaults to Uncategorized). Logs "New Project Created". |
+| `portal_add_feature` | New deliverable on a project. Package clients: always ₹0 / Covered. Per-feature clients: omit `amount` for Rate Pending, or pass `amount: 0` + `paymentConfirmed: true` for deliberately free work. Logs "New Feature Added". |
+| `portal_add_link` | Attach a link (live domain, staging, repo, document) to a project. Logs "Link Added". |
 
 ### Resource
 
@@ -120,6 +124,6 @@ Claude resolves names to IDs via `portal_find_feature` and asks you to disambigu
 
 Add an operation in **`lib/portalOps.ts`** (never in the server), then expose it in `server.mts` with a description that explains the domain rule it enforces.
 
-Still to add: `update_client`, `add_feature`, `record_package_payment`, `accept_request`, `send_update`.
+Still to add: `update_client`, `record_package_payment`, `accept_request`. Sending emails (updates, welcome) is deliberately **not** exposed here; that stays a one-click admin action.
 
 Run `npx tsx scripts/check-domain-doc.mts` to catch the domain doc drifting from the code.
