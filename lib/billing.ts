@@ -28,3 +28,13 @@ export function computeProjectStats(features: FeatureLike[] = []): ProjectStats 
     const paid = confirmed.reduce((s, f) => s + (Number(f.paid_amount) || 0), 0);
     return { total, paid, pending: total - paid };
 }
+
+// Share of a bill that has been settled, as a whole percent. Nothing to pay
+// counts as fully paid: a zero total means nothing is outstanding, so the
+// answer is 100, not 0 (a free project must not read as "0% paid").
+export function paidPercent(total: number | null | undefined, paid: number | null | undefined): number {
+    const t = Number(total) || 0;
+    if (t <= 0) return 100;
+    const p = Number(paid) || 0;
+    return Math.max(0, Math.min(100, Math.round((p / t) * 100)));
+}

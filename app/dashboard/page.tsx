@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { type ActivityLog } from '@/lib/activityLogger';
 import { getPortalCore, getProjectsWithFeatures, getProjectFeatures, getPortalActivityLogs, getPortalPulseLogs } from './actions';
 import { resolveProjectStatus, statusPillClasses, statusPillClassesBordered, type DisplayStatus } from '@/lib/projectStatus';
-import { computeProjectStats } from '@/lib/billing';
+import { computeProjectStats, paidPercent } from '@/lib/billing';
 import { packageSchedule, todayLocalISO, coveragePeriod, type Cadence } from '@/lib/packageDates';
 import { getClientSession, logoutClient } from '../actions'; // Import server actions
 import { requestProject, requestFeature, editRequestedProject, editRequestedFeature, withdrawRequestedProject, withdrawRequestedFeature, requestFeatureChange, withdrawChangeRequest, getMyPendingChanges } from './requestActions';
@@ -1092,12 +1092,15 @@ export default function DashboardPage() {
                             // money cards + donut are hidden for them (kept: Projects, Progress, Activity).
                             const isPackage = packageInfo?.billing_mode === 'package';
                             const avgProgress = projects.length > 0 ? Math.round(projects.reduce((s, p) => s + p.stats.progress, 0) / projects.length) : 0;
-                            const paymentPercent = totalInvestment > 0 ? Math.round((totalPaid / totalInvestment) * 100) : 0;
+                            // Nothing to pay counts as fully paid (see lib/billing.ts paidPercent).
+                            const paymentPercent = paidPercent(totalInvestment, totalPaid);
 
-                            // Donut chart data
+                            // Donut chart data. `value` sizes the slice; `amount` is what the hover
+                            // label shows. With nothing to pay, draw a full Paid ring (value 1) so the
+                            // chart matches the 100% label, while the label still reports Rs.0.
                             const paymentDonutData = [
-                                { name: 'Paid', value: totalPaid },
-                                { name: 'Pending', value: totalPending },
+                                { name: 'Paid', value: totalInvestment > 0 ? totalPaid : 1, amount: totalPaid },
+                                { name: 'Pending', value: totalPending, amount: totalPending },
                             ];
                             const DONUT_COLORS = ['#10b981', '#f59e0b'];
 
@@ -1280,7 +1283,7 @@ export default function DashboardPage() {
                                                                             {payload.name}
                                                                         </text>
                                                                         <text x={ex + (cos >= 0 ? 6 : -6)} y={ey + 7} textAnchor={textAnchor} fill="#64748b" fontSize={10} fontWeight={600}>
-                                                                            {`Rs.${Number(value).toLocaleString()}`}
+                                                                            {`Rs.${Number(payload?.amount ?? value).toLocaleString()}`}
                                                                         </text>
                                                                     </g>
                                                                 );
@@ -1731,12 +1734,12 @@ export default function DashboardPage() {
                                     <div className="relative pt-1">
                                         <div className="flex mb-2 items-center justify-between text-xs font-medium text-slate-400">
                                             <span>Progress</span>
-                                            <span>{Math.round((selectedProject.stats.paid / (selectedProject.stats.total || 1)) * 100)}% Funded</span>
+                                            <span>{paidPercent(selectedProject.stats.total, selectedProject.stats.paid)}% Funded</span>
                                         </div>
                                         <div className="overflow-hidden h-4 text-xs flex rounded-full bg-slate-200/60 ring-1 ring-slate-100">
                                             <motion.div
                                                 initial={{ width: 0 }}
-                                                animate={{ width: `${(selectedProject.stats.paid / (selectedProject.stats.total || 1)) * 100}%` }}
+                                                animate={{ width: `${paidPercent(selectedProject.stats.total, selectedProject.stats.paid)}%` }}
                                                 transition={{ duration: 1, ease: "easeOut" }}
                                                 className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-linear-to-r from-emerald-500 to-emerald-400 relative"
                                             >
