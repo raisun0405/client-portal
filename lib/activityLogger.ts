@@ -23,7 +23,8 @@ export type ActivityAction =
     | 'invoice_generated'
     | 'project_requested'
     | 'feature_requested'
-    | 'change_requested';
+    | 'change_requested'
+    | 'welcome_sent';
 
 export type ActivityLog = {
     id: string;

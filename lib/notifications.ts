@@ -93,6 +93,7 @@ const ACTION_META: Record<string, ActionMeta> = {
     project_requested: { label: 'Requested', bg: '#EFF6FF', text: '#2563EB', dot: '#3B82F6' },
     feature_requested: { label: 'Requested', bg: '#EFF6FF', text: '#2563EB', dot: '#3B82F6' },
     change_requested: { label: 'Change Requested', bg: '#FFF7ED', text: '#EA580C', dot: '#F97316' },
+    welcome_sent: { label: 'Welcome', bg: '#F0F9FF', text: '#0284C7', dot: '#0EA5E9' },
 };
 const DEFAULT_META: ActionMeta = { label: 'Activity', bg: '#F1F5F9', text: '#475569', dot: '#94A3B8' };
 const metaFor = (actionType: string): ActionMeta => ACTION_META[actionType] || DEFAULT_META;
@@ -628,6 +629,171 @@ export async function sendDigestNotification(logIds: string[], recipients: Email
         return { success: true, message };
     } catch (err: any) {
         console.error('sendDigestNotification error:', err);
+        return { success: false, message: err.message || 'Unexpected error.' };
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Welcome email: tells a client they are on the portal and hands them their
+// access key. Sent manually from the admin client menu (never on creation).
+// Copy deliberately avoids em and en dashes.
+// ---------------------------------------------------------------------------
+
+function welcomeItem(n: number, title: string, body: string): string {
+    return `<tr>
+                        <td style="padding:14px 0; border-top:1px solid #F1F5F9;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+                                <td width="34" style="vertical-align:top; padding-top:1px;">
+                                    <span style="font-family:'Courier New', monospace; font-size:12px; font-weight:700; color:#CBD5E1; letter-spacing:0.5px;">0${n}</span>
+                                </td>
+                                <td style="padding-left:8px;">
+                                    <p style="margin:0; font-size:14.5px; font-weight:700; color:#0F172A; letter-spacing:-0.2px;">${title}</p>
+                                    <p style="margin:3px 0 0 0; font-size:13px; color:#64748B; line-height:1.6;">${body}</p>
+                                </td>
+                            </tr></table>
+                        </td>
+                    </tr>`;
+}
+
+function generateWelcomeEmailHTML(firstName: string, accessKey: string, dateLabel: string): string {
+    const O = PUBLIC_ORIGIN;
+    return `<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="x-apple-disable-message-reformatting">
+<title>Welcome to your portal, ${firstName}</title>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
+    body, table, td, a { -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%; }
+    table, td { mso-table-lspace:0pt; mso-table-rspace:0pt; }
+    img { -ms-interpolation-mode:bicubic; border:0; outline:none; text-decoration:none; }
+    @media screen and (max-width:600px) {
+        .wrap { padding:28px 14px !important; }
+        .card-pad { padding:30px 24px !important; }
+        .foot-pad { padding:16px 24px !important; }
+        .h1 { font-size:28px !important; }
+        .key { font-size:22px !important; letter-spacing:0.5px !important; }
+    }
+</style></head>
+<body style="margin:0; padding:0; background-color:#F8FAFC; font-family:'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing:antialiased;">
+    <div style="display:none; max-height:0; overflow:hidden; opacity:0; color:#F8FAFC;">Your access key is inside. Sign in to track your projects, get updates and request new work.</div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F8FAFC;">
+        <tr><td align="center" class="wrap" style="padding:48px 20px;">
+${BRAND_HEADER}
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px; margin:0 auto; background-color:#FFFFFF; border:1px solid #E2E8F0; border-radius:16px; box-shadow:0 1px 2px rgba(15,23,42,0.04);">
+                <tr><td class="card-pad" style="padding:40px 40px 36px 40px;">
+
+                    <p style="margin:0 0 16px 0; font-size:11px; font-weight:800; color:#2563EB; text-transform:uppercase; letter-spacing:2.5px;">Welcome aboard</p>
+
+                    <h1 class="h1" style="margin:0 0 20px 0; font-size:34px; font-weight:800; color:#0F172A; line-height:1.08; letter-spacing:-1px;">
+                        Welcome to<br><span style="color:#CBD5E1;">your portal.</span>
+                    </h1>
+
+                    <p style="margin:0 0 6px 0; font-size:14px; color:#0F172A; font-weight:600;">Hi ${firstName},</p>
+                    <p style="margin:0 0 24px 0; font-size:14px; color:#64748B; line-height:1.7;">
+                        You now have one place for everything we build together. Sign in with the key below to follow your projects, catch every update, and request new work whenever you need it.
+                    </p>
+
+                    <!-- Access key -->
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:26px;">
+                        <tr><td align="center" style="background-color:#EFF6FF; border:1px solid #BFDBFE; border-radius:14px; padding:22px 16px;">
+                            <p style="margin:0 0 8px 0; font-size:10.5px; font-weight:800; color:#2563EB; text-transform:uppercase; letter-spacing:1.6px;">Your access key</p>
+                            <p class="key" style="margin:0 0 10px 0; font-size:26px; font-weight:800; color:#0F172A; letter-spacing:1px;">${accessKey}</p>
+                            <p style="margin:0; font-size:12px; color:#64748B; line-height:1.5;">Sign in at <a href="${O}" style="color:#2563EB; text-decoration:none; font-weight:600;">track.raisun.dev</a>. Keep this key private, it is your login.</p>
+                        </td></tr>
+                    </table>
+
+                    <!-- What you can do here -->
+                    <p style="margin:0 0 4px 0; font-size:10.5px; font-weight:800; color:#94A3B8; text-transform:uppercase; letter-spacing:1.6px;">What you can do here</p>
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:26px;">
+                        ${welcomeItem(1, 'Track every project', 'Live status and completion for each deliverable, all in one place.')}
+                        ${welcomeItem(2, 'Get updates as things ship', 'Every change is logged, and you can download the full history as a PDF.')}
+                        ${welcomeItem(3, 'Request new work', 'Ask for a project or a feature right from your dashboard and we will pick it up.')}
+                    </table>
+
+                    <!-- CTA -->
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+                        <td style="border-radius:14px; background-color:#0F172A;">
+                            <a href="${O}" style="display:block; padding:16px 22px; text-decoration:none; border-radius:14px;">
+                                <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+                                    <td style="font-size:14px; font-weight:700; color:#FFFFFF; letter-spacing:0.2px;">Sign in to your portal</td>
+                                    <td align="right" style="font-size:16px; font-weight:700; color:#60A5FA;">&#8599;</td>
+                                </tr></table>
+                            </a>
+                        </td>
+                    </tr></table>
+
+                    <p style="margin:18px 0 0 0; font-size:12.5px; color:#94A3B8; line-height:1.6;">Questions? Just reply to this email.</p>
+
+                </td></tr>
+                <tr><td class="foot-pad" style="padding:18px 40px; background-color:#F8FAFC; border-top:1px solid #F1F5F9; border-radius:0 0 16px 16px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+                        <td style="font-size:12px; color:#94A3B8; font-weight:500;">Portal access</td>
+                        <td align="right" style="font-size:12px; color:#475569; font-weight:600;">${dateLabel}</td>
+                    </tr></table>
+                </td></tr>
+            </table>
+${SYSTEM_FOOTER}
+        </td></tr>
+    </table>
+</body></html>`;
+}
+
+// Server action: send the welcome email to one or more of a client's recipients.
+// Each copy is addressed to the recipient's own first name; the access key is
+// the client's shared login. Logs a `welcome_sent` entry (already notified).
+export async function sendWelcomeEmail(clientId: string, recipients: EmailRecipient[]) {
+    try {
+        const cleaned = recipients.filter(r => r.email && r.email.trim());
+        if (cleaned.length === 0) {
+            return { success: false, message: 'No recipients selected.' };
+        }
+
+        const { data: client, error: clientError } = await supabaseAdmin
+            .from('clients')
+            .select('id, name, access_key')
+            .eq('id', clientId)
+            .single();
+        if (clientError || !client) {
+            return { success: false, message: 'Client not found.' };
+        }
+        if (!client.access_key) {
+            return { success: false, message: 'This client has no access key yet. Set one before sending the welcome email.' };
+        }
+
+        const dateLabel = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+
+        const results = await Promise.allSettled(cleaned.map(r => {
+            const firstName = (r.name || client.name || 'there').trim().split(/\s+/)[0];
+            return transporter.sendMail({
+                from: `"Project Update" <${process.env.GMAIL_EMAIL}>`,
+                to: r.email,
+                subject: `Welcome to your portal, ${firstName}`,
+                html: generateWelcomeEmailHTML(firstName, client.access_key, dateLabel),
+            });
+        }));
+
+        const sentTo = cleaned.filter((_, i) => results[i].status === 'fulfilled');
+        if (sentTo.length === 0) {
+            return { success: false, message: 'Failed to send to any recipient.' };
+        }
+
+        await supabaseAdmin.from('activity_logs').insert({
+            client_id: client.id,
+            project_id: null,
+            action_type: 'welcome_sent',
+            title: 'Welcome to the portal',
+            description: `Welcome email with the access key was sent to ${sentTo.map(r => r.name).join(', ')}`,
+            metadata: { recipients: sentTo.map(r => r.email), via: 'admin' },
+            notified_at: new Date().toISOString(),
+        });
+
+        const failed = cleaned.length - sentTo.length;
+        const message = failed > 0
+            ? `Welcome sent to ${sentTo.length} of ${cleaned.length} recipients (${failed} failed).`
+            : `Welcome email sent to ${sentTo.map(r => r.name).join(', ')}.`;
+        return { success: true, message };
+    } catch (err: any) {
+        console.error('sendWelcomeEmail error:', err);
         return { success: false, message: err.message || 'Unexpected error.' };
     }
 }

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logActivity, type ActivityLog } from '@/lib/activityLogger';
-import { sendNotification, sendDigestNotification } from '@/lib/notifications';
+import { sendNotification, sendDigestNotification, sendWelcomeEmail } from '@/lib/notifications';
 import { deriveProjectStatus, resolveProjectStatus, type DisplayStatus } from '@/lib/projectStatus';
 import { computeProjectStats } from '@/lib/billing';
 import { packageSchedule, todayLocalISO, coveragePeriod, shiftDaysISO, shiftMonthsISO, type Cadence } from '@/lib/packageDates';
@@ -377,7 +377,7 @@ export default function AdminDashboard() {
     // Additional recipients being edited in the client form (beyond the primary email).
     const [editRecipients, setEditRecipients] = useState<{ id?: string; email: string; first_name: string; last_name: string }[]>([]);
     // Recipient-picker modal shown before sending when a client has more than one recipient.
-    const [sendModal, setSendModal] = useState<{ type: 'single' | 'digest'; logId?: string; items: { email: string; name: string; isPrimary: boolean; checked: boolean }[] } | null>(null);
+    const [sendModal, setSendModal] = useState<{ type: 'single' | 'digest' | 'welcome'; logId?: string; clientId?: string; items: { email: string; name: string; isPrimary: boolean; checked: boolean }[] } | null>(null);
     const [sendModalBusy, setSendModalBusy] = useState(false);
 
     // Load the selected client's package billing periods (for the pipeline
@@ -1717,22 +1717,47 @@ export default function AdminDashboard() {
         setSendingDigest(false);
     };
 
+    // One-click welcome email carrying the client's access key. Manual only:
+    // nothing is sent when a client is created; you choose the moment. With
+    // several recipients it reuses the same picker as updates do.
+    const handleSendWelcome = async (client: Client) => {
+        const recips = await resolveClientRecipients(client);
+        if (recips.length === 0) {
+            alert('This client has no email address. Edit the client to add one.');
+            return;
+        }
+        if (recips.length > 1) {
+            setSendModal({ type: 'welcome', clientId: client.id, items: recips.map(r => ({ ...r, checked: true })) });
+            return;
+        }
+        if (!confirm(`Send the welcome email (with the access key) to ${recips[0].name} <${recips[0].email}>?`)) return;
+        const result = await sendWelcomeEmail(client.id, [{ email: recips[0].email, name: recips[0].name }]);
+        alert(result.message);
+        if (result.success && selectedClient?.id === client.id) fetchActivityLogs(client.id);
+    };
+
     // Confirm send from the recipient-picker modal → send to the checked recipients.
     const handleConfirmSend = async () => {
-        if (!sendModal || !selectedClient) return;
+        if (!sendModal) return;
+        // Welcome can be sent from the overview menu, where no client is selected.
+        if (sendModal.type !== 'welcome' && !selectedClient) return;
         const chosen = sendModal.items.filter(i => i.checked).map(i => ({ email: i.email, name: i.name }));
         if (chosen.length === 0) {
             alert('Select at least one recipient.');
             return;
         }
         setSendModalBusy(true);
-        const result = sendModal.type === 'single' && sendModal.logId
-            ? await sendNotification(sendModal.logId, chosen)
-            : await sendDigestNotification(Array.from(selectedLogIds), chosen);
+        const result = sendModal.type === 'welcome' && sendModal.clientId
+            ? await sendWelcomeEmail(sendModal.clientId, chosen)
+            : sendModal.type === 'single' && sendModal.logId
+                ? await sendNotification(sendModal.logId, chosen)
+                : await sendDigestNotification(Array.from(selectedLogIds), chosen);
         setSendModalBusy(false);
         if (result.success) {
-            fetchActivityLogs(selectedClient.id);
+            const refreshId = sendModal.type === 'welcome' ? sendModal.clientId : selectedClient?.id;
+            if (refreshId && selectedClient?.id === refreshId) fetchActivityLogs(refreshId);
             if (sendModal.type === 'digest') setSelectedLogIds(new Set());
+            if (sendModal.type === 'welcome') alert(result.message);
             setSendModal(null);
         } else {
             alert(result.message);
@@ -1798,6 +1823,7 @@ export default function AdminDashboard() {
             case 'project_requested': return { icon: <PackagePlus size={14} />, color: 'bg-blue-500', bgLight: 'bg-blue-50', textColor: 'text-blue-600', label: 'Requested' };
             case 'feature_requested': return { icon: <Zap size={14} />, color: 'bg-blue-500', bgLight: 'bg-blue-50', textColor: 'text-blue-600', label: 'Requested' };
             case 'change_requested': return { icon: <Pencil size={14} />, color: 'bg-orange-500', bgLight: 'bg-orange-50', textColor: 'text-orange-600', label: 'Change Requested' };
+            case 'welcome_sent': return { icon: <Mail size={14} />, color: 'bg-sky-500', bgLight: 'bg-sky-50', textColor: 'text-sky-600', label: 'Welcome' };
             default: return { icon: <Activity size={14} />, color: 'bg-slate-400', bgLight: 'bg-slate-50', textColor: 'text-slate-500', label: 'Activity' };
         }
     };
@@ -2207,6 +2233,7 @@ export default function AdminDashboard() {
                                                                     { icon: <PinIcon size={14} />, label: client.pinned ? 'Unpin from top' : 'Pin to top', fn: () => togglePin(client) },
                                                                     { icon: <FolderPlus size={14} />, label: 'Projects', fn: () => handleClientSelect(client) },
                                                                     { icon: <Activity size={14} />, label: 'Activity log', fn: () => handleViewActivity(client) },
+                                                                    { icon: <Mail size={14} />, label: 'Send welcome email', fn: () => handleSendWelcome(client) },
                                                                     ...(client.billing_mode !== 'package'
                                                                         ? [{ icon: <PackagePlus size={14} />, label: 'Convert to package', fn: () => openPackageModal(client) }]
                                                                         : [
@@ -3590,7 +3617,7 @@ export default function AdminDashboard() {
                                 <div className="flex items-start justify-between gap-3 p-5 sm:p-6 pb-4" style={{ borderBottom: `1px solid ${T.hairline}` }}>
                                     <div>
                                         <h3 className="text-[17px] font-bold tracking-[-0.01em]" style={{ color: T.ink }}>
-                                            Send {sendModal.type === 'digest' ? 'digest' : 'update'} to…
+                                            Send {sendModal.type === 'digest' ? 'digest' : sendModal.type === 'welcome' ? 'welcome email' : 'update'} to…
                                         </h3>
                                         <p className="text-[12.5px] mt-1" style={{ color: T.muted }}>
                                             This client has multiple recipients. Choose who receives it — each gets a copy personalised to their own name.

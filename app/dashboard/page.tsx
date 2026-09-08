@@ -11,7 +11,7 @@ import { packageSchedule, todayLocalISO, coveragePeriod, type Cadence } from '@/
 import { getClientSession, logoutClient } from '../actions'; // Import server actions
 import { requestProject, requestFeature, editRequestedProject, editRequestedFeature, withdrawRequestedProject, withdrawRequestedFeature, requestFeatureChange, withdrawChangeRequest, getMyPendingChanges } from './requestActions';
 import Tutorial from './Tutorial';
-import { LayoutGrid, LogOut, FolderOpen, Loader2, X, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Calendar, ArrowRight, TrendingUp, Wallet, CheckCircle2, Clock, FileText, Zap, CreditCard, Link2, Trash2, RefreshCw, PackagePlus, Activity, Download, Pencil, Plus } from 'lucide-react';
+import { LayoutGrid, LogOut, FolderOpen, Loader2, X, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Calendar, ArrowRight, TrendingUp, Wallet, CheckCircle2, Clock, FileText, Zap, CreditCard, Link2, Trash2, RefreshCw, PackagePlus, Activity, Download, Pencil, Plus, Mail } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { PieChart, Pie, Cell, ResponsiveContainer, Sector, ComposedChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ReferenceDot } from 'recharts';
 import jsPDF from 'jspdf';
@@ -544,6 +544,8 @@ export default function DashboardPage() {
                 return { icon: <Zap size={16} />, color: 'bg-blue-500', bgLight: 'bg-blue-50', textColor: 'text-blue-600', label: 'Requested' };
             case 'change_requested':
                 return { icon: <Pencil size={16} />, color: 'bg-orange-500', bgLight: 'bg-orange-50', textColor: 'text-orange-600', label: 'Change Requested' };
+            case 'welcome_sent':
+                return { icon: <Mail size={16} />, color: 'bg-sky-500', bgLight: 'bg-sky-50', textColor: 'text-sky-600', label: 'Welcome' };
             default:
                 return { icon: <Activity size={16} />, color: 'bg-slate-400', bgLight: 'bg-slate-50', textColor: 'text-slate-500', label: 'Activity' };
         }
@@ -572,6 +574,7 @@ export default function DashboardPage() {
             project_requested: 'Requested',
             feature_requested: 'Requested',
             change_requested: 'Change Requested',
+            welcome_sent: 'Welcome',
         };
         return labels[actionType] || 'Activity';
     };
@@ -599,6 +602,7 @@ export default function DashboardPage() {
             project_requested: '#3b82f6',
             feature_requested: '#3b82f6',
             change_requested: '#f97316',
+            welcome_sent: '#0ea5e9',
         };
         return colors[actionType] || '#94a3b8';
     };
