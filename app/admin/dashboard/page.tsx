@@ -1416,7 +1416,9 @@ export default function AdminDashboard() {
         featuresBefore: { status?: string | null }[],
         featuresAfter: { status?: string | null }[]
     ) => {
-        if (!project || !clientId || project.status_override) return;
+        // Also skip when the project had no features yet: adding one already-finished
+        // item (e.g. a purchased domain) must not declare the project Completed.
+        if (!project || !clientId || project.status_override || featuresBefore.length === 0) return;
         const wasComplete = deriveProjectStatus(featuresBefore) === 'Completed';
         const nowComplete = deriveProjectStatus(featuresAfter) === 'Completed';
         if (nowComplete && !wasComplete) {

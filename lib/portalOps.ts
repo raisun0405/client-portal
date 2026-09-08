@@ -50,7 +50,9 @@ async function featureContext(db: any, featureId: string) {
 // Fire "Project Completed" when a change makes every feature Completed (and it
 // was not before). Skipped while a manual override is in effect — mirrors the UI.
 async function cascadeProjectCompleted(db: any, ctx: any, before: any[], after: any[], via: Via) {
-    if (ctx.project.status_override) return;
+    // A project with no features yet is "Not Started"; adding one already
+    // finished item (say, a purchased domain) must not declare it Completed.
+    if (ctx.project.status_override || before.length === 0) return;
     if (deriveProjectStatus(after) === 'Completed' && deriveProjectStatus(before) !== 'Completed') {
         await writeActivity(db, {
             clientId: ctx.client.id, projectId: ctx.project.id, actionType: 'project_completed',
