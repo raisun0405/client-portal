@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Outfit } from "next/font/google";
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/next";
 import { PUBLIC_ORIGIN } from "@/lib/hosts";
 
 const outfit = Outfit({ subsets: ["latin"] });
@@ -51,6 +52,9 @@ export default function RootLayout({
     <html lang="en">
       <body className={outfit.className}>
         {children}
+        {/* Vercel Web Analytics: cookieless page views + visitors for both
+            admin.raisun.dev and track.raisun.dev (same deployment). */}
+        <Analytics />
       </body>
     </html>
   );
