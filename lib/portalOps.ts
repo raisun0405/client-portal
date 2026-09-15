@@ -11,6 +11,7 @@
 // server-only secret key, so it works from a plain Node process too.
 import { supabaseService } from './supabaseServer';
 import { deriveProjectStatus } from './projectStatus';
+import { monthYearLabel, planLabel, type Cadence } from './packageDates';
 
 export type OpResult<T = any> = { ok: boolean; message: string; data?: T };
 
@@ -408,6 +409,93 @@ export async function addProjectLink(input: { projectId: string; title: string; 
         metadata: { link_title: title, link_url: url }, via,
     });
     return { ok: true, message: `Linked "${title}" on "${project.description}".`, data: { projectId: project.id, links: next } };
+}
+
+export type BalanceRow = { kind: 'retainer' | 'project'; label: string; sub: string; amount: number };
+export type ClientBalance = {
+    clientId: string;
+    client: string;
+    billingMode: string;
+    total: number;
+    rows: BalanceRow[];
+    lastReminderAt: string | null;
+};
+
+// "1 to 31 August 2026" — spelled with "to" rather than a dash, because this
+// text goes straight into client-facing reminder emails.
+function rangeInWords(startIso: string, endIso: string): string {
+    const sd = Number(startIso.split('-')[2]);
+    const ed = Number(endIso.split('-')[2]);
+    const sm = monthYearLabel(startIso), em = monthYearLabel(endIso);
+    return sm === em ? `${sd} to ${ed} ${sm}` : `${sd} ${sm} to ${ed} ${em}`;
+}
+
+/**
+ * Everything a client currently owes, itemised. Same money rules as the admin
+ * pipeline card's OUTSTANDING figure:
+ *   - retainer: every billing period not fully paid (fee minus paid)
+ *   - per-feature: per project, confirmed features only (amount minus paid);
+ *     Rate Pending features are excluded because no price is agreed yet, and
+ *     a package client's Covered features are zero so they never appear.
+ * Also returns when the last payment reminder went out.
+ */
+export async function getClientBalance(clientId: string): Promise<OpResult<ClientBalance>> {
+    const db = supabaseService();
+    const { data: client } = await db.from('clients')
+        .select('id, name, billing_mode, package_cadence').eq('id', clientId).single();
+    if (!client) return { ok: false, message: 'Client not found.' };
+
+    const rows: BalanceRow[] = [];
+    const plan = planLabel((client.package_cadence || 'monthly') as Cadence);
+
+    const { data: periods } = await db.from('billing_periods')
+        .select('period_start, period_end, fee_amount, paid_amount, payment_status')
+        .eq('client_id', clientId).neq('payment_status', 'Paid').order('period_start');
+    for (const b of periods || []) {
+        const fee = Number(b.fee_amount) || 0;
+        const paid = Number(b.paid_amount) || 0;
+        if (fee - paid <= 0) continue;
+        rows.push({
+            kind: 'retainer',
+            label: `${plan}, ${monthYearLabel(b.period_start)}`,
+            sub: paid > 0 ? `${inr(paid)} of ${inr(fee)} paid` : `Invoice for ${rangeInWords(b.period_start, b.period_end)}`,
+            amount: fee - paid,
+        });
+    }
+
+    const { data: projects } = await db.from('projects')
+        .select('id, description, created_at').eq('client_id', clientId).order('created_at');
+    const ids = (projects || []).map((p: any) => p.id);
+    if (ids.length > 0) {
+        const { data: feats } = await db.from('features')
+            .select('project_id, amount, paid_amount, payment_confirmed').in('project_id', ids);
+        for (const p of projects || []) {
+            const fs = (feats || []).filter((f: any) => f.project_id === p.id && f.payment_confirmed !== false);
+            const total = fs.reduce((s: number, f: any) => s + (Number(f.amount) || 0), 0);
+            const paid = fs.reduce((s: number, f: any) => s + (Number(f.paid_amount) || 0), 0);
+            if (total - paid <= 0) continue;
+            rows.push({
+                kind: 'project',
+                label: p.description,
+                sub: paid > 0 ? `${inr(paid)} of ${inr(total)} paid` : 'Not yet paid',
+                amount: total - paid,
+            });
+        }
+    }
+
+    const { data: last } = await db.from('activity_logs')
+        .select('created_at').eq('client_id', clientId).eq('action_type', 'payment_reminder')
+        .order('created_at', { ascending: false }).limit(1);
+
+    const total = rows.reduce((s, r) => s + r.amount, 0);
+    return {
+        ok: true,
+        message: total > 0 ? `${client.name} owes ${inr(total)}.` : `Nothing is pending for ${client.name}.`,
+        data: {
+            clientId: client.id, client: client.name, billingMode: client.billing_mode,
+            total, rows, lastReminderAt: last && last[0] ? last[0].created_at : null,
+        },
+    };
 }
 
 /** Everything awaiting action, using the portal's real definition of "pending". */

@@ -108,6 +108,7 @@ Historical pre-conversion features keep whatever `amount` they already had — t
 
 1. **An operation is not finished until an `activity_logs` row exists.** That row is what the client sees and what you can email.
 2. **Emails are manual.** Writing a log notifies nobody — Rohan sends it from the activity feed, which stamps `notified_at`.
+   The **payment reminder** is manual too: "Send payment reminder" in the client menu, or the button on the client's pipeline card (shown only when something is owed, with when they were last reminded). It emails the total from `getClientBalance` (unpaid retainer invoices + confirmed per-feature project balances; Rate Pending excluded), sends nothing when the balance is ₹0, and logs a `payment_reminder` entry already marked notified.
    The **welcome email** (it carries the client's shared access key) is manual too: "Send welcome email" in the client menu on the admin overview. It is never sent on client creation, and it logs a `welcome_sent` entry that is already marked notified.
 3. **Clients never set price, status, or category.** They describe what they want; Rohan prices and schedules it.
 4. **Client-created items** are `origin='client'` and land as `Requested`, rate-pending. The client can edit or withdraw them **only while still Requested**.

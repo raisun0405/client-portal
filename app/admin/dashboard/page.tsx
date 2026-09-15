@@ -4,14 +4,14 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logActivity, type ActivityLog } from '@/lib/activityLogger';
-import { sendNotification, sendDigestNotification, sendWelcomeEmail } from '@/lib/notifications';
+import { sendNotification, sendDigestNotification, sendWelcomeEmail, getPaymentReminderSummary, sendPaymentReminder } from '@/lib/notifications';
 import { deriveProjectStatus, resolveProjectStatus, type DisplayStatus } from '@/lib/projectStatus';
 import { computeProjectStats } from '@/lib/billing';
 import { packageSchedule, todayLocalISO, coveragePeriod, shiftDaysISO, shiftMonthsISO, type Cadence } from '@/lib/packageDates';
 import { generateDuePackagePeriods } from '@/lib/packageBilling';
 import { Select } from '@/components/Select';
 import { DatePicker } from '@/components/DatePicker';
-import { Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut, ArrowUp, ArrowDown, Mail, MailCheck, Send, CheckCircle2, Clock, Zap, CreditCard, FileText, Link2, Activity, RefreshCw, PackagePlus, ArrowRight, EyeOff, Eye, Search, Copy, Check, UserPlus, MoreHorizontal, ArrowUpRight, ChevronDown, Home, Folder } from 'lucide-react';
+import { Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut, ArrowUp, ArrowDown, Mail, MailCheck, Send, CheckCircle2, Clock, Zap, CreditCard, FileText, Link2, Activity, RefreshCw, PackagePlus, ArrowRight, EyeOff, Eye, Search, Copy, Check, UserPlus, MoreHorizontal, ArrowUpRight, ChevronDown, Home, Folder, BellRing } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Hanken_Grotesk, JetBrains_Mono } from 'next/font/google';
 
@@ -228,7 +228,7 @@ type PipelineSlide = {
 // Option C's dark hero card — headline + split bar, real money only.
 // Holds one or more slides (e.g. package retainer, legacy custom, combined);
 // with >1 it becomes a carousel: tap the dots or swipe (mobile) to switch.
-function DarkPanel({ slides }: { slides: PipelineSlide[] }) {
+function DarkPanel({ slides, footer }: { slides: PipelineSlide[]; footer?: React.ReactNode }) {
     const [active, setActive] = useState(0);
     const touchX = useRef<number | null>(null);
     const multi = slides.length > 1;
@@ -282,6 +282,7 @@ function DarkPanel({ slides }: { slides: PipelineSlide[] }) {
                     </div>
                 </div>
             </div>
+            {footer}
         </section>
     );
 }
@@ -377,7 +378,7 @@ export default function AdminDashboard() {
     // Additional recipients being edited in the client form (beyond the primary email).
     const [editRecipients, setEditRecipients] = useState<{ id?: string; email: string; first_name: string; last_name: string }[]>([]);
     // Recipient-picker modal shown before sending when a client has more than one recipient.
-    const [sendModal, setSendModal] = useState<{ type: 'single' | 'digest' | 'welcome'; logId?: string; clientId?: string; items: { email: string; name: string; isPrimary: boolean; checked: boolean }[] } | null>(null);
+    const [sendModal, setSendModal] = useState<{ type: 'single' | 'digest' | 'welcome' | 'reminder'; logId?: string; clientId?: string; amountLabel?: string; items: { email: string; name: string; isPrimary: boolean; checked: boolean }[] } | null>(null);
     const [sendModalBusy, setSendModalBusy] = useState(false);
 
     // Load the selected client's package billing periods (for the pipeline
@@ -392,6 +393,24 @@ export default function AdminDashboard() {
             .then(({ data }) => { if (!cancelled) setSelectedPkgPeriods((data as BillingPeriod[]) || []); });
         return () => { cancelled = true; };
     }, [selectedClient?.id, selectedClient?.billing_mode]);
+
+    // What the selected client owes right now and when they were last reminded
+    // (drives the "Send reminder" button on the pipeline card). Re-read when the
+    // client's projects reload, so recorded payments show up without a refresh.
+    const [reminderInfo, setReminderInfo] = useState<{ total: number; lastAt: string | null }>({ total: 0, lastAt: null });
+    const refreshReminderInfo = (clientId: string) => {
+        getPaymentReminderSummary(clientId).then(s => {
+            if (s.success) setReminderInfo({ total: s.total, lastAt: s.lastReminderAt });
+        });
+    };
+    useEffect(() => {
+        if (!selectedClient) { setReminderInfo({ total: 0, lastAt: null }); return; }
+        let cancelled = false;
+        getPaymentReminderSummary(selectedClient.id).then(s => {
+            if (!cancelled && s.success) setReminderInfo({ total: s.total, lastAt: s.lastReminderAt });
+        });
+        return () => { cancelled = true; };
+    }, [selectedClient?.id, projects]);
 
     // --- URL-driven navigation ---
     // The current view/selection is encoded in the URL query (?client=&project=&tab=)
@@ -1738,11 +1757,41 @@ export default function AdminDashboard() {
         if (result.success && selectedClient?.id === client.id) fetchActivityLogs(client.id);
     };
 
+    // One-click payment reminder: emails the client everything they currently owe
+    // (unpaid retainer invoices + per-feature balances). The amount is fetched
+    // fresh from the server for the confirm text and recomputed again on send.
+    // Nothing is pending → nothing is sent. The activity-log send flow is untouched.
+    const handleSendReminder = async (client: Client) => {
+        const summary = await getPaymentReminderSummary(client.id);
+        if (!summary.success) { alert(summary.message); return; }
+        if (summary.total <= 0) {
+            alert(`Nothing is pending for ${client.name}, so there is nothing to remind them about.`);
+            return;
+        }
+        const recips = await resolveClientRecipients(client);
+        if (recips.length === 0) {
+            alert('This client has no email address. Edit the client to add one.');
+            return;
+        }
+        const amount = `₹${summary.total.toLocaleString('en-IN')}`;
+        if (recips.length > 1) {
+            setSendModal({ type: 'reminder', clientId: client.id, amountLabel: amount, items: recips.map(r => ({ ...r, checked: true })) });
+            return;
+        }
+        const last = summary.lastReminderAt ? `\n\nLast reminder was sent ${getRelativeTime(summary.lastReminderAt)}.` : '';
+        if (!confirm(`Send a payment reminder for ${amount} to ${recips[0].name} <${recips[0].email}>?${last}`)) return;
+        const result = await sendPaymentReminder(client.id, [{ email: recips[0].email, name: recips[0].name }]);
+        alert(result.message);
+        if (result.success) {
+            if (selectedClient?.id === client.id) { fetchActivityLogs(client.id); refreshReminderInfo(client.id); }
+        }
+    };
+
     // Confirm send from the recipient-picker modal → send to the checked recipients.
     const handleConfirmSend = async () => {
         if (!sendModal) return;
-        // Welcome can be sent from the overview menu, where no client is selected.
-        if (sendModal.type !== 'welcome' && !selectedClient) return;
+        // Welcome + reminder can be sent from the overview menu, where no client is selected.
+        if (sendModal.type !== 'welcome' && sendModal.type !== 'reminder' && !selectedClient) return;
         const chosen = sendModal.items.filter(i => i.checked).map(i => ({ email: i.email, name: i.name }));
         if (chosen.length === 0) {
             alert('Select at least one recipient.');
@@ -1751,15 +1800,21 @@ export default function AdminDashboard() {
         setSendModalBusy(true);
         const result = sendModal.type === 'welcome' && sendModal.clientId
             ? await sendWelcomeEmail(sendModal.clientId, chosen)
-            : sendModal.type === 'single' && sendModal.logId
-                ? await sendNotification(sendModal.logId, chosen)
-                : await sendDigestNotification(Array.from(selectedLogIds), chosen);
+            : sendModal.type === 'reminder' && sendModal.clientId
+                ? await sendPaymentReminder(sendModal.clientId, chosen)
+                : sendModal.type === 'single' && sendModal.logId
+                    ? await sendNotification(sendModal.logId, chosen)
+                    : await sendDigestNotification(Array.from(selectedLogIds), chosen);
         setSendModalBusy(false);
         if (result.success) {
-            const refreshId = sendModal.type === 'welcome' ? sendModal.clientId : selectedClient?.id;
-            if (refreshId && selectedClient?.id === refreshId) fetchActivityLogs(refreshId);
+            const perClient = sendModal.type === 'welcome' || sendModal.type === 'reminder';
+            const refreshId = perClient ? sendModal.clientId : selectedClient?.id;
+            if (refreshId && selectedClient?.id === refreshId) {
+                fetchActivityLogs(refreshId);
+                if (sendModal.type === 'reminder') refreshReminderInfo(refreshId);
+            }
             if (sendModal.type === 'digest') setSelectedLogIds(new Set());
-            if (sendModal.type === 'welcome') alert(result.message);
+            if (perClient) alert(result.message);
             setSendModal(null);
         } else {
             alert(result.message);
@@ -1826,6 +1881,7 @@ export default function AdminDashboard() {
             case 'feature_requested': return { icon: <Zap size={14} />, color: 'bg-blue-500', bgLight: 'bg-blue-50', textColor: 'text-blue-600', label: 'Requested' };
             case 'change_requested': return { icon: <Pencil size={14} />, color: 'bg-orange-500', bgLight: 'bg-orange-50', textColor: 'text-orange-600', label: 'Change Requested' };
             case 'welcome_sent': return { icon: <Mail size={14} />, color: 'bg-sky-500', bgLight: 'bg-sky-50', textColor: 'text-sky-600', label: 'Welcome' };
+            case 'payment_reminder': return { icon: <BellRing size={14} />, color: 'bg-amber-500', bgLight: 'bg-amber-50', textColor: 'text-amber-600', label: 'Payment Reminder' };
             default: return { icon: <Activity size={14} />, color: 'bg-slate-400', bgLight: 'bg-slate-50', textColor: 'text-slate-500', label: 'Activity' };
         }
     };
@@ -2236,6 +2292,7 @@ export default function AdminDashboard() {
                                                                     { icon: <FolderPlus size={14} />, label: 'Projects', fn: () => handleClientSelect(client) },
                                                                     { icon: <Activity size={14} />, label: 'Activity log', fn: () => handleViewActivity(client) },
                                                                     { icon: <Mail size={14} />, label: 'Send welcome email', fn: () => handleSendWelcome(client) },
+                                                                    { icon: <BellRing size={14} />, label: 'Send payment reminder', fn: () => handleSendReminder(client) },
                                                                     ...(client.billing_mode !== 'package'
                                                                         ? [{ icon: <PackagePlus size={14} />, label: 'Convert to package', fn: () => openPackageModal(client) }]
                                                                         : [
@@ -2425,7 +2482,27 @@ export default function AdminDashboard() {
                                 {/* ===== DARK PIPELINE (client-scoped carousel) ===== */}
                                 {pipelineSlides.length > 0 && (
                                     <div className="mb-10">
-                                        <DarkPanel key={selectedClient?.id} slides={pipelineSlides} />
+                                        <DarkPanel
+                                            key={selectedClient?.id}
+                                            slides={pipelineSlides}
+                                            footer={selectedClient && reminderInfo.total > 0 ? (
+                                                <div className="mt-7 pt-5 flex flex-wrap items-center gap-x-4 gap-y-2" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                                                    <button
+                                                        onClick={() => handleSendReminder(selectedClient)}
+                                                        className="rounded-full h-10 px-4 text-[13px] font-bold flex items-center gap-2 whitespace-nowrap transition-opacity hover:opacity-90"
+                                                        style={{ background: '#FFFFFF', color: T.dark }}
+                                                    >
+                                                        <BellRing size={14} strokeWidth={2.25} />
+                                                        Send reminder for ₹{reminderInfo.total.toLocaleString('en-IN')}
+                                                    </button>
+                                                    <span className="text-[12.5px] font-semibold" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                                                        {reminderInfo.lastAt
+                                                            ? (() => { const rel = getRelativeTime(reminderInfo.lastAt); return `Last reminded ${/ago$|Just now/.test(rel) ? rel.toLowerCase() : `on ${rel}`}`; })()
+                                                            : 'No reminder sent yet'}
+                                                    </span>
+                                                </div>
+                                            ) : undefined}
+                                        />
                                     </div>
                                 )}
 
@@ -3619,7 +3696,7 @@ export default function AdminDashboard() {
                                 <div className="flex items-start justify-between gap-3 p-5 sm:p-6 pb-4" style={{ borderBottom: `1px solid ${T.hairline}` }}>
                                     <div>
                                         <h3 className="text-[17px] font-bold tracking-[-0.01em]" style={{ color: T.ink }}>
-                                            Send {sendModal.type === 'digest' ? 'digest' : sendModal.type === 'welcome' ? 'welcome email' : 'update'} to…
+                                            Send {sendModal.type === 'digest' ? 'digest' : sendModal.type === 'welcome' ? 'welcome email' : sendModal.type === 'reminder' ? `${sendModal.amountLabel ?? ''} payment reminder` : 'update'} to…
                                         </h3>
                                         <p className="text-[12.5px] mt-1" style={{ color: T.muted }}>
                                             This client has multiple recipients. Choose who receives it — each gets a copy personalised to their own name.

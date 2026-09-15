@@ -546,6 +546,8 @@ export default function DashboardPage() {
                 return { icon: <Pencil size={16} />, color: 'bg-orange-500', bgLight: 'bg-orange-50', textColor: 'text-orange-600', label: 'Change Requested' };
             case 'welcome_sent':
                 return { icon: <Mail size={16} />, color: 'bg-sky-500', bgLight: 'bg-sky-50', textColor: 'text-sky-600', label: 'Welcome' };
+            case 'payment_reminder':
+                return { icon: <Clock size={16} />, color: 'bg-amber-500', bgLight: 'bg-amber-50', textColor: 'text-amber-600', label: 'Payment Reminder' };
             default:
                 return { icon: <Activity size={16} />, color: 'bg-slate-400', bgLight: 'bg-slate-50', textColor: 'text-slate-500', label: 'Activity' };
         }
@@ -575,6 +577,7 @@ export default function DashboardPage() {
             feature_requested: 'Requested',
             change_requested: 'Change Requested',
             welcome_sent: 'Welcome',
+            payment_reminder: 'Payment Reminder',
         };
         return labels[actionType] || 'Activity';
     };
@@ -603,6 +606,7 @@ export default function DashboardPage() {
             feature_requested: '#3b82f6',
             change_requested: '#f97316',
             welcome_sent: '#0ea5e9',
+            payment_reminder: '#f59e0b',
         };
         return colors[actionType] || '#94a3b8';
     };

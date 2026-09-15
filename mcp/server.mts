@@ -23,7 +23,7 @@ for (const line of readFileSync(resolve(ROOT, '.env'), 'utf8').split(/\r?\n/)) {
     if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
 }
 
-const { updateFeature, getPending, findFeatures, addFeature, createProject, listProjects, addProjectLink } = await import('../lib/portalOps.js');
+const { updateFeature, getPending, findFeatures, addFeature, createProject, listProjects, addProjectLink, getClientBalance } = await import('../lib/portalOps.js');
 const DOMAIN = readFileSync(resolve(ROOT, 'docs/PORTAL_DOMAIN.md'), 'utf8');
 
 const server = new McpServer(
@@ -65,6 +65,15 @@ server.tool(
         clientName: z.string().optional().describe('Narrow to one client by name.'),
     },
     async ({ query, clientName }) => fmt(await findFeatures(query, clientName)),
+);
+
+server.tool(
+    'portal_client_balance',
+    'What one client owes right now, itemised: unpaid retainer invoices plus confirmed per-feature balances per ' +
+    'project (Rate Pending excluded), and when they were last sent a payment reminder. Read-only; reminders are ' +
+    'sent by Rohan from the admin UI, never from here.',
+    { clientId: z.string().uuid() },
+    async ({ clientId }) => fmt(await getClientBalance(clientId)),
 );
 
 server.tool(

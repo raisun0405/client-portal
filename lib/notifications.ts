@@ -4,6 +4,7 @@ import nodemailer from 'nodemailer';
 import { PUBLIC_ORIGIN, ADMIN_ORIGIN } from '@/lib/hosts';
 import { monthYearLabel, humanDateRange, planLabel, type Cadence } from '@/lib/packageDates';
 import { supabaseService } from '@/lib/supabaseServer';
+import { getClientBalance, type BalanceRow } from '@/lib/portalOps';
 
 // Privileged server-side client (secret key). Notifications read logs/projects
 // and stamp notified_at; the anon browser is denied by RLS, so this must not
@@ -94,6 +95,7 @@ const ACTION_META: Record<string, ActionMeta> = {
     feature_requested: { label: 'Requested', bg: '#EFF6FF', text: '#2563EB', dot: '#3B82F6' },
     change_requested: { label: 'Change Requested', bg: '#FFF7ED', text: '#EA580C', dot: '#F97316' },
     welcome_sent: { label: 'Welcome', bg: '#F0F9FF', text: '#0284C7', dot: '#0EA5E9' },
+    payment_reminder: { label: 'Payment Reminder', bg: '#FFFBEB', text: '#B45309', dot: '#F59E0B' },
 };
 const DEFAULT_META: ActionMeta = { label: 'Activity', bg: '#F1F5F9', text: '#475569', dot: '#94A3B8' };
 const metaFor = (actionType: string): ActionMeta => ACTION_META[actionType] || DEFAULT_META;
@@ -794,6 +796,174 @@ export async function sendWelcomeEmail(clientId: string, recipients: EmailRecipi
         return { success: true, message };
     } catch (err: any) {
         console.error('sendWelcomeEmail error:', err);
+        return { success: false, message: err.message || 'Unexpected error.' };
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Payment reminder: one email summarising everything a client currently owes
+// (unpaid retainer invoices + per-feature project balances), sent manually from
+// the admin. The amount is always recomputed server-side from getClientBalance,
+// never taken from the browser. Copy deliberately avoids em and en dashes.
+// ---------------------------------------------------------------------------
+
+const inrPlain = (n: number) => `₹${(Number(n) || 0).toLocaleString('en-IN')}`;
+
+function reminderRow(r: BalanceRow): string {
+    return `<tr>
+                        <td style="padding:14px 0; border-top:1px solid #F1F5F9;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+                                <td style="vertical-align:top;">
+                                    <p style="margin:0; font-size:14px; font-weight:700; color:#0F172A; letter-spacing:-0.2px;">${r.label}</p>
+                                    <p style="margin:3px 0 0 0; font-size:12.5px; color:#64748B; line-height:1.5;">${r.sub}</p>
+                                </td>
+                                <td align="right" style="vertical-align:top; padding-left:12px; white-space:nowrap; font-size:14.5px; font-weight:700; color:#0F172A;">${inrPlain(r.amount)}</td>
+                            </tr></table>
+                        </td>
+                    </tr>`;
+}
+
+function reminderCaption(rows: BalanceRow[]): string {
+    const inv = rows.filter(r => r.kind === 'retainer').length;
+    const proj = rows.filter(r => r.kind === 'project').length;
+    const parts: string[] = [];
+    if (inv) parts.push(`${inv} unpaid invoice${inv > 1 ? 's' : ''}`);
+    if (proj) parts.push(`${proj} project${proj > 1 ? 's' : ''}`);
+    return `Across ${parts.join(' and ')}`;
+}
+
+function generatePaymentReminderHTML(firstName: string, total: number, rows: BalanceRow[], dateLabel: string): string {
+    const O = PUBLIC_ORIGIN;
+    return `<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="x-apple-disable-message-reformatting">
+<title>Quick reminder about your balance, ${firstName}</title>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
+    body, table, td, a { -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%; }
+    table, td { mso-table-lspace:0pt; mso-table-rspace:0pt; }
+    img { -ms-interpolation-mode:bicubic; border:0; outline:none; text-decoration:none; }
+    @media screen and (max-width:600px) {
+        .wrap { padding:28px 14px !important; }
+        .card-pad { padding:30px 24px !important; }
+        .foot-pad { padding:16px 24px !important; }
+        .h1 { font-size:28px !important; }
+        .amt { font-size:28px !important; }
+    }
+</style></head>
+<body style="margin:0; padding:0; background-color:#F8FAFC; font-family:'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing:antialiased;">
+    <div style="display:none; max-height:0; overflow:hidden; opacity:0; color:#F8FAFC;">${inrPlain(total)} is still open on your account. Here is the breakdown.</div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F8FAFC;">
+        <tr><td align="center" class="wrap" style="padding:48px 20px;">
+${BRAND_HEADER}
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px; margin:0 auto; background-color:#FFFFFF; border:1px solid #E2E8F0; border-radius:16px; box-shadow:0 1px 2px rgba(15,23,42,0.04);">
+                <tr><td class="card-pad" style="padding:40px 40px 36px 40px;">
+
+                    <p style="margin:0 0 16px 0; font-size:11px; font-weight:800; color:#B45309; text-transform:uppercase; letter-spacing:2.5px;">Payment reminder</p>
+
+                    <h1 class="h1" style="margin:0 0 20px 0; font-size:34px; font-weight:800; color:#0F172A; line-height:1.08; letter-spacing:-1px;">
+                        A quick reminder<br><span style="color:#CBD5E1;">about your balance.</span>
+                    </h1>
+
+                    <p style="margin:0 0 6px 0; font-size:14px; color:#0F172A; font-weight:600;">Hi ${firstName},</p>
+                    <p style="margin:0 0 24px 0; font-size:14px; color:#64748B; line-height:1.7;">
+                        Hope you are doing well. Here is what is still open on your account. If you have already paid, thank you, and please ignore this note.
+                    </p>
+
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+                        <tr><td style="background-color:#FFFBEB; border:1px solid #FDE68A; border-radius:14px; padding:18px 20px;">
+                            <p style="margin:0; font-size:11px; font-weight:700; color:#B45309; text-transform:uppercase; letter-spacing:1.4px;">Total pending</p>
+                            <p class="amt" style="margin:6px 0 0 0; font-size:32px; font-weight:800; color:#0F172A; letter-spacing:-0.5px; line-height:1.1;">${inrPlain(total)}</p>
+                            <p style="margin:4px 0 0 0; font-size:12px; font-weight:600; color:#B45309;">${reminderCaption(rows)}</p>
+                        </td></tr>
+                    </table>
+
+                    <p style="margin:0 0 2px 0; font-size:10.5px; font-weight:800; color:#94A3B8; text-transform:uppercase; letter-spacing:1.6px;">Breakdown</p>
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:26px;">
+                        ${rows.map(reminderRow).join('')}
+                    </table>
+
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+                        <td style="border-radius:14px; background-color:#0F172A;">
+                            <a href="${O}" style="display:block; padding:16px 22px; text-decoration:none; border-radius:14px;">
+                                <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+                                    <td style="font-size:14px; font-weight:700; color:#FFFFFF; letter-spacing:0.2px;">View details on your dashboard</td>
+                                    <td align="right" style="font-size:16px; font-weight:700; color:#60A5FA;">&#8599;</td>
+                                </tr></table>
+                            </a>
+                        </td>
+                    </tr></table>
+
+                    <p style="margin:18px 0 0 0; font-size:12.5px; color:#94A3B8; line-height:1.6;">Questions about any of this? Just reply to this email.</p>
+
+                </td></tr>
+                <tr><td class="foot-pad" style="padding:18px 40px; background-color:#F8FAFC; border-top:1px solid #F1F5F9; border-radius:0 0 16px 16px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+                        <td style="font-size:12px; color:#94A3B8; font-weight:500;">Payment reminder</td>
+                        <td align="right" style="font-size:12px; color:#475569; font-weight:600;">${dateLabel}</td>
+                    </tr></table>
+                </td></tr>
+            </table>
+${SYSTEM_FOOTER}
+        </td></tr>
+    </table>
+</body></html>`;
+}
+
+// Server action: what a client owes right now + when they were last reminded.
+// Powers the admin button label, the "last reminded" line and the confirm text.
+export async function getPaymentReminderSummary(clientId: string) {
+    const res = await getClientBalance(clientId);
+    if (!res.ok || !res.data) return { success: false, message: res.message, total: 0, rows: [] as BalanceRow[], lastReminderAt: null as string | null };
+    return { success: true, message: res.message, total: res.data.total, rows: res.data.rows, lastReminderAt: res.data.lastReminderAt };
+}
+
+// Server action: send the payment reminder to the chosen recipients, each
+// addressed by first name, then log a `payment_reminder` entry (already
+// notified) holding the amount, breakdown and recipients.
+export async function sendPaymentReminder(clientId: string, recipients: EmailRecipient[]) {
+    try {
+        const cleaned = recipients.filter(r => r.email && r.email.trim());
+        if (cleaned.length === 0) return { success: false, message: 'No recipients selected.' };
+
+        const res = await getClientBalance(clientId);
+        if (!res.ok || !res.data) return { success: false, message: res.message };
+        const { client, total, rows } = res.data;
+        if (total <= 0) return { success: false, message: `Nothing is pending for ${client}, so no reminder was sent.` };
+
+        const dateLabel = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+        const results = await Promise.allSettled(cleaned.map(r => {
+            const firstName = (r.name || client || 'there').trim().split(/\s+/)[0];
+            return transporter.sendMail({
+                from: `"Project Update" <${process.env.GMAIL_EMAIL}>`,
+                to: r.email,
+                subject: `Quick reminder about your balance, ${firstName}`,
+                html: generatePaymentReminderHTML(firstName, total, rows, dateLabel),
+            });
+        }));
+
+        const sentTo = cleaned.filter((_, i) => results[i].status === 'fulfilled');
+        if (sentTo.length === 0) return { success: false, message: 'Failed to send to any recipient.' };
+
+        await supabaseAdmin.from('activity_logs').insert({
+            client_id: clientId,
+            project_id: null,
+            action_type: 'payment_reminder',
+            title: `Payment reminder: ${inrPlain(total)} pending`,
+            description: `A reminder for ${inrPlain(total)} pending was sent to ${sentTo.map(r => r.name).join(', ')}`,
+            metadata: { amount: total, rows, recipients: sentTo.map(r => r.email), via: 'admin' },
+            notified_at: new Date().toISOString(),
+        });
+
+        const failed = cleaned.length - sentTo.length;
+        return {
+            success: true,
+            message: failed > 0
+                ? `Reminder for ${inrPlain(total)} sent to ${sentTo.length} of ${cleaned.length} recipients (${failed} failed).`
+                : `Reminder for ${inrPlain(total)} sent to ${sentTo.map(r => r.name).join(', ')}.`,
+        };
+    } catch (err: any) {
+        console.error('sendPaymentReminder error:', err);
         return { success: false, message: err.message || 'Unexpected error.' };
     }
 }

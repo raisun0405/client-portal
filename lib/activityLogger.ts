@@ -24,7 +24,8 @@ export type ActivityAction =
     | 'project_requested'
     | 'feature_requested'
     | 'change_requested'
-    | 'welcome_sent';
+    | 'welcome_sent'
+    | 'payment_reminder';
 
 export type ActivityLog = {
     id: string;
