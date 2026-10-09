@@ -32,6 +32,8 @@ Every write goes through `portalOps`, so a step **cannot** be skipped.
 
 **Local only.** Claude Code spawns this as a child process on your machine. It is **not hosted** and **not a claude.ai connector** — nothing is exposed to the website. Your `SUPABASE_SECRET_KEY` stays in the repo's gitignored `.env`.
 
+Don't confuse it with the **client connector** (`track.raisun.dev/mcp`), which *is* hosted: it is for clients' own Claude, each sign-in sees one client's portal only, and it has none of these admin tools. See [`docs/CLIENT_CONNECTOR.md`](../docs/CLIENT_CONNECTOR.md).
+
 *(Inherent caveat: tool **results** travel to the model as conversation context, like any file you show Claude.)*
 
 ---
@@ -79,7 +81,7 @@ Every write goes through `portalOps`, so a step **cannot** be skipped.
 Already registered. To reproduce on a new machine:
 
 ```bash
-npm install                    # installs @modelcontextprotocol/sdk + tsx (devDeps)
+npm install                    # installs @modelcontextprotocol/sdk (the website's client connector uses it too) + tsx
 
 claude mcp add client-portal --scope user -- \
   npx tsx "<ABSOLUTE_PATH_TO_REPO>/mcp/server.mts"

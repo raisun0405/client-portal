@@ -24,7 +24,10 @@ const ADMIN_NOTIFY_EMAIL = 'rohanvishwakarma471@gmail.com';
 
 // Alert the admin when a client submits a request. Best-effort — callers wrap
 // this in try/catch so a mail failure never blocks the request write itself.
-export async function notifyAdminOfRequest(input: { clientName: string; title: string; description?: string }): Promise<void> {
+export async function notifyAdminOfRequest(input: { clientName: string; title: string; description?: string; via?: 'portal' | 'claude' }): Promise<void> {
+    // Local test runs (scripts/test-connector.mts) set this so they don't email you.
+    if (process.env.PORTAL_SKIP_ADMIN_ALERTS === '1') return;
+    const source = input.via === 'claude' ? 'sent by their Claude' : 'via the client portal';
     const html = `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${input.title}</title></head>
 <body style="margin:0; padding:0; background-color:#F8FAFC; font-family:'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
@@ -45,7 +48,7 @@ export async function notifyAdminOfRequest(input: { clientName: string; title: s
                 </tr></table>
             </td></tr>
             <tr><td style="padding:16px 36px; background:#F8FAFC; border-top:1px solid #F1F5F9; border-radius:0 0 16px 16px;">
-                <p style="margin:0; font-size:11px; color:#94A3B8;">From ${input.clientName} &middot; via the client portal</p>
+                <p style="margin:0; font-size:11px; color:#94A3B8;">From ${input.clientName} &middot; ${source}</p>
             </td></tr>
         </table>
     </td></tr></table>
@@ -53,7 +56,7 @@ export async function notifyAdminOfRequest(input: { clientName: string; title: s
     await transporter.sendMail({
         from: `"Client Portal" <${process.env.GMAIL_EMAIL}>`,
         to: ADMIN_NOTIFY_EMAIL,
-        subject: `New request — ${input.title}`,
+        subject: `New request — ${input.title}${input.via === 'claude' ? ' (from their Claude)' : ''}`,
         html,
     });
 }

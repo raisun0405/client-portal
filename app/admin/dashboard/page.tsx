@@ -11,7 +11,7 @@ import { packageSchedule, todayLocalISO, coveragePeriod, shiftDaysISO, shiftMont
 import { generateDuePackagePeriods } from '@/lib/packageBilling';
 import { Select } from '@/components/Select';
 import { DatePicker } from '@/components/DatePicker';
-import { Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut, ArrowUp, ArrowDown, Mail, MailCheck, Send, CheckCircle2, Clock, Zap, CreditCard, FileText, Link2, Activity, RefreshCw, PackagePlus, ArrowRight, EyeOff, Eye, Search, Copy, Check, UserPlus, MoreHorizontal, ArrowUpRight, ChevronDown, Home, Folder, BellRing } from 'lucide-react';
+import { Plus, FolderPlus, Trash2, ArrowLeft, X, Loader2, Pencil, LogOut, ArrowUp, ArrowDown, Mail, MailCheck, Send, CheckCircle2, Clock, Zap, CreditCard, FileText, Link2, Activity, RefreshCw, PackagePlus, ArrowRight, EyeOff, Eye, Search, Copy, Check, UserPlus, MoreHorizontal, ArrowUpRight, ChevronDown, Home, Folder, BellRing, Bot, Unplug } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Hanken_Grotesk, JetBrains_Mono } from 'next/font/google';
 
@@ -36,6 +36,10 @@ type Client = {
     package_anchor_day?: number | null;
     // Pinned to the top of the admin directory regardless of the active sort/filter.
     pinned?: boolean | null;
+    // The client may connect their own Claude to the portal (docs/CLIENT_CONNECTOR.md).
+    // Bumping claude_epoch ("Disconnect Claude") ends every connected Claude at once.
+    claude_access?: boolean | null;
+    claude_epoch?: number | null;
 };
 
 type ClientStats = {
@@ -554,6 +558,29 @@ export default function AdminDashboard() {
             setClients(prev => prev.map(c => c.id === client.id ? { ...c, pinned: !next } : c));
             alert('Could not update pin: ' + error.message);
         }
+    };
+
+    // Claude access: whether this client may connect their own Claude to the portal
+    // (docs/CLIENT_CONNECTOR.md). Off by default; switching it off cuts any connected
+    // Claude off at once. Optimistic, reverted if the write fails.
+    const toggleClaudeAccess = async (client: ClientWithStats) => {
+        const next = !client.claude_access;
+        setClients(prev => prev.map(c => c.id === client.id ? { ...c, claude_access: next } : c));
+        const { error } = await supabaseAdmin.from('clients').update({ claude_access: next }).eq('id', client.id);
+        if (error) {
+            setClients(prev => prev.map(c => c.id === client.id ? { ...c, claude_access: !next } : c));
+            alert('Could not update Claude access: ' + error.message);
+        }
+    };
+
+    // Disconnect Claude: ends every connected Claude for this client. With access still
+    // on, they can connect again by entering their access key.
+    const disconnectClaude = async (client: ClientWithStats) => {
+        if (!confirm(`Disconnect ${client.name}'s Claude? It stops working straight away; they can connect again with their access key.`)) return;
+        const next = (client.claude_epoch ?? 0) + 1;
+        const { error } = await supabaseAdmin.from('clients').update({ claude_epoch: next }).eq('id', client.id);
+        if (error) return alert('Could not disconnect: ' + error.message);
+        setClients(prev => prev.map(c => c.id === client.id ? { ...c, claude_epoch: next } : c));
     };
 
     const fetchProjects = async (clientId: string) => {
@@ -2184,6 +2211,11 @@ export default function AdminDashboard() {
                                                                             Package
                                                                         </span>
                                                                     )}
+                                                                    {client.claude_access && (
+                                                                        <span className="shrink-0 inline-flex items-center gap-1 font-extrabold uppercase rounded-full" style={{ fontSize: 10, letterSpacing: '0.06em', color: '#4A515E', border: `1px solid ${T.border}`, padding: '1px 8px' }} title="Can connect their own Claude to the portal">
+                                                                            <Bot size={11} />Claude
+                                                                        </span>
+                                                                    )}
                                                                 </div>
                                                                 <div className="text-[12.5px] truncate mt-0.5" style={{ color: '#828A99' }}>
                                                                     {client.email || <span style={{ color: T.accent }}>No email on file</span>}
@@ -2293,6 +2325,8 @@ export default function AdminDashboard() {
                                                                     { icon: <Activity size={14} />, label: 'Activity log', fn: () => handleViewActivity(client) },
                                                                     { icon: <Mail size={14} />, label: 'Send welcome email', fn: () => handleSendWelcome(client) },
                                                                     { icon: <BellRing size={14} />, label: 'Send payment reminder', fn: () => handleSendReminder(client) },
+                                                                    { icon: <Bot size={14} />, label: client.claude_access ? 'Turn off Claude access' : 'Turn on Claude access', fn: () => toggleClaudeAccess(client) },
+                                                                    ...(client.claude_access ? [{ icon: <Unplug size={14} />, label: 'Disconnect Claude', fn: () => disconnectClaude(client) }] : []),
                                                                     ...(client.billing_mode !== 'package'
                                                                         ? [{ icon: <PackagePlus size={14} />, label: 'Convert to package', fn: () => openPackageModal(client) }]
                                                                         : [

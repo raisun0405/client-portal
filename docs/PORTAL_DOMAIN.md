@@ -5,6 +5,8 @@ Two surfaces over one Supabase database:
 - **Admin** (`admin.raisun.dev`) — Rohan runs the business here. Logs in with Supabase Auth.
 - **Client portal** (`track.raisun.dev`) — the client's read-mostly view. Logs in with an `access_key`; all its data is served by server actions using the secret key (the anon browser key is denied by RLS).
 
+A client you switch on (`clients.claude_access`) can also connect **their own Claude** at `track.raisun.dev/mcp`, signed in with the same access key: it reads only that client's portal and sends requests through the portal's own code. See [CLIENT_CONNECTOR.md](CLIENT_CONNECTOR.md).
+
 ## Entities
 
 **Client** — a customer. Notifications go to `clients.email` **plus** every row in `client_recipients`; each person gets their own copy addressed to their own first name. `billing_mode` is `per_feature` or `package`.
@@ -124,4 +126,4 @@ Historical pre-conversion features keep whatever `amount` they already had — t
 
 - Money is rupees, formatted `en-IN`.
 - Dates are `YYYY-MM-DD`; package date math lives in `lib/packageDates.ts` and is always passed `today` explicitly.
-- Anything an agent changes is stamped `metadata.via = 'agent'` in the activity log, so it can be audited and reversed.
+- Anything an agent changes is stamped `metadata.via = 'agent'` in the activity log, so it can be audited and reversed. Requests a client sends through their own Claude are stamped `metadata.via = 'claude'`.
