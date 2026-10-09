@@ -577,10 +577,21 @@ export default function AdminDashboard() {
     // on, they can connect again by entering their access key.
     const disconnectClaude = async (client: ClientWithStats) => {
         if (!confirm(`Disconnect ${client.name}'s Claude? It stops working straight away; they can connect again with their access key.`)) return;
-        const next = (client.claude_epoch ?? 0) + 1;
-        const { error } = await supabaseAdmin.from('clients').update({ claude_epoch: next }).eq('id', client.id);
-        if (error) return alert('Could not disconnect: ' + error.message);
-        setClients(prev => prev.map(c => c.id === client.id ? { ...c, claude_epoch: next } : c));
+        // Count on from the number in the database, never the one on screen: a stale
+        // screen could write the number already there, and that would cut nobody off.
+        for (let attempt = 0; attempt < 3; attempt++) {
+            const { data, error } = await supabaseAdmin.from('clients').select('claude_epoch').eq('id', client.id).single();
+            if (error) return alert('Could not disconnect: ' + error.message);
+            const next = (data.claude_epoch ?? 0) + 1;
+            // Only if nobody moved it in between (a disconnect from Folio, say).
+            const { data: rows, error: saveError } = await supabaseAdmin.from('clients').update({ claude_epoch: next }).eq('id', client.id).eq('claude_epoch', next - 1).select('id');
+            if (saveError) return alert('Could not disconnect: ' + saveError.message);
+            if (rows?.length) {
+                setClients(prev => prev.map(c => c.id === client.id ? { ...c, claude_epoch: next } : c));
+                return;
+            }
+        }
+        alert('Could not disconnect: the client changed at the same moment. Try again.');
     };
 
     const fetchProjects = async (clientId: string) => {
