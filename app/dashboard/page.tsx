@@ -383,6 +383,34 @@ export default function DashboardPage() {
         setFeatures([]);
     };
 
+    // While a pop-up is open the page behind it stays still: scrolling over the dimmed backdrop,
+    // or past the top or bottom of the card, no longer moves it. overflow: hidden on <html> holds
+    // on iPhones too (iOS 16+) and keeps the scroll position, so closing lands on the same spot.
+    // The scrollbar's gutter stays reserved, so nothing shifts sideways when the scrollbar goes.
+    const popupOpen = !!selectedProject || reqProjectOpen || reqFeatureOpen || !!chgForm;
+    useEffect(() => {
+        if (!popupOpen) return;
+        const html = document.documentElement;
+        const before = { overflow: html.style.overflow, gutter: html.style.getPropertyValue('scrollbar-gutter') };
+        const hadScrollbar = window.innerWidth > html.clientWidth;
+        html.style.overflow = 'hidden';
+        if (hadScrollbar) html.style.setProperty('scrollbar-gutter', 'stable');
+        return () => {
+            html.style.overflow = before.overflow;
+            if (before.gutter) html.style.setProperty('scrollbar-gutter', before.gutter);
+            else html.style.removeProperty('scrollbar-gutter');
+        };
+    }, [popupOpen]);
+
+    // A feature the monthly package pays for (absorbed at conversion, or a package client's ₹0
+    // work) reads "Covered". When every feature of the open project is like that, the Cost and
+    // Payment columns (and the Amount sort) would only repeat "Covered" / "included" on each row,
+    // so they go; a project with any priced work keeps them.
+    const isCovered = (f: Feature) => coveredFeatureIds.has(f.id) || (packageInfo?.billing_mode === 'package' && (f.amount || 0) === 0);
+    const allCovered = features.length > 0 && features.every(isCovered);
+    const sortFields: SortField[] = allCovered ? ['status', 'created_at'] : ['amount', 'status', 'created_at'];
+    const activeSort: SortField = allCovered && sortField === 'amount' ? 'created_at' : sortField;
+
     // ---- Client request handlers ----
     const loadPendingChanges = async () => {
         const list = await getMyPendingChanges();
@@ -1651,7 +1679,7 @@ export default function DashboardPage() {
                         </div>
 
                         {/* Modal Content - Scrollable */}
-                        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-8 bg-slate-50/50">
+                        <div className="flex-1 overflow-y-auto overscroll-contain custom-scrollbar p-4 sm:p-8 bg-slate-50/50">
 
                             {/* Top Section: Financials & Links Grid */}
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8 sm:mb-10">
@@ -1794,7 +1822,7 @@ export default function DashboardPage() {
                                 <div className="px-4 sm:px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white sticky top-0 z-10 w-full">
                                     <div>
                                         <h3 className="text-lg font-bold text-slate-900">Features & Requests</h3>
-                                        <p className="text-sm text-slate-500">Track development progress and costs</p>
+                                        <p className="text-sm text-slate-500">{allCovered ? 'Track development progress' : 'Track development progress and costs'}</p>
                                     </div>
 
                                     {/* Sorting Pills - Responsive Scrollable */}
@@ -1802,11 +1830,11 @@ export default function DashboardPage() {
                                         <div className="flex items-center gap-3 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
                                             <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest whitespace-nowrap">Sort By</span>
                                             <div className="flex bg-slate-100 p-1 rounded-lg">
-                                                {(['amount', 'status', 'created_at'] as SortField[]).map((field) => (
+                                                {sortFields.map((field) => (
                                                     <button
                                                         key={field}
                                                         onClick={() => {
-                                                            if (sortField === field) {
+                                                            if (activeSort === field) {
                                                                 setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
                                                             } else {
                                                                 setSortField(field);
@@ -1815,13 +1843,13 @@ export default function DashboardPage() {
                                                         }}
                                                         className={`
                                                             px-3 py-1.5 text-xs font-bold rounded-md transition-all flex items-center gap-1.5 whitespace-nowrap
-                                                            ${sortField === field
+                                                            ${activeSort === field
                                                                 ? 'bg-white text-slate-900 shadow-sm ring-1 ring-black/5'
                                                                 : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}
                                                         `}
                                                     >
                                                         {field === 'created_at' ? 'Date' : field.charAt(0).toUpperCase() + field.slice(1)}
-                                                        {sortField === field && (
+                                                        {activeSort === field && (
                                                             sortOrder === 'asc' ? <ArrowUp size={10} strokeWidth={3} /> : <ArrowDown size={10} strokeWidth={3} />
                                                         )}
                                                     </button>
@@ -1845,19 +1873,19 @@ export default function DashboardPage() {
                                                         <th className="px-6 py-4">Date</th>
                                                         <th className="px-6 py-4">Type</th>
                                                         <th className="px-6 py-4">Status</th>
-                                                        <th className="px-6 py-4">Cost</th>
-                                                        <th className="px-6 py-4 text-right">Payment</th>
+                                                        {!allCovered && <th className="px-6 py-4">Cost</th>}
+                                                        {!allCovered && <th className="px-6 py-4 text-right">Payment</th>}
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-slate-100">
                                                     {[...features].sort((a, b) => {
                                                         let comparison = 0;
-                                                        if (sortField === 'amount') {
+                                                        if (activeSort === 'amount') {
                                                             comparison = (a.amount || 0) - (b.amount || 0);
-                                                        } else if (sortField === 'status') {
+                                                        } else if (activeSort === 'status') {
                                                             const statusOrder = ['Requested', 'Approved', 'Working', 'Updating', 'Completed'];
                                                             comparison = statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status);
-                                                        } else if (sortField === 'created_at') {
+                                                        } else if (activeSort === 'created_at') {
                                                             comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
                                                         }
                                                         return sortOrder === 'asc' ? comparison : -comparison;
@@ -1925,8 +1953,9 @@ export default function DashboardPage() {
                                                                     {feature.status}
                                                                 </span>
                                                             </td>
+                                                            {!allCovered && (<>
                                                             <td className="px-6 py-4">
-                                                                {(coveredFeatureIds.has(feature.id) || (packageInfo?.billing_mode === 'package' && (feature.amount || 0) === 0)) ? (
+                                                                {isCovered(feature) ? (
                                                                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-violet-50 text-violet-600 border border-violet-200 whitespace-nowrap">
                                                                         <CreditCard size={12} /> Covered
                                                                     </span>
@@ -1940,7 +1969,7 @@ export default function DashboardPage() {
                                                                 )}
                                                             </td>
                                                             <td className="px-6 py-4 text-right">
-                                                                {(coveredFeatureIds.has(feature.id) || (packageInfo?.billing_mode === 'package' && (feature.amount || 0) === 0)) ? (
+                                                                {isCovered(feature) ? (
                                                                     <span className="text-xs text-violet-400 italic">included</span>
                                                                 ) : feature.payment_confirmed === false ? (
                                                                     <span className="text-xs text-slate-400 italic">—</span>
@@ -1961,6 +1990,7 @@ export default function DashboardPage() {
                                                                     </div>
                                                                 )}
                                                             </td>
+                                                            </>)}
                                                         </tr>
                                                     ))}
                                                 </tbody>
@@ -1971,12 +2001,12 @@ export default function DashboardPage() {
                                         <div className="md:hidden p-4 space-y-4">
                                             {[...features].sort((a, b) => {
                                                 let comparison = 0;
-                                                if (sortField === 'amount') {
+                                                if (activeSort === 'amount') {
                                                     comparison = (a.amount || 0) - (b.amount || 0);
-                                                } else if (sortField === 'status') {
+                                                } else if (activeSort === 'status') {
                                                     const statusOrder = ['Requested', 'Approved', 'Working', 'Updating', 'Completed'];
                                                     comparison = statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status);
-                                                } else if (sortField === 'created_at') {
+                                                } else if (activeSort === 'created_at') {
                                                     comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
                                                 }
                                                 return sortOrder === 'asc' ? comparison : -comparison;
@@ -1992,7 +2022,7 @@ export default function DashboardPage() {
                                                                 {feature.status}
                                                             </span>
                                                         </div>
-                                                        {(coveredFeatureIds.has(feature.id) || (packageInfo?.billing_mode === 'package' && (feature.amount || 0) === 0)) ? (
+                                                        {!allCovered && (isCovered(feature) ? (
                                                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-violet-50 text-violet-600 border border-violet-200 whitespace-nowrap">
                                                                 <CreditCard size={10} /> Covered
                                                             </span>
@@ -2003,7 +2033,7 @@ export default function DashboardPage() {
                                                             </span>
                                                         ) : (
                                                             <span className="text-slate-900 font-bold font-mono">₹{(feature.amount || 0).toLocaleString()}</span>
-                                                        )}
+                                                        ))}
                                                     </div>
 
                                                     <h4 className="text-slate-900 font-semibold mb-2">{feature.description}</h4>
@@ -2043,8 +2073,9 @@ export default function DashboardPage() {
                                                                 <p className="text-slate-400">Est: {feature.estimation}</p>
                                                             )}
                                                         </div>
+                                                        {!allCovered && (
                                                         <div className="text-right">
-                                                            {(coveredFeatureIds.has(feature.id) || (packageInfo?.billing_mode === 'package' && (feature.amount || 0) === 0)) ? (
+                                                            {isCovered(feature) ? (
                                                                 <span className="text-xs text-violet-400 italic">included</span>
                                                             ) : feature.payment_confirmed === false ? (
                                                                 <span className="text-xs text-slate-400 italic">—</span>
@@ -2062,6 +2093,7 @@ export default function DashboardPage() {
                                                                 </>
                                                             )}
                                                         </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             ))}
