@@ -25,7 +25,8 @@ export type ActivityAction =
     | 'feature_requested'
     | 'change_requested'
     | 'welcome_sent'
-    | 'payment_reminder';
+    | 'payment_reminder'
+    | 'status_sent';
 
 export type ActivityLog = {
     id: string;

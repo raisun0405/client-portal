@@ -4,7 +4,8 @@ import nodemailer from 'nodemailer';
 import { PUBLIC_ORIGIN, ADMIN_ORIGIN } from '@/lib/hosts';
 import { monthYearLabel, humanDateRange, planLabel, type Cadence } from '@/lib/packageDates';
 import { supabaseService } from '@/lib/supabaseServer';
-import { getClientBalance, type BalanceRow } from '@/lib/portalOps';
+import { getClientBalance, getProjectStatus, type BalanceRow } from '@/lib/portalOps';
+import { BRAND_HEADER, SYSTEM_FOOTER, generateProjectStatusHTML, projectStatusSubject } from '@/lib/emailTemplates';
 
 // Privileged server-side client (secret key). Notifications read logs/projects
 // and stamp notified_at; the anon browser is denied by RLS, so this must not
@@ -99,38 +100,14 @@ const ACTION_META: Record<string, ActionMeta> = {
     change_requested: { label: 'Change Requested', bg: '#FFF7ED', text: '#EA580C', dot: '#F97316' },
     welcome_sent: { label: 'Welcome', bg: '#F0F9FF', text: '#0284C7', dot: '#0EA5E9' },
     payment_reminder: { label: 'Payment Reminder', bg: '#FFFBEB', text: '#B45309', dot: '#F59E0B' },
+    status_sent: { label: 'Status Update', bg: '#F0FDFA', text: '#0D9488', dot: '#14B8A6' },
 };
 const DEFAULT_META: ActionMeta = { label: 'Activity', bg: '#F1F5F9', text: '#475569', dot: '#94A3B8' };
 const metaFor = (actionType: string): ActionMeta => ACTION_META[actionType] || DEFAULT_META;
 
-// Shared brand header (logo tile + wordmark) — matches the portal dashboard header.
-const BRAND_HEADER = `
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px; margin:0 auto;">
-                    <tr>
-                        <td align="left" style="padding-bottom:20px;">
-                            <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-                                <td style="width:34px; height:34px; background-color:#C0C0C0; border-radius:17px; text-align:center; vertical-align:middle;">
-                                    <img src="${PUBLIC_ORIGIN}/brand-logo.jpg" width="26" height="26" alt="Project Update" style="display:inline-block; width:26px; height:26px; border-radius:13px; object-fit:cover; vertical-align:middle;">
-                                </td>
-                                <td style="vertical-align:middle; padding-left:10px;">
-                                    <span style="font-size:15px; font-weight:600; color:#0F172A; letter-spacing:-0.2px;">Project Update</span>
-                                </td>
-                            </tr></table>
-                        </td>
-                    </tr>
-                </table>`;
-
-// Shared system footer.
-const SYSTEM_FOOTER = `
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px; margin:0 auto;">
-                    <tr>
-                        <td align="center" style="padding-top:24px;">
-                            <p style="margin:0; font-size:10px; color:#94A3B8; line-height:1.5;">
-                                Automated notification from your project portal &middot; Project Update &copy; ${new Date().getFullYear()}
-                            </p>
-                        </td>
-                    </tr>
-                </table>`;
+// BRAND_HEADER and SYSTEM_FOOTER live in lib/emailTemplates.ts — this is a
+// 'use server' module, so it can only export async actions, and the templates
+// need to be importable by plain scripts too.
 
 // Generate the activity email — soft slate-blue card matching the client portal.
 function generateSingleActivityEmailHTML(log: ActivityLog, clientName: string, projectName?: string): string {
@@ -967,6 +944,85 @@ export async function sendPaymentReminder(clientId: string, recipients: EmailRec
         };
     } catch (err: any) {
         console.error('sendPaymentReminder error:', err);
+        return { success: false, message: err.message || 'Unexpected error.' };
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Project status update: one email telling a client exactly where a single
+// project stands, sent from the project row in admin. The status, progress and
+// feature list are always recomputed server-side from getProjectStatus, never
+// taken from the browser. Copy deliberately avoids em and en dashes.
+// ---------------------------------------------------------------------------
+
+// Server action: where a project stands + when its status was last emailed.
+// Powers the confirm text and the "last sent" line in the admin.
+export async function getProjectStatusSummary(projectId: string) {
+    const res = await getProjectStatus(projectId);
+    if (!res.ok || !res.data) return { success: false, message: res.message, status: '' as string, totalFeatures: 0, completedFeatures: 0, progress: 0, project: '', lastSentAt: null as string | null };
+    const d = res.data;
+    return {
+        success: true, message: res.message, project: d.project, status: d.status as string,
+        progress: d.progress, totalFeatures: d.totalFeatures, completedFeatures: d.completedFeatures,
+        lastSentAt: d.lastSentAt,
+    };
+}
+
+// Server action: email one project's status to the chosen recipients, each
+// addressed by first name, then log a `status_sent` entry against that project
+// (already marked notified) holding the status and progress that went out.
+export async function sendProjectStatusUpdate(projectId: string, recipients: EmailRecipient[]) {
+    try {
+        const cleaned = recipients.filter(r => r.email && r.email.trim());
+        if (cleaned.length === 0) return { success: false, message: 'No recipients selected.' };
+
+        const res = await getProjectStatus(projectId);
+        if (!res.ok || !res.data) return { success: false, message: res.message };
+        const s = res.data;
+        // A client-submitted project you have not accepted yet is not news to
+        // the client who asked for it, so there is nothing to report.
+        if (s.status === 'Requested') {
+            return { success: false, message: `"${s.project}" is still a client request. Accept it first, then send the status.` };
+        }
+
+        const dateLabel = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+        const results = await Promise.allSettled(cleaned.map(r => {
+            const firstName = (r.name || s.client || 'there').trim().split(/\s+/)[0];
+            return transporter.sendMail({
+                from: `"Project Update" <${process.env.GMAIL_EMAIL}>`,
+                to: r.email,
+                subject: projectStatusSubject(s.status, s.project, firstName),
+                html: generateProjectStatusHTML(firstName, s, dateLabel),
+            });
+        }));
+
+        const sentTo = cleaned.filter((_, i) => results[i].status === 'fulfilled');
+        if (sentTo.length === 0) return { success: false, message: 'Failed to send to any recipient.' };
+
+        const progressText = s.totalFeatures > 0 ? `${s.completedFeatures} of ${s.totalFeatures} features done` : 'no features yet';
+        await supabaseAdmin.from('activity_logs').insert({
+            client_id: s.clientId,
+            project_id: s.projectId,
+            action_type: 'status_sent',
+            title: `Status update: ${s.project} is ${String(s.status).toLowerCase()}`,
+            description: `A status update for "${s.project}" (${s.status}, ${progressText}) was sent to ${sentTo.map(r => r.name).join(', ')}`,
+            metadata: {
+                status: s.status, progress: s.progress,
+                totalFeatures: s.totalFeatures, completedFeatures: s.completedFeatures,
+                recipients: sentTo.map(r => r.email), via: 'admin',
+            },
+            notified_at: new Date().toISOString(),
+        });
+
+        const failed = cleaned.length - sentTo.length;
+        return {
+            success: true,
+            message: failed > 0
+                ? `Status of "${s.project}" sent to ${sentTo.length} of ${cleaned.length} recipients (${failed} failed).`
+                : `Status of "${s.project}" sent to ${sentTo.map(r => r.name).join(', ')}.`,
+        };
+    } catch (err: any) {
+        console.error('sendProjectStatusUpdate error:', err);
         return { success: false, message: err.message || 'Unexpected error.' };
     }
 }

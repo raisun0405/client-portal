@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabaseAdmin } from '@/lib/supabase';
 import { logActivity, type ActivityLog } from '@/lib/activityLogger';
-import { sendNotification, sendDigestNotification, sendWelcomeEmail, getPaymentReminderSummary, sendPaymentReminder } from '@/lib/notifications';
+import { sendNotification, sendDigestNotification, sendWelcomeEmail, getPaymentReminderSummary, sendPaymentReminder, getProjectStatusSummary, sendProjectStatusUpdate } from '@/lib/notifications';
 import { deriveProjectStatus, resolveProjectStatus, type DisplayStatus } from '@/lib/projectStatus';
 import { computeProjectStats } from '@/lib/billing';
 import { packageSchedule, todayLocalISO, coveragePeriod, shiftDaysISO, shiftMonthsISO, type Cadence } from '@/lib/packageDates';
@@ -382,7 +382,7 @@ export default function AdminDashboard() {
     // Additional recipients being edited in the client form (beyond the primary email).
     const [editRecipients, setEditRecipients] = useState<{ id?: string; email: string; first_name: string; last_name: string }[]>([]);
     // Recipient-picker modal shown before sending when a client has more than one recipient.
-    const [sendModal, setSendModal] = useState<{ type: 'single' | 'digest' | 'welcome' | 'reminder'; logId?: string; clientId?: string; amountLabel?: string; items: { email: string; name: string; isPrimary: boolean; checked: boolean }[] } | null>(null);
+    const [sendModal, setSendModal] = useState<{ type: 'single' | 'digest' | 'welcome' | 'reminder' | 'status'; logId?: string; clientId?: string; projectId?: string; amountLabel?: string; items: { email: string; name: string; isPrimary: boolean; checked: boolean }[] } | null>(null);
     const [sendModalBusy, setSendModalBusy] = useState(false);
 
     // Load the selected client's package billing periods (for the pipeline
@@ -1825,11 +1825,41 @@ export default function AdminDashboard() {
         }
     };
 
+    // One-click status update for a single project: emails the client where that
+    // project stands (status, progress, every feature with its own status). The
+    // status is read fresh from the server for the confirm text and recomputed
+    // again on send, so what goes out is never a stale copy of the screen.
+    const handleSendStatus = async (project: ProjectWithStats) => {
+        const client = selectedClient;
+        if (!client) return;
+        const summary = await getProjectStatusSummary(project.id);
+        if (!summary.success) { alert(summary.message); return; }
+        const recips = await resolveClientRecipients(client);
+        if (recips.length === 0) {
+            alert('This client has no email address. Edit the client to add one.');
+            return;
+        }
+        if (recips.length > 1) {
+            setSendModal({ type: 'status', clientId: client.id, projectId: project.id, items: recips.map(r => ({ ...r, checked: true })) });
+            return;
+        }
+        const progressText = summary.totalFeatures > 0
+            ? `${summary.completedFeatures} of ${summary.totalFeatures} features done`
+            : 'no features yet';
+        const last = summary.lastSentAt ? `\n\nLast status update was sent ${getRelativeTime(summary.lastSentAt)}.` : '';
+        if (!confirm(`Send the status of "${project.description}" (${summary.status}, ${progressText}) to ${recips[0].name} <${recips[0].email}>?${last}`)) return;
+        const result = await sendProjectStatusUpdate(project.id, [{ email: recips[0].email, name: recips[0].name }]);
+        alert(result.message);
+        if (result.success) fetchActivityLogs(client.id);
+    };
+
     // Confirm send from the recipient-picker modal → send to the checked recipients.
     const handleConfirmSend = async () => {
         if (!sendModal) return;
-        // Welcome + reminder can be sent from the overview menu, where no client is selected.
-        if (sendModal.type !== 'welcome' && sendModal.type !== 'reminder' && !selectedClient) return;
+        // Welcome, reminder and status carry their own target, so they can be
+        // sent from places where no client is selected.
+        const perClient = sendModal.type === 'welcome' || sendModal.type === 'reminder' || sendModal.type === 'status';
+        if (!perClient && !selectedClient) return;
         const chosen = sendModal.items.filter(i => i.checked).map(i => ({ email: i.email, name: i.name }));
         if (chosen.length === 0) {
             alert('Select at least one recipient.');
@@ -1840,12 +1870,13 @@ export default function AdminDashboard() {
             ? await sendWelcomeEmail(sendModal.clientId, chosen)
             : sendModal.type === 'reminder' && sendModal.clientId
                 ? await sendPaymentReminder(sendModal.clientId, chosen)
-                : sendModal.type === 'single' && sendModal.logId
-                    ? await sendNotification(sendModal.logId, chosen)
-                    : await sendDigestNotification(Array.from(selectedLogIds), chosen);
+                : sendModal.type === 'status' && sendModal.projectId
+                    ? await sendProjectStatusUpdate(sendModal.projectId, chosen)
+                    : sendModal.type === 'single' && sendModal.logId
+                        ? await sendNotification(sendModal.logId, chosen)
+                        : await sendDigestNotification(Array.from(selectedLogIds), chosen);
         setSendModalBusy(false);
         if (result.success) {
-            const perClient = sendModal.type === 'welcome' || sendModal.type === 'reminder';
             const refreshId = perClient ? sendModal.clientId : selectedClient?.id;
             if (refreshId && selectedClient?.id === refreshId) {
                 fetchActivityLogs(refreshId);
@@ -1920,6 +1951,7 @@ export default function AdminDashboard() {
             case 'change_requested': return { icon: <Pencil size={14} />, color: 'bg-orange-500', bgLight: 'bg-orange-50', textColor: 'text-orange-600', label: 'Change Requested' };
             case 'welcome_sent': return { icon: <Mail size={14} />, color: 'bg-sky-500', bgLight: 'bg-sky-50', textColor: 'text-sky-600', label: 'Welcome' };
             case 'payment_reminder': return { icon: <BellRing size={14} />, color: 'bg-amber-500', bgLight: 'bg-amber-50', textColor: 'text-amber-600', label: 'Payment Reminder' };
+            case 'status_sent': return { icon: <Send size={14} />, color: 'bg-teal-500', bgLight: 'bg-teal-50', textColor: 'text-teal-600', label: 'Status Update' };
             default: return { icon: <Activity size={14} />, color: 'bg-slate-400', bgLight: 'bg-slate-50', textColor: 'text-slate-500', label: 'Activity' };
         }
     };
@@ -2639,6 +2671,16 @@ export default function AdminDashboard() {
                                                             <CheckCircle2 size={13} strokeWidth={2.5} /> Accept
                                                         </button>
                                                     )}
+                                                    {ds !== 'Requested' && (
+                                                        <button
+                                                            onClick={() => handleSendStatus(project)}
+                                                            title="Email this project's status to the client"
+                                                            className="rounded-full h-9 px-4 text-[12.5px] font-bold flex items-center gap-1.5 whitespace-nowrap transition-colors hover:bg-[rgba(26,29,37,0.06)]"
+                                                            style={{ border: `1px solid ${T.hairline}`, color: '#4A515E' }}
+                                                        >
+                                                            <Send size={13} strokeWidth={2} /> Send status
+                                                        </button>
+                                                    )}
                                                     <button
                                                         onClick={() => handleProjectLinksSelect(project)}
                                                         className="rounded-full h-9 px-4 text-[12.5px] font-bold flex items-center gap-1.5 transition-colors hover:bg-[rgba(26,29,37,0.06)]"
@@ -2726,6 +2768,16 @@ export default function AdminDashboard() {
                                                         )}
                                                     </div>
                                                     <div className="flex items-center gap-1.5 shrink-0">
+                                                        {ds !== 'Requested' && (
+                                                            <button
+                                                                onClick={() => handleSendStatus(project)}
+                                                                aria-label="Send status to client"
+                                                                className="w-9 h-9 rounded-full grid place-items-center transition-colors hover:bg-[rgba(26,29,37,0.06)]"
+                                                                style={{ border: `1px solid ${T.hairline}`, color: '#4A515E' }}
+                                                            >
+                                                                <Send size={14} strokeWidth={2} />
+                                                            </button>
+                                                        )}
                                                         <button
                                                             onClick={() => handleProjectLinksSelect(project)}
                                                             aria-label="Links"
@@ -2936,7 +2988,17 @@ export default function AdminDashboard() {
                                     <div className="text-[11.5px] font-extrabold uppercase truncate min-w-0 flex-1" style={{ letterSpacing: '0.14em', color: T.label }}>
                                         {selectedClient?.name || 'Admin'} — <span style={{ color: T.ink }}>Features</span>
                                     </div>
-                                    <div className="ml-auto shrink-0">
+                                    <div className="ml-auto shrink-0 flex items-center gap-2">
+                                        {selectedProject && selectedProject.displayStatus !== 'Requested' && (
+                                            <button
+                                                onClick={() => handleSendStatus(selectedProject)}
+                                                title="Email this project's status to the client"
+                                                className="rounded-full h-11 px-4 sm:px-5 text-[14px] font-bold flex items-center gap-2 whitespace-nowrap transition-colors hover:bg-[rgba(26,29,37,0.06)]"
+                                                style={{ border: `1px solid ${T.hairline}`, color: '#4A515E' }}
+                                            >
+                                                <Send size={15} strokeWidth={2} /> <span className="hidden sm:inline">Send status</span>
+                                            </button>
+                                        )}
                                         <button
                                             onClick={() => { setFormData({}); setEditingId(null); setEditingLinkIndex(null); setEditRecipients([]); setShowModal(true); }}
                                             className="rounded-full h-11 px-5 text-[14px] font-bold text-white flex items-center gap-2 whitespace-nowrap transition-opacity hover:opacity-90"
@@ -3741,7 +3803,7 @@ export default function AdminDashboard() {
                                 <div className="flex items-start justify-between gap-3 p-5 sm:p-6 pb-4" style={{ borderBottom: `1px solid ${T.hairline}` }}>
                                     <div>
                                         <h3 className="text-[17px] font-bold tracking-[-0.01em]" style={{ color: T.ink }}>
-                                            Send {sendModal.type === 'digest' ? 'digest' : sendModal.type === 'welcome' ? 'welcome email' : sendModal.type === 'reminder' ? `${sendModal.amountLabel ?? ''} payment reminder` : 'update'} to…
+                                            Send {sendModal.type === 'digest' ? 'digest' : sendModal.type === 'welcome' ? 'welcome email' : sendModal.type === 'reminder' ? `${sendModal.amountLabel ?? ''} payment reminder` : sendModal.type === 'status' ? 'project status' : 'update'} to…
                                         </h3>
                                         <p className="text-[12.5px] mt-1" style={{ color: T.muted }}>
                                             This client has multiple recipients. Choose who receives it — each gets a copy personalised to their own name.

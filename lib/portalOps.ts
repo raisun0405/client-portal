@@ -10,7 +10,7 @@
 // Framework-agnostic on purpose: no next/headers, no React. It writes with the
 // server-only secret key, so it works from a plain Node process too.
 import { supabaseService } from './supabaseServer';
-import { deriveProjectStatus } from './projectStatus';
+import { deriveProjectStatus, resolveProjectStatus, type DisplayStatus } from './projectStatus';
 import { monthYearLabel, planLabel, type Cadence } from './packageDates';
 
 export type OpResult<T = any> = { ok: boolean; message: string; data?: T };
@@ -494,6 +494,63 @@ export async function getClientBalance(clientId: string): Promise<OpResult<Clien
         data: {
             clientId: client.id, client: client.name, billingMode: client.billing_mode,
             total, rows, lastReminderAt: last && last[0] ? last[0].created_at : null,
+        },
+    };
+}
+
+export type ProjectFeatureRow = { description: string; status: string };
+export type ProjectStatusSummary = {
+    projectId: string;
+    project: string;
+    category: string;
+    clientId: string;
+    client: string;
+    status: DisplayStatus;
+    progress: number;
+    totalFeatures: number;
+    completedFeatures: number;
+    features: ProjectFeatureRow[];
+    lastSentAt: string | null;
+};
+
+/**
+ * Where one project stands right now: the same derived status, progress and
+ * feature list the dashboards render, plus when a status update was last
+ * emailed for it. Read-only, and deliberately carries no money, because the
+ * status email is a progress report (package features are covered by the
+ * retainer, and per-feature balances have the payment reminder).
+ */
+export async function getProjectStatus(projectId: string): Promise<OpResult<ProjectStatusSummary>> {
+    const db = supabaseService();
+    const { data: project } = await db.from('projects')
+        .select('id, description, category, status_override, client_id').eq('id', projectId).single();
+    if (!project) return { ok: false, message: 'Project not found.' };
+    const { data: client } = await db.from('clients').select('id, name').eq('id', project.client_id).single();
+    if (!client) return { ok: false, message: 'Client not found.' };
+
+    // Creation order, so the list reads like the plan of work.
+    const { data: feats } = await db.from('features')
+        .select('description, status, created_at').eq('project_id', project.id).order('created_at');
+    const features = feats || [];
+
+    const status = resolveProjectStatus(project.status_override, features);
+    const totalFeatures = features.length;
+    const completedFeatures = features.filter((f: any) => f.status === 'Completed').length;
+    const progress = totalFeatures > 0 ? Math.round((completedFeatures / totalFeatures) * 100) : 0;
+
+    const { data: last } = await db.from('activity_logs')
+        .select('created_at').eq('project_id', project.id).eq('action_type', 'status_sent')
+        .order('created_at', { ascending: false }).limit(1);
+
+    return {
+        ok: true,
+        message: `"${project.description}" is ${status}${totalFeatures > 0 ? ` (${completedFeatures} of ${totalFeatures} features done)` : ' (no features yet)'}.`,
+        data: {
+            projectId: project.id, project: project.description, category: project.category,
+            clientId: client.id, client: client.name,
+            status, progress, totalFeatures, completedFeatures,
+            features: features.map((f: any) => ({ description: f.description, status: f.status || 'Requested' })),
+            lastSentAt: last && last[0] ? last[0].created_at : null,
         },
     };
 }

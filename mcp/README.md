@@ -48,6 +48,7 @@ Don't confuse it with the **client connector** (`track.raisun.dev/mcp`), which *
 | `portal_find_feature` | Resolve plain language → IDs. Substring match on the description, optionally scoped by `clientName`. Returns status, project, client and money state. **Use this first**, then pass `featureId` to a write tool. |
 | `portal_list_projects` | A client's projects with ids, category and billing mode. Use it to pick the project for `portal_add_feature` / `portal_add_link`. |
 | `portal_client_balance` | What one client owes right now, itemised (unpaid retainer invoices + confirmed per-feature project balances, Rate Pending excluded), plus when they were last sent a payment reminder. Read-only. |
+| `portal_project_status` | Where one project stands: derived status, progress, every feature with its own status, and when a status update was last emailed for it. Read-only. |
 
 ### Write
 

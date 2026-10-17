@@ -23,7 +23,7 @@ for (const line of readFileSync(resolve(ROOT, '.env'), 'utf8').split(/\r?\n/)) {
     if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
 }
 
-const { updateFeature, getPending, findFeatures, addFeature, createProject, listProjects, addProjectLink, getClientBalance } = await import('../lib/portalOps.js');
+const { updateFeature, getPending, findFeatures, addFeature, createProject, listProjects, addProjectLink, getClientBalance, getProjectStatus } = await import('../lib/portalOps.js');
 const DOMAIN = readFileSync(resolve(ROOT, 'docs/PORTAL_DOMAIN.md'), 'utf8');
 
 const server = new McpServer(
@@ -74,6 +74,14 @@ server.tool(
     'sent by Rohan from the admin UI, never from here.',
     { clientId: z.string().uuid() },
     async ({ clientId }) => fmt(await getClientBalance(clientId)),
+);
+
+server.tool(
+    'portal_project_status',
+    'Where one project stands: its derived status, progress, every feature with its own status, and when a status ' +
+    'update was last emailed for it. Read-only; the status email is sent by Rohan from the admin UI, never from here.',
+    { projectId: z.string().uuid() },
+    async ({ projectId }) => fmt(await getProjectStatus(projectId)),
 );
 
 server.tool(
